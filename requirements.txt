@@ -1,0 +1,18 @@
+jupyterlab
+pandas
+ipywidgets
+tqdm
+pydantic
+click
+streamlit
+langdetect
+playwright
+
+# parsers
+trafilatura
+readability-lxml
+bleach
+news-please
+
+# development
+pre-commit
