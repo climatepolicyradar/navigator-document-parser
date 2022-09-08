@@ -4,7 +4,7 @@ import logging
 
 from newsplease import NewsPlease
 
-from src.base import HTMLParser, HTMLParserOutput
+from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
 from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class NewsPleaseParser(HTMLParser):
         """Return parser name"""
         return "newsplease"
 
-    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
+    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
         """
         Parse HTML using newsplease.
 
@@ -32,14 +32,14 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
-            article = NewsPlease.from_html(html=html, url=url, fetch_images=False)
+            article = NewsPlease.from_html(html=html, url=input.url, fetch_images=False)
         except Exception as e:
-            logger.error(f"Failed to parse {url}: {e}")
-            return self._get_empty_response(url)
+            logger.error(f"Failed to parse {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
 
-        return self._newsplease_article_to_parsed_html(article, url)
+        return self._newsplease_article_to_parsed_html(article, input)
 
-    def parse(self, url: str) -> HTMLParserOutput:
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
         """
         Parse website using newsplease
 
@@ -49,15 +49,15 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
-            article = NewsPlease.from_url(url, timeout=HTTP_REQUEST_TIMEOUT)
+            article = NewsPlease.from_url(input.url, timeout=HTTP_REQUEST_TIMEOUT)
         except Exception as e:
-            logger.error(f"Failed to parse {url}: {e}")
-            return self._get_empty_response(url)
+            logger.error(f"Failed to parse {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
 
-        return self._newsplease_article_to_parsed_html(article, url)
+        return self._newsplease_article_to_parsed_html(article, input)
 
     def _newsplease_article_to_parsed_html(
-        self, newsplease_article, url: str
+        self, newsplease_article, input: HTMLParserInput
     ) -> HTMLParserOutput:
         """
         Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.
@@ -71,14 +71,15 @@ class NewsPleaseParser(HTMLParser):
         text = newsplease_article.maintext
 
         if not text:
-            return self._get_empty_response(url)
+            return self._get_empty_response(input)
 
         text_by_line = text.split("\n")
         has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
 
         return HTMLParserOutput(
+            id=input.id,
+            url=input.url,
             title=newsplease_article.title,
-            url=newsplease_article.url,
             text_by_line=text_by_line,
             date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class
             has_valid_text=has_valid_text,

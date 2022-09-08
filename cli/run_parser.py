@@ -36,7 +36,7 @@ def main(input_dir: Path, output_dir: Path):
     logger.info("Running HTML parser")
 
     for task in tqdm(tasks):
-        parsed_html = html_parser.parse(task.url).detect_language()
+        parsed_html = html_parser.parse(task).detect_language()
         output_path = output_dir / f"{task.id}.json"
 
         with open(output_path, "w") as f:

@@ -9,7 +9,7 @@ from readability import Document
 import bleach
 
 from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
-from src.base import HTMLParser, HTMLParserOutput
+from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class ReadabilityParser(HTMLParser):
         """Return parser name"""
         return "readability"
 
-    def parse(self, url: str) -> HTMLParserOutput:
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
         """
         Parse web page using readability.
 
@@ -36,18 +36,21 @@ class ReadabilityParser(HTMLParser):
 
         try:
             response = requests.get(
-                url, verify=False, allow_redirects=True, timeout=HTTP_REQUEST_TIMEOUT
+                input.url,
+                verify=False,
+                allow_redirects=True,
+                timeout=HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
-            logger.error(f"Could not fetch {url}: {e}")
-            return self._get_empty_response(url)
+            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
 
         if response.status_code != 200:
-            return self._get_empty_response(url)
+            return self._get_empty_response(input)
 
-        return self.parse_html(html=response.text, url=url)
+        return self.parse_html(response.text, input)
 
-    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
+    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
         """Parse HTML using readability
 
         :param html: HTML string to parse
@@ -68,8 +71,9 @@ class ReadabilityParser(HTMLParser):
 
         # Readability doesn't provide a date
         return HTMLParserOutput(
+            id=input.id,
             title=title,
-            url=url,
+            url=input.url,
             text_by_line=text_by_line,
             date=None,
             has_valid_text=has_valid_text,

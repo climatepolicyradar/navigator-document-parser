@@ -19,8 +19,9 @@ class HTMLParserInput(BaseModel):
 class HTMLParserOutput(BaseModel):
     """Base class for the output of an HTML parser."""
 
+    id: str
+    url: AnyHttpUrl
     title: Optional[str]
-    url: str
     text_by_line: List[str]
     date: Optional[date]
     has_valid_text: bool
@@ -54,15 +55,16 @@ class HTMLParser(ABC):
         """Parse an HTML string directly."""
         raise NotImplementedError()
 
-    def parse(self, url: str) -> HTMLParserOutput:
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
         """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
         raise NotImplementedError()
 
-    def _get_empty_response(self, url) -> HTMLParserOutput:
+    def _get_empty_response(self, input: HTMLParserInput) -> HTMLParserOutput:
         """Return ParsedHTML object with empty fields."""
         return HTMLParserOutput(
+            id=input.id,
             title="",
-            url=url,
+            url=input.url,
             date=None,
             text_by_line=[],
             has_valid_text=False,

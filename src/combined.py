@@ -8,7 +8,7 @@ from playwright.sync_api._generated import Playwright
 
 from src.newsplease import NewsPleaseParser
 from src.readability import ReadabilityParser
-from src.base import HTMLParser, HTMLParserOutput
+from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
 from src.config import (
     MIN_NO_LINES_FOR_VALID_TEXT,
     HTTP_REQUEST_TIMEOUT,
@@ -42,7 +42,7 @@ class CombinedParser(HTMLParser):
         """Return parser name"""
         return "combined"
 
-    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
+    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
         """
         Parse HTML using the better option between NewsPlease and Readability.
 
@@ -54,10 +54,10 @@ class CombinedParser(HTMLParser):
 
         :return ParsedHTML: Parsed HTML
         """
-        newsplease_result = NewsPleaseParser().parse_html(html, url)
+        newsplease_result = NewsPleaseParser().parse_html(html, input)
 
         if len(newsplease_result.text_by_line) == 0:
-            return ReadabilityParser().parse_html(html, url)
+            return ReadabilityParser().parse_html(html, input)
 
         if (
             max(
@@ -66,11 +66,11 @@ class CombinedParser(HTMLParser):
             )
             > self._max_paragraph_words
         ):
-            return ReadabilityParser().parse_html(html, url)
+            return ReadabilityParser().parse_html(html, input)
 
         return newsplease_result
 
-    def parse(self, url: str) -> HTMLParserOutput:
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
         """
         Parse web page using the better option between NewsPlease and Readability. If requests fails to capture HTML that looks like a full web page, it falls back to using a headless browser with JS enabled.
 
@@ -80,18 +80,18 @@ class CombinedParser(HTMLParser):
         """
 
         requests_response = requests.get(
-            url, verify=False, allow_redirects=True, timeout=HTTP_REQUEST_TIMEOUT
+            input.url, verify=False, allow_redirects=True, timeout=HTTP_REQUEST_TIMEOUT
         )
 
-        parsed_html = self.parse_html(requests_response.text, url)
+        parsed_html = self.parse_html(requests_response.text, input)
 
         # If there isn't enough text and there's a `<noscript>` tag in the HTML, try again with JS enabled
         if (len(parsed_html.text_by_line) < MIN_NO_LINES_FOR_VALID_TEXT) and (
             "<noscript>" in requests_response.text
         ):
             with sync_playwright() as playwright:
-                html_playwright = self._get_html_with_js_enabled(playwright, url)
-                parsed_html_playwright = self.parse_html(html_playwright, url)
+                html_playwright = self._get_html_with_js_enabled(playwright, input.url)
+                parsed_html_playwright = self.parse_html(html_playwright, input)
 
             return parsed_html_playwright
 
