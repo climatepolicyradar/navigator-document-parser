@@ -9,7 +9,7 @@ from playwright.sync_api._generated import Playwright
 from src.newsplease import NewsPleaseParser
 from src.readability import ReadabilityParser
 from src.base import HTMLParser, ParsedHTML
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT
+from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +75,9 @@ class CombinedParser(HTMLParser):
             Parsed HTML
         """
 
-        # TODO: set timeout and headers in config
-        requests_response = requests.get(url, verify=False, allow_redirects=True)
+        requests_response = requests.get(
+            url, verify=False, allow_redirects=True, timeout=HTTP_REQUEST_TIMEOUT
+        )
 
         parsed_html = self.parse_html(requests_response.text, url)
 

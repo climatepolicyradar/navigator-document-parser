@@ -5,7 +5,7 @@ import logging
 from newsplease import NewsPlease
 
 from src.base import HTMLParser, ParsedHTML
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT
+from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
-            article = NewsPlease.from_url(url, timeout=30)
+            article = NewsPlease.from_url(url, timeout=HTTP_REQUEST_TIMEOUT)
         except Exception as e:
             logger.error(f"Failed to parse {url}: {e}")
             return self._get_empty_response(url)

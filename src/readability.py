@@ -8,7 +8,7 @@ import requests
 from readability import Document
 import bleach
 
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT
+from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 from src.base import HTMLParser, ParsedHTML
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,9 @@ class ReadabilityParser(HTMLParser):
         """
 
         try:
-            response = requests.get(url, verify=False)
+            response = requests.get(
+                url, verify=False, allow_redirects=True, timeout=HTTP_REQUEST_TIMEOUT
+            )
         except Exception as e:
             logger.error(f"Could not fetch {url}: {e}")
             return self._get_empty_response(url)
