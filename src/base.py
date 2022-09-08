@@ -48,7 +48,6 @@ class HTMLParser(ABC):
         return ParsedHTML(
             title="",
             url=url,
-            description=None,
             date=None,
             text_by_line=[],
             has_valid_text=False,

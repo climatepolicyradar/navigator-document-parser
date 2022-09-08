@@ -62,12 +62,11 @@ class ReadabilityParser(HTMLParser):
         text_by_line = self._combine_bullet_lines_with_next(text_by_line)
         has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
 
-        # Readability doesn't provide a date or description
+        # Readability doesn't provide a date
         return ParsedHTML(
             title=title,
             url=url,
             text_by_line=text_by_line,
-            description=None,
             date=None,
             has_valid_text=has_valid_text,
         )

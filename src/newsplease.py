@@ -78,7 +78,6 @@ class NewsPleaseParser(HTMLParser):
             title=newsplease_article.title,
             url=newsplease_article.url,
             text_by_line=text_by_line,
-            description=newsplease_article.description,
             date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class,
             has_valid_text=has_valid_text,
         )
