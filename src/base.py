@@ -4,12 +4,19 @@ from typing import Optional, List
 from abc import ABC
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, AnyHttpUrl
 from langdetect import detect
 from langdetect import DetectorFactory
 
 
-class ParsedHTML(BaseModel):
+class HTMLParserInput(BaseModel):
+    """Input for the parser."""
+
+    id: str
+    url: AnyHttpUrl
+
+
+class HTMLParserOutput(BaseModel):
     """Base class for the output of an HTML parser."""
 
     title: Optional[str]
@@ -20,7 +27,7 @@ class ParsedHTML(BaseModel):
     language: Optional[str] = None
     translated: bool = False
 
-    def detect_language(self) -> "ParsedHTML":
+    def detect_language(self) -> "HTMLParserOutput":
         """Detect language of the text and set the language attribute. Return an instance of ParsedHTML with the language attribute set.
 
         TODO: we could detect a language per element instead. Are we safe to assume that a website is written in only one language?
@@ -43,17 +50,17 @@ class HTMLParser(ABC):
         """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
         raise NotImplementedError()
 
-    def parse_html(self, html: str, url: str) -> ParsedHTML:
+    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
         """Parse an HTML string directly."""
         raise NotImplementedError()
 
-    def parse(self, url: str) -> ParsedHTML:
+    def parse(self, url: str) -> HTMLParserOutput:
         """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
         raise NotImplementedError()
 
-    def _get_empty_response(self, url) -> ParsedHTML:
+    def _get_empty_response(self, url) -> HTMLParserOutput:
         """Return ParsedHTML object with empty fields."""
-        return ParsedHTML(
+        return HTMLParserOutput(
             title="",
             url=url,
             date=None,

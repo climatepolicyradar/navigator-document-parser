@@ -1,6 +1,6 @@
 import pytest
 
-from src.base import HTMLParser, ParsedHTML
+from src.base import HTMLParser, HTMLParserOutput
 from src.newsplease import NewsPleaseParser
 from src.readability import ReadabilityParser
 from src.combined import CombinedParser
@@ -27,4 +27,4 @@ def test_parse(url: str, parser: HTMLParser) -> None:
 
     parser_result = parser.parse(url)
 
-    assert isinstance(parser_result, ParsedHTML)
+    assert isinstance(parser_result, HTMLParserOutput)

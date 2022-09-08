@@ -8,8 +8,12 @@ from playwright.sync_api._generated import Playwright
 
 from src.newsplease import NewsPleaseParser
 from src.readability import ReadabilityParser
-from src.base import HTMLParser, ParsedHTML
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
+from src.base import HTMLParser, HTMLParserOutput
+from src.config import (
+    MIN_NO_LINES_FOR_VALID_TEXT,
+    HTTP_REQUEST_TIMEOUT,
+    MAX_PARAGRAPH_LENGTH_WORDS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +27,7 @@ class CombinedParser(HTMLParser):
 
     """
 
-    def __init__(self, max_paragraph_words: int = 500) -> None:
+    def __init__(self, max_paragraph_words: int = MAX_PARAGRAPH_LENGTH_WORDS) -> None:
         """
         Initialise combined parser
 
@@ -38,7 +42,7 @@ class CombinedParser(HTMLParser):
         """Return parser name"""
         return "combined"
 
-    def parse_html(self, html: str, url: str) -> ParsedHTML:
+    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
         """
         Parse HTML using the better option between NewsPlease and Readability.
 
@@ -66,7 +70,7 @@ class CombinedParser(HTMLParser):
 
         return newsplease_result
 
-    def parse(self, url: str) -> ParsedHTML:
+    def parse(self, url: str) -> HTMLParserOutput:
         """
         Parse web page using the better option between NewsPlease and Readability. If requests fails to capture HTML that looks like a full web page, it falls back to using a headless browser with JS enabled.
 

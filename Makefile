@@ -1,4 +1,7 @@
-.PHONY: install test
+.PHONY: parse install test
+
+parse:
+	python -m cmd.run_parser ./data/raw ./data/processed
 
 install:
 	poetry install
