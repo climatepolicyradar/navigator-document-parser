@@ -22,14 +22,13 @@ class NewsPleaseParser(HTMLParser):
         return "newsplease"
 
     def parse_html(self, html: str, url: str) -> ParsedHTML:
-        """Parse HTML using newsplease.
+        """
+        Parse HTML using newsplease.
 
-        Arguments:
-            html -- HTML string to parse
-            url -- URL of web page
+        :param html: HTML string to parse
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         try:
@@ -41,13 +40,12 @@ class NewsPleaseParser(HTMLParser):
         return self._newsplease_article_to_parsed_html(article, url)
 
     def parse(self, url: str) -> ParsedHTML:
-        """Parse website using newsplease
+        """
+        Parse website using newsplease
 
-        Arguments:
-            url -- URL of web page
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         try:
@@ -61,14 +59,13 @@ class NewsPleaseParser(HTMLParser):
     def _newsplease_article_to_parsed_html(
         self, newsplease_article, url: str
     ) -> ParsedHTML:
-        """Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.
+        """
+        Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.
 
-        Arguments:
-            newsplease_article -- article returned by `NewsPlease.from_url` or `NewsPlease.from_html`
-            url -- URL of web page
+        :param newsplease_article: article returned by `NewsPlease.from_url` or `NewsPlease.from_html`
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         text = newsplease_article.maintext

@@ -18,14 +18,11 @@ from src.combined import CombinedParser
 )
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_parse(url: str, parser: HTMLParser) -> None:
-    """Test that the parser can parse the URL without raising an exception.
+    """
+    Test that the parser can parse the URL without raising an exception.
 
-    Arguments:
-        url -- URL of web page
-        parser -- parser to test
-
-    Returns:
-        None
+    :param url: URL of web page
+    :param parser: HTML parser
     """
 
     parser_result = parser.parse(url)

@@ -26,13 +26,12 @@ class ReadabilityParser(HTMLParser):
         return "readability"
 
     def parse(self, url: str) -> ParsedHTML:
-        """Parse web page using readability.
+        """
+        Parse web page using readability.
 
-        Arguments:
-            url -- URL of web page
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         try:
@@ -51,12 +50,10 @@ class ReadabilityParser(HTMLParser):
     def parse_html(self, html: str, url: str) -> ParsedHTML:
         """Parse HTML using readability
 
-        Arguments:
-            html -- HTML string to parse
-            url -- URL of  web page
+        :param html: HTML string to parse
+        :param url: URL of  web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         readability_doc = Document(html)

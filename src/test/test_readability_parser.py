@@ -21,7 +21,7 @@ from src.readability import ReadabilityParser
     ],
 )
 def test_combining_bullets(list_headers: Tuple[str, str]) -> None:
-    """Test that the ReadabilityParser method to combine bullet points with the next line works correctly."""
+    """Test the ReadabilityParser method to combine bullet points with the next line."""
 
     parser = ReadabilityParser()
     text_by_line = [
