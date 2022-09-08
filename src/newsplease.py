@@ -1,3 +1,5 @@
+"""Parser using news-please library: https://github.com/fhamborg/news-please"""
+
 import logging
 
 from newsplease import NewsPlease
@@ -9,15 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 class NewsPleaseParser(HTMLParser):
+    """HTML parser which uses the news-please library."""
+
     def __init__(self) -> None:
         super().__init__()
 
     @property
     def name(self) -> str:
+        """Return parser name"""
         return "newsplease"
 
     def parse_html(self, html: str, url: str) -> ParsedHTML:
-        """Parse HTML using newsplease
+        """Parse HTML using newsplease.
 
         Arguments:
             html -- HTML string to parse
@@ -78,6 +83,6 @@ class NewsPleaseParser(HTMLParser):
             title=newsplease_article.title,
             url=newsplease_article.url,
             text_by_line=text_by_line,
-            date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class,
+            date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class
             has_valid_text=has_valid_text,
         )

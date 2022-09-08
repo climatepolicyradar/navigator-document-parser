@@ -1,3 +1,5 @@
+"""A combined parser which uses both readability and newsplease to parse HTML."""
+
 import logging
 
 import requests
@@ -13,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class CombinedParser(HTMLParser):
-    """
-    Runs the NewsPlease parser on the given URL. If any paragraph is longer than `max_paragraph_words` or the NewsPlease output is empty, it falls back to the Readability parser.
+    """Runs the NewsPlease parser on the given URL. If any paragraph is longer than `max_paragraph_words` or the NewsPlease output is empty, it falls back to the Readability parser.
 
     This has been created as generally NewsPlease is the best parser, but sometimes it pulls paragraphs together, resulting in very long blocks which will be harder to do things with downstream.
     Readability is better at paragraph splitting in these cases, so when NewsPlease creates a long paragraph, we fall back to Readability.
@@ -32,10 +33,12 @@ class CombinedParser(HTMLParser):
 
     @property
     def name(self) -> str:
+        """Return parser name"""
         return "combined"
 
     def parse_html(self, html: str, url: str) -> ParsedHTML:
         """Parse HTML using the better option between NewsPlease and Readability.
+
         NewsPlease is used unless it returns an empty response or combines paragraphs into paragraphs that we consider too long,
         based on the number of words in them.
 
@@ -63,8 +66,7 @@ class CombinedParser(HTMLParser):
         return newsplease_result
 
     def parse(self, url: str) -> ParsedHTML:
-        """Parse web page using the better option between NewsPlease and Readability. If requests fails to capture HTML that looks like a full web page,
-        it falls back to using a headless browser with JS enabled.
+        """Parse web page using the better option between NewsPlease and Readability. If requests fails to capture HTML that looks like a full web page, it falls back to using a headless browser with JS enabled.
 
         Arguments:
             url -- URL of web page

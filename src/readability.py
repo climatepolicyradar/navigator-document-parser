@@ -1,3 +1,5 @@
+"""Parser using python-readability library: https://github.com/buriy/python-readability"""
+
 import logging
 from typing import List
 import re
@@ -13,15 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class ReadabilityParser(HTMLParser):
+    """HTML parser which uses the python-readability library."""
+
     def __init__(self) -> None:
         super().__init__()
 
     @property
     def name(self) -> str:
+        """Return parser name"""
         return "readability"
 
     def parse(self, url: str) -> ParsedHTML:
-        """Parse web page using readability
+        """Parse web page using readability.
 
         Arguments:
             url -- URL of web page
