@@ -86,6 +86,8 @@ class ReadabilityParser(HTMLParser):
             r"([\divxIVX]+\.)+",  # dotted number or roman numeral
             r"(\([\divxIVX]+\))+",  # parenthesized number or roman numeral
             r"[*•\-\–\+]",  # bullets
+            r"([a-zA-Z]+\.)+",  # dotted abc
+            r"(\([a-zA-Z]+\))+",  # parenthesized abc
         ]
 
         idx = 0
