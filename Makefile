@@ -7,6 +7,6 @@ run_parsers: data
 	python run_parsers.py ./data/interim/html_sample.csv ./data/processed
 
 install:
-	pip install -r requirements.txt
-	pre-commit install
-	playwright install 
+	poetry install
+	poetry run pre-commit install
+	poetry run playwright install 
