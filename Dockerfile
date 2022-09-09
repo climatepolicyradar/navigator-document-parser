@@ -17,3 +17,4 @@ RUN poetry install
 # Copy files to image
 COPY ./src ./src
 COPY ./cli ./cli
+COPY ./data ./data

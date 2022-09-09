@@ -7,6 +7,12 @@ Using article extraction techniques to parse web pages containing climate laws a
 
 ## Running the CLI
 
+To run in Docker with the `data/raw` folder as input and `data/processed` as output run:
+
+``` bash
+make run_docker
+```
+
 The CLI operates on an input folder of tasks defined by JSON files in the following format.
 
 ``` json

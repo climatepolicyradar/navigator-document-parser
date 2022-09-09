@@ -1,13 +1,13 @@
-.PHONY: parse install test_local build test
-
-parse:
-	python -m cli.run_parser ./data/raw ./data/processed
+.PHONY: run_local run_docker install test_local build test
 
 install:
 	poetry install
 	poetry run pre-commit install
 	poetry run playwright install 
 	cp .env.example .env
+
+run_local:
+	python -m cli.run_parser ./data/raw ./data/processed
 
 test_local:
 	python -m pytest
@@ -17,3 +17,6 @@ build:
 
 test:
 	docker run --network host html-parser python -m pytest -vvv
+
+run_docker:
+	docker run --network host -v ${PWD}/data:/app/data html-parser python -m cli.run_parser ./data/raw ./data/processed

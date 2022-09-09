@@ -64,6 +64,8 @@ def main(input_dir: Path, output_dir: Path):
         with open(output_path, "w") as f:
             f.write(parsed_html.json(indent=4, ensure_ascii=False))
 
+        logger.info(f"Output for {task.id} saved to {output_path}")
+
 
 if __name__ == "__main__":
     main()
