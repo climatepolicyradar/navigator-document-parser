@@ -1,23 +1,36 @@
+"""Base classes for parsing."""
+
 from typing import Optional, List
 from abc import ABC
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, AnyHttpUrl
 from langdetect import detect
 from langdetect import DetectorFactory
 
 
-class ParsedHTML(BaseModel):
+class HTMLParserInput(BaseModel):
+    """Input for the parser."""
+
+    id: str
+    url: AnyHttpUrl
+
+
+class HTMLParserOutput(BaseModel):
+    """Base class for the output of an HTML parser."""
+
+    id: str
+    url: AnyHttpUrl
     title: Optional[str]
-    url: str
     text_by_line: List[str]
     date: Optional[date]
     has_valid_text: bool
     language: Optional[str] = None
     translated: bool = False
 
-    def detect_language(self) -> "ParsedHTML":
+    def detect_language(self) -> "HTMLParserOutput":
         """Detect language of the text and set the language attribute. Return an instance of ParsedHTML with the language attribute set.
+
         TODO: we could detect a language per element instead. Are we safe to assume that a website is written in only one language?
         """
 
@@ -35,20 +48,23 @@ class HTMLParser(ABC):
 
     @property
     def name(self) -> str:
+        """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
         raise NotImplementedError()
 
-    def parse_html(self, html: str, url: str) -> ParsedHTML:
+    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
+        """Parse an HTML string directly."""
         raise NotImplementedError()
 
-    def parse(self, url: str) -> ParsedHTML:
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
+        """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
         raise NotImplementedError()
 
-    def _get_empty_response(self, url) -> ParsedHTML:
+    def _get_empty_response(self, input: HTMLParserInput) -> HTMLParserOutput:
         """Return ParsedHTML object with empty fields."""
-        return ParsedHTML(
+        return HTMLParserOutput(
+            id=input.id,
             title="",
-            url=url,
-            description=None,
+            url=input.url,
             date=None,
             text_by_line=[],
             has_valid_text=False,

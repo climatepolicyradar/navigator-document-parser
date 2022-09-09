@@ -1,84 +1,93 @@
+"""Parser using news-please library: https://github.com/fhamborg/news-please"""
+
 import logging
 
 from newsplease import NewsPlease
+import requests
 
-from src.base import HTMLParser, ParsedHTML
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT
+from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
 
 class NewsPleaseParser(HTMLParser):
+    """HTML parser which uses the news-please library."""
+
     def __init__(self) -> None:
         super().__init__()
 
     @property
     def name(self) -> str:
+        """Return parser name"""
         return "newsplease"
 
-    def parse_html(self, html: str, url: str) -> ParsedHTML:
-        """Parse HTML using newsplease
+    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
+        """
+        Parse HTML using newsplease.
 
-        Arguments:
-            html -- HTML string to parse
-            url -- URL of web page
+        :param html: HTML string to parse
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         try:
-            article = NewsPlease.from_html(html=html, url=url, fetch_images=False)
+            article = NewsPlease.from_html(html=html, url=input.url, fetch_images=False)
         except Exception as e:
-            logger.error(f"Failed to parse {url}: {e}")
-            return self._get_empty_response(url)
+            logger.error(f"Failed to parse {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
 
-        return self._newsplease_article_to_parsed_html(article, url)
+        return self._newsplease_article_to_parsed_html(article, input)
 
-    def parse(self, url: str) -> ParsedHTML:
-        """Parse website using newsplease
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
+        """
+        Parse website using newsplease
 
-        Arguments:
-            url -- URL of web page
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         try:
-            article = NewsPlease.from_url(url, timeout=30)
-        except Exception as e:
-            logger.error(f"Failed to parse {url}: {e}")
-            return self._get_empty_response(url)
+            response = requests.get(
+                input.url,
+                verify=False,
+                allow_redirects=True,
+                timeout=HTTP_REQUEST_TIMEOUT,
+            )
 
-        return self._newsplease_article_to_parsed_html(article, url)
+        except Exception as e:
+            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
+
+        return self.parse_html(response.text, input)
 
     def _newsplease_article_to_parsed_html(
-        self, newsplease_article, url: str
-    ) -> ParsedHTML:
-        """Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.
+        self, newsplease_article, input: HTMLParserInput
+    ) -> HTMLParserOutput:
+        """
+        Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.
 
-        Arguments:
-            newsplease_article -- article returned by `NewsPlease.from_url` or `NewsPlease.from_html`
-            url -- URL of web page
+        :param newsplease_article: article returned by `NewsPlease.from_url` or `NewsPlease.from_html`
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         text = newsplease_article.maintext
 
         if not text:
-            return self._get_empty_response(url)
+            return self._get_empty_response(input)
 
         text_by_line = text.split("\n")
         has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
 
-        return ParsedHTML(
+        return HTMLParserOutput(
+            id=input.id,
+            url=input.url,
             title=newsplease_article.title,
-            url=newsplease_article.url,
             text_by_line=text_by_line,
-            description=newsplease_article.description,
-            date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class,
+            date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class
             has_valid_text=has_valid_text,
         )

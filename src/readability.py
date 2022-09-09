@@ -1,3 +1,5 @@
+"""Parser using python-readability library: https://github.com/buriy/python-readability"""
+
 import logging
 from typing import List
 import re
@@ -6,50 +8,55 @@ import requests
 from readability import Document
 import bleach
 
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT
-from src.base import HTMLParser, ParsedHTML
+from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
+from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
 
 logger = logging.getLogger(__name__)
 
 
 class ReadabilityParser(HTMLParser):
+    """HTML parser which uses the python-readability library."""
+
     def __init__(self) -> None:
         super().__init__()
 
     @property
     def name(self) -> str:
+        """Return parser name"""
         return "readability"
 
-    def parse(self, url: str) -> ParsedHTML:
-        """Parse web page using readability
+    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
+        """
+        Parse web page using readability.
 
-        Arguments:
-            url -- URL of web page
+        :param url: URL of web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         try:
-            response = requests.get(url, verify=False)
+            response = requests.get(
+                input.url,
+                verify=False,
+                allow_redirects=True,
+                timeout=HTTP_REQUEST_TIMEOUT,
+            )
         except Exception as e:
-            logger.error(f"Could not fetch {url}: {e}")
-            return self._get_empty_response(url)
+            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
 
         if response.status_code != 200:
-            return self._get_empty_response(url)
+            return self._get_empty_response(input)
 
-        return self.parse_html(html=response.text, url=url)
+        return self.parse_html(response.text, input)
 
-    def parse_html(self, html: str, url: str) -> ParsedHTML:
+    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
         """Parse HTML using readability
 
-        Arguments:
-            html -- HTML string to parse
-            url -- URL of  web page
+        :param html: HTML string to parse
+        :param url: URL of  web page
 
-        Returns:
-            Parsed HTML
+        :return ParsedHTML: parsed HTML
         """
 
         readability_doc = Document(html)
@@ -62,12 +69,12 @@ class ReadabilityParser(HTMLParser):
         text_by_line = self._combine_bullet_lines_with_next(text_by_line)
         has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
 
-        # Readability doesn't provide a date or description
-        return ParsedHTML(
+        # Readability doesn't provide a date
+        return HTMLParserOutput(
+            id=input.id,
             title=title,
-            url=url,
+            url=input.url,
             text_by_line=text_by_line,
-            description=None,
             date=None,
             has_valid_text=has_valid_text,
         )
@@ -80,6 +87,8 @@ class ReadabilityParser(HTMLParser):
             r"([\divxIVX]+\.)+",  # dotted number or roman numeral
             r"(\([\divxIVX]+\))+",  # parenthesized number or roman numeral
             r"[*•\-\–\+]",  # bullets
+            r"([a-zA-Z]+\.)+",  # dotted abc
+            r"(\([a-zA-Z]+\))+",  # parenthesized abc
         ]
 
         idx = 0
