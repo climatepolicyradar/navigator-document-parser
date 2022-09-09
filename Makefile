@@ -16,4 +16,5 @@ build:
 	docker build -t html-parser .
 
 test:
+	docker run --network host html-parser python -m cli.run_parser ./cli/test/data ./cli/test/data
 	docker run --network host html-parser python -m pytest -vvv
