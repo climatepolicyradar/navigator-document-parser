@@ -79,9 +79,16 @@ class CombinedParser(HTMLParser):
         :return ParsedHTML: parsed HTML
         """
 
-        requests_response = requests.get(
-            input.url, verify=False, allow_redirects=True, timeout=HTTP_REQUEST_TIMEOUT
-        )
+        try:
+            requests_response = requests.get(
+                input.url,
+                verify=False,
+                allow_redirects=True,
+                timeout=HTTP_REQUEST_TIMEOUT,
+            )
+        except Exception as e:
+            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            return self._get_empty_response(input)
 
         parsed_html = self.parse_html(requests_response.text, input)
 
@@ -89,6 +96,9 @@ class CombinedParser(HTMLParser):
         if (len(parsed_html.text_by_line) < MIN_NO_LINES_FOR_VALID_TEXT) and (
             "<noscript>" in requests_response.text
         ):
+            logger.info(
+                f"Falling back to JS-enabled browser for {input.id} ({input.url})"
+            )
             with sync_playwright() as playwright:
                 html_playwright = self._get_html_with_js_enabled(playwright, input.url)
                 parsed_html_playwright = self.parse_html(html_playwright, input)
