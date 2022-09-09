@@ -3,6 +3,7 @@
 import logging
 
 from newsplease import NewsPlease
+import requests
 
 from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
 from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
@@ -49,12 +50,18 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
-            article = NewsPlease.from_url(input.url, timeout=HTTP_REQUEST_TIMEOUT)
+            response = requests.get(
+                input.url,
+                verify=False,
+                allow_redirects=True,
+                timeout=HTTP_REQUEST_TIMEOUT,
+            )
+
         except Exception as e:
-            logger.error(f"Failed to parse {input.url} for {input.id}: {e}")
+            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
             return self._get_empty_response(input)
 
-        return self._newsplease_article_to_parsed_html(article, input)
+        return self.parse_html(response.text, input)
 
     def _newsplease_article_to_parsed_html(
         self, newsplease_article, input: HTMLParserInput
