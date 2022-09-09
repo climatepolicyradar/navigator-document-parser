@@ -9,7 +9,7 @@ from src.combined import CombinedParser
 @pytest.mark.parametrize(
     "url",
     [
-        "https://www.legislation.gov.au/Details/F2020L00552",
+        # "https://www.legislation.gov.au/Details/F2020L00552",
         "https://www.bopa.ad/bopa/030040/Pagines/GD20180622_09_07_48.aspx",
     ],
 )

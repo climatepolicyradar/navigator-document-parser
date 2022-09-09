@@ -11,3 +11,9 @@ install:
 
 test:
 	python -m pytest
+
+docker_build:
+	docker build -t html-parser .
+
+docker_test:
+	docker run --network host html-parser python -m pytest
