@@ -845,6 +845,14 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 six = ">=1.5"
 
 [[package]]
+name = "python-json-logger"
+version = "2.0.4"
+description = "A python library adding a json log formatter"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[[package]]
 name = "pytz"
 version = "2022.2.1"
 description = "World timezone definitions, modern and historical"
@@ -1216,7 +1224,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "01392aad104b43a3af598e07005dc3511e4be58955ba9fb4499418cb87aa2f99"
+content-hash = "75d0df81db0643375d21b04d32a73d0b802803d7b5f9c8dc7d9193d1470be4b2"
 
 [metadata.files]
 ago = []
@@ -1291,6 +1299,7 @@ pypydispatcher = []
 pyright = []
 pytest = []
 python-dateutil = []
+python-json-logger = []
 pytz = []
 pywin32 = []
 pyyaml = []

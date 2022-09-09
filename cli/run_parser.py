@@ -1,5 +1,7 @@
 from pathlib import Path
+import os
 import logging
+import logging.config
 
 import click
 from tqdm.auto import tqdm
@@ -11,7 +13,27 @@ sys.path.append("..")
 from src.base import HTMLParserInput  # noqa: E402
 from src.combined import CombinedParser  # noqa: E402
 
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+DEFAULT_LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",  # Default is stderr
+            "formatter": "json",
+        },
+    },
+    "loggers": {},
+    "root": {
+        "handlers": ["console"],
+        "level": LOG_LEVEL,
+    },
+    "formatters": {"json": {"()": "pythonjsonlogger.jsonlogger.JsonFormatter"}},
+}
+
 logger = logging.getLogger(__name__)
+logging.config.dictConfig(DEFAULT_LOGGING)
 
 
 @click.command()
