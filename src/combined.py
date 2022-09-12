@@ -99,11 +99,17 @@ class CombinedParser(HTMLParser):
             logger.info(
                 f"Falling back to JS-enabled browser for {input.id} ({input.url})"
             )
-            with sync_playwright() as playwright:
-                html_playwright = self._get_html_with_js_enabled(playwright, input.url)
-                parsed_html_playwright = self.parse_html(html_playwright, input)
+            try:
+                with sync_playwright() as playwright:
+                    html_playwright = self._get_html_with_js_enabled(
+                        playwright, input.url
+                    )
+                    parsed_html_playwright = self.parse_html(html_playwright, input)
 
-            return parsed_html_playwright
+                return parsed_html_playwright
+            except Exception as e:
+                logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+                return self._get_empty_response(input)
 
         return parsed_html
 
