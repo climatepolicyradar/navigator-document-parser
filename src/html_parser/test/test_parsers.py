@@ -1,9 +1,9 @@
 import pytest
 
-from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
-from src.newsplease import NewsPleaseParser
-from src.readability import ReadabilityParser
-from src.combined import CombinedParser
+from src.html_parser.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.html_parser.newsplease import NewsPleaseParser
+from src.html_parser.readability import ReadabilityParser
+from src.html_parser.combined import CombinedParser
 
 
 @pytest.mark.parametrize(

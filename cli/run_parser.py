@@ -10,8 +10,8 @@ import sys
 
 sys.path.append("..")
 
-from src.base import HTMLParserInput  # noqa: E402
-from src.combined import CombinedParser  # noqa: E402
+from src.html_parser.base import HTMLParserInput  # noqa: E402
+from src.html_parser.combined import CombinedParser  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {

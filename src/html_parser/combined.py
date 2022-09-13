@@ -6,10 +6,10 @@ import requests
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
 
-from src.newsplease import NewsPleaseParser
-from src.readability import ReadabilityParser
-from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
-from src.config import (
+from src.html_parser.newsplease import NewsPleaseParser
+from src.html_parser.readability import ReadabilityParser
+from src.html_parser.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.html_parser.config import (
     MIN_NO_LINES_FOR_VALID_TEXT,
     HTTP_REQUEST_TIMEOUT,
     MAX_PARAGRAPH_LENGTH_WORDS,

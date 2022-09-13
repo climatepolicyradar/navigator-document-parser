@@ -2,7 +2,7 @@ from typing import Tuple
 
 import pytest
 
-from src.readability import ReadabilityParser
+from src.html_parser.readability import ReadabilityParser
 
 
 @pytest.mark.parametrize(

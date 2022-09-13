@@ -8,8 +8,8 @@ import requests
 from readability import Document
 import bleach
 
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
-from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.html_parser.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
+from src.html_parser.base import HTMLParser, HTMLParserInput, HTMLParserOutput
 
 logger = logging.getLogger(__name__)
 
