@@ -656,14 +656,6 @@ htmlsoup = ["beautifulsoup4"]
 source = ["Cython (>=0.29.7)"]
 
 [[package]]
-name = "multiprocessing-logging"
-version = "0.3.3"
-description = "Logger for multiprocessing applications"
-category = "main"
-optional = false
-python-versions = "*"
-
-[[package]]
 name = "mypy-extensions"
 version = "0.4.3"
 description = "Experimental type system extensions for programs checked with the mypy typechecker."
@@ -1615,7 +1607,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "d6b4d39df6d8fdb3cac458694ebd65f9d4f14ae36224d243678a34d54d38c1fe"
+content-hash = "c10e2e57adcd5731ccd9b60bcc055d380582a21678803d45031c15d6c99ca172"
 
 [metadata.files]
 ago = []
@@ -1672,7 +1664,6 @@ joblib = []
 langdetect = []
 layoutparser = []
 lxml = []
-multiprocessing-logging = []
 mypy-extensions = []
 news-please = []
 newspaper3k = []

@@ -23,7 +23,6 @@ layoutparser = {extras = ["ocr"], version = "^0.3.4"}
 Shapely = "^1.8.4"
 cloudpathlib = {extras = ["s3"], version = "^0.10.0"}
 PyMuPDF = "^1.20.2"
-multiprocessing-logging = "^0.3.3"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20.0"
