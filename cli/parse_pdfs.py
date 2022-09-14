@@ -14,7 +14,6 @@ import fitz
 import layoutparser as lp
 import numpy as np
 from fitz.fitz import EmptyFileError
-from multiprocessing_logging import install_mp_handler
 from tqdm import tqdm
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
@@ -178,8 +177,7 @@ def run_pdf_parser(
     time_start = time.time()
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
-    # logging for multiprocessing.
-    install_mp_handler()
+
     # Create logger that prints to stdout.
     logging.basicConfig(level=logging.DEBUG)
 
