@@ -1,3 +1,4 @@
+import concurrent.futures
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Tuple, Union, Optional
@@ -50,7 +51,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         model: The layoutparser model to use.
         layout_blocks_unfiltered: The layoutparser layout object of text blocks.
         layout_blocks: The layoutparser layout object of text blocks with a confidence score above the
-        restrictive_thehold: The minimum confidence score for a box to be considered part of the layour in a strict model.
+        restrictive_theshold: The minimum confidence score for a box to be considered part of the layour in a strict model.
     """
 
     def __init__(
@@ -706,16 +707,17 @@ class OCRProcessor:
         :return: list of text blocks
         """
         text_blocks = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for block_idx, block in enumerate(self.layout):
+                future = executor.submit(self._perform_ocr, self.image, block)
+                block_with_text, block_language = future.result()
+                if block.type == "Ambiguous":
+                    block_with_text.type = self._infer_block_type(block)
 
-        for block_idx, block in enumerate(self.layout):
-            block_with_text, block_language = self._perform_ocr(self.image, block)
-            if block.type == "Ambiguous":
-                block_with_text.type = self._infer_block_type(block)
+                text_block_id = f"p_{self.page_number}_b_{block_idx}"
+                text_block = TextBlock.from_layoutparser(block_with_text, text_block_id)
+                text_block.language = block_language
 
-            text_block_id = f"p_{self.page_number}_b_{block_idx}"
-            text_block = TextBlock.from_layoutparser(block_with_text, text_block_id)
-            text_block.language = block_language
-
-            text_blocks.append(text_block)
+                text_blocks.append(text_block)
 
         return text_blocks

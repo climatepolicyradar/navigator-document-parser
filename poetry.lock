@@ -634,6 +634,14 @@ htmlsoup = ["beautifulsoup4"]
 source = ["Cython (>=0.29.7)"]
 
 [[package]]
+name = "multiprocessing-logging"
+version = "0.3.3"
+description = "Logger for multiprocessing applications"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "news-please"
 version = "1.5.22"
 description = "news-please is an open source easy-to-use news extractor that just works."
@@ -1011,6 +1019,14 @@ description = "A port of node.js's EventEmitter to python."
 category = "main"
 optional = false
 python-versions = "*"
+
+[[package]]
+name = "pymupdf"
+version = "1.20.2"
+description = "Python bindings for the PDF toolkit and renderer MuPDF"
+category = "main"
+optional = false
+python-versions = ">=3.7"
 
 [[package]]
 name = "pymysql"
@@ -1561,7 +1577,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "c4dbb0c2cb6f584309c6a09dd1486a2dc95266fd9fce6bfc2bb13f1beaf4c7a5"
+content-hash = "30c93d9e76e624ed3b4ea3c3aa0e9fd5745ca55a5d9cd0249b486cb61645f39e"
 
 [metadata.files]
 ago = []
@@ -1617,6 +1633,7 @@ joblib = []
 langdetect = []
 layoutparser = []
 lxml = []
+multiprocessing-logging = []
 news-please = []
 newspaper3k = []
 nltk = []
@@ -1646,6 +1663,7 @@ pycparser = []
 pydantic = []
 pydispatcher = []
 pyee = []
+pymupdf = []
 pymysql = []
 pyopenssl = []
 pyparsing = []
