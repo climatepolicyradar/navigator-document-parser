@@ -20,3 +20,21 @@ def test_run_parser() -> None:
 
         assert (Path(output_dir) / "test_html.json").exists()
         assert (Path(output_dir) / "test_pdf.json").exists()
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_run_parser_specific_files() -> None:
+    """Test that using the `--files` flag only parses the files that have been specified."""
+
+    input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
+
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_main, [input_dir, output_dir, "--parallel", "--files", "test_pdf.json"]
+        )
+
+        assert result.exit_code == 0
+
+        assert not (Path(output_dir) / "test_html.json").exists()
+        assert (Path(output_dir) / "test_pdf.json").exists()

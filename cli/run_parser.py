@@ -2,10 +2,10 @@ from pathlib import Path
 import os
 import logging
 import logging.config
+from typing import List, Optional
+import sys
 
 import click
-
-import sys
 
 sys.path.append("..")
 
@@ -56,7 +56,19 @@ logging.config.dictConfig(DEFAULT_LOGGING)
     is_flag=True,
     default=False,
 )
-def main(input_dir: Path, output_dir: Path, parallel: bool, device: str):
+@click.option(
+    "--files",
+    "-f",
+    help="Pass in a list of filenames to parse, relative to the input directory.",
+    multiple=True,
+)
+def main(
+    input_dir: Path,
+    output_dir: Path,
+    parallel: bool,
+    device: str,
+    files: Optional[List[str]],
+):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
 
@@ -64,7 +76,11 @@ def main(input_dir: Path, output_dir: Path, parallel: bool, device: str):
     :param output_dir: directory of output JSON files (results)
     """
 
-    tasks = [ParserInput.parse_file(_path) for _path in input_dir.glob("*.json")]
+    files_to_parse = (
+        (input_dir / f for f in files) if files else input_dir.glob("*.json")
+    )
+
+    tasks = [ParserInput.parse_file(_path) for _path in files_to_parse]
 
     html_tasks = [task for task in tasks if task.content_type == "text/html"]
     pdf_tasks = [task for task in tasks if task.content_type == "application/pdf"]
