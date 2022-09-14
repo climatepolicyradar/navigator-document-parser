@@ -5,7 +5,7 @@ import logging
 from newsplease import NewsPlease
 import requests
 
-from src.html_parser.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.base import HTMLParser, ParserInput, HTMLParserOutput
 from src.html_parser.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class NewsPleaseParser(HTMLParser):
         """Return parser name"""
         return "newsplease"
 
-    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
+    def parse_html(self, html: str, input: ParserInput) -> HTMLParserOutput:
         """
         Parse HTML using newsplease.
 
@@ -40,7 +40,7 @@ class NewsPleaseParser(HTMLParser):
 
         return self._newsplease_article_to_parsed_html(article, input)
 
-    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
+    def parse(self, input: ParserInput) -> HTMLParserOutput:
         """
         Parse website using newsplease
 
@@ -64,7 +64,7 @@ class NewsPleaseParser(HTMLParser):
         return self.parse_html(response.text, input)
 
     def _newsplease_article_to_parsed_html(
-        self, newsplease_article, input: HTMLParserInput
+        self, newsplease_article, input: ParserInput
     ) -> HTMLParserOutput:
         """
         Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.

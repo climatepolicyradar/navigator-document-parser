@@ -10,7 +10,7 @@ import sys
 
 sys.path.append("..")
 
-from src.html_parser.base import HTMLParserInput  # noqa: E402
+from src.base import ParserInput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -51,14 +51,15 @@ def main(input_dir: Path, output_dir: Path):
     :param output_dir: directory of output JSON files (results)
     """
 
-    tasks = (HTMLParserInput.parse_file(_path) for _path in input_dir.glob("*.json"))
+    tasks = (ParserInput.parse_file(_path) for _path in input_dir.glob("*.json"))
 
     html_parser = CombinedParser()
 
     logger.info("Running HTML parser")
 
     for task in tqdm(tasks, total=len(list(input_dir.glob("*.json")))):
-        parsed_html = html_parser.parse(task).detect_language()
+        # TODO: validate the language detection probability threshold
+        parsed_html = html_parser.parse(task).set_languages()
         output_path = output_dir / f"{task.id}.json"
 
         with open(output_path, "w") as f:

@@ -11,7 +11,7 @@ from shapely.geometry import LineString
 from shapely.geometry.polygon import Polygon
 from shapely.ops import unary_union
 
-from src.pdf_parser.pdf_utils.base import TextBlock
+from src.base import PDFTextBlock
 
 
 class BaseLayoutExtractor(ABC):
@@ -722,7 +722,7 @@ class OCRProcessor:
 
         return block_with_text, language  # type: ignore
 
-    def process_layout(self) -> List[TextBlock]:
+    def process_layout(self) -> List[PDFTextBlock]:
         """
         Get text for the text blocks in the layout, and return a `Page` object with text retrieved, and language and text block IDs set per text block.
 
@@ -737,7 +737,9 @@ class OCRProcessor:
                     block_with_text.type = self._infer_block_type(block)
 
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
-                text_block = TextBlock.from_layoutparser(block_with_text, text_block_id)
+                text_block = PDFTextBlock.from_layoutparser(
+                    block_with_text, text_block_id
+                )
                 text_block.language = block_language
 
                 text_blocks.append(text_block)

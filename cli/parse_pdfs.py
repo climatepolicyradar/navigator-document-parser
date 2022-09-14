@@ -23,7 +23,7 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
     DetectReadingOrder,
 )
 
-from src.pdf_parser.pdf_utils.base import Document, Page
+from src.base import PDFParserOutput, PDFPage
 
 
 def parse_file(file, model, model_threshold_restrictive, ocr_agent, output_dir, device):
@@ -73,7 +73,7 @@ def parse_file(file, model, model_threshold_restrictive, ocr_agent, output_dir, 
             page_layouts[page_idx].page_data["width"],
             page_layouts[page_idx].page_data["height"],
         )
-        page = Page(
+        page = PDFPage(
             text_blocks=text_blocks,
             dimensions=page_dimensions,
             page_number=page_idx,
@@ -81,7 +81,9 @@ def parse_file(file, model, model_threshold_restrictive, ocr_agent, output_dir, 
 
         pages.append(page)
 
-    document = Document(
+    document = PDFParserOutput(
+        # FIXME: Add ID based on input task
+        id="",
         pages=pages,
         filename=file.stem,
         md5hash=hashlib.md5(file.read_bytes()).hexdigest(),
@@ -173,6 +175,7 @@ def run_cli(
         input_dir: The directory containing the PDFs to parse.
         output_dir: The directory to write the parsed PDFs to.
         ocr_agent: The OCR agent to use.
+        parallel: Whether to run parsing over multiple processes.
         test_limit: Place a limit on the number of PDFs to parse - useful for testing.
         model: The document AI model to use.
         model_threshold_restrictive: The threshold to use for the document AI model.

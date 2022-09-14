@@ -1,12 +1,68 @@
-from enum import Enum
-from typing import List, Tuple, Optional
-from collections import Counter
+"""Base classes for parsing."""
 
-from pydantic import BaseModel, Field
+from enum import Enum
+from typing import Optional, List, Tuple
+from abc import ABC
+from datetime import date
+
+from collections import Counter
+from pydantic import BaseModel, AnyHttpUrl, Field
+from langdetect import detect
+from langdetect import DetectorFactory
 import layoutparser.elements as lp_elements
 
 
-class BlockType(str, Enum):
+class ParserInput(BaseModel):
+    """Base class for input to a parser."""
+
+    id: str
+    url: AnyHttpUrl
+    content_type: str
+    document_slug: str
+
+    def is_html(self) -> bool:
+        """Return whether the input is an HTML document."""
+        return self.content_type == "text/html"
+
+    def is_pdf(self) -> bool:
+        """Return whether the input is a PDF document."""
+        return self.content_type == "application/pdf"
+
+
+class ParserOutput(BaseModel):
+    """Base class for an output to a parser."""
+
+    id: str
+    url: AnyHttpUrl
+    languages: Optional[List[str]] = None
+    translated: bool = False
+
+
+class HTMLParserOutput(ParserOutput):
+    """Base class for the output of an HTML parser."""
+
+    title: Optional[str]
+    text_by_line: List[str]
+    date: Optional[date]
+    has_valid_text: bool
+
+    def set_languages(self) -> "HTMLParserOutput":
+        """
+        Detect language of the text and set the language attribute. Return an instance of ParsedHTML with the language attribute set.
+
+        TODO: we assume an HTML page contains only one language here. Do we want to try to detect chunks of text with potentially differing languages?
+        """
+
+        # language detection is not deterministic, so we need to set a seed
+        DetectorFactory.seed = 0
+
+        if self.text_by_line:
+            self.languages = [detect(" ".join(self.text_by_line))]
+
+        return self
+
+
+class PDFBlockType(str, Enum):
     """
     List of possible block types from the PubLayNet model.
 
@@ -21,7 +77,7 @@ class BlockType(str, Enum):
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
 
 
-class TextBlock(BaseModel):
+class PDFTextBlock(BaseModel):
     """
     Represents an individual text block on a page.
 
@@ -42,7 +98,7 @@ class TextBlock(BaseModel):
     text: List[str]
     text_block_id: str
     coords: List[Tuple[float, float]]
-    type: BlockType
+    type: PDFBlockType
     type_confidence: float = Field(ge=0, le=1)
     language: Optional[
         str
@@ -56,7 +112,7 @@ class TextBlock(BaseModel):
     @classmethod
     def from_layoutparser(
         cls, text_block: lp_elements.TextBlock, text_block_id: str
-    ) -> "TextBlock":
+    ) -> "PDFTextBlock":
         """
         Create a TextBlock from a LayoutParser TextBlock.
 
@@ -94,7 +150,7 @@ class TextBlock(BaseModel):
         ]
 
         # Ignoring types below as this method will raise an error if any of these values are None above.
-        return TextBlock(
+        return PDFTextBlock(
             text=[text_block.text],  # type: ignore
             text_block_id=text_block_id,  # e.g. p0_b3
             coords=new_format_coordinates,  # type: ignore
@@ -103,7 +159,7 @@ class TextBlock(BaseModel):
         )
 
 
-class Page(BaseModel):
+class PDFPage(BaseModel):
     """
     Represents a page in a document.
 
@@ -115,7 +171,7 @@ class Page(BaseModel):
     :attribute page_number: Unique id of the page, e.g. page number starting at 0.
     """
 
-    text_blocks: List[TextBlock]
+    text_blocks: List[PDFTextBlock]
     dimensions: Tuple[float, float]
     page_number: int = Field(ge=0)
 
@@ -129,7 +185,7 @@ class Page(BaseModel):
     @classmethod
     def from_layoutparser(
         cls, layout: lp_elements.Layout, page_num: int, dimensions: Tuple[float, float]
-    ) -> "Page":
+    ) -> "PDFPage":
         """
         Create a Page from a LayoutParser Layout.
 
@@ -142,16 +198,16 @@ class Page(BaseModel):
 
         for block_idx, lp_text_block in enumerate(layout._blocks):
             block_id = f"p{page_num}_b{block_idx}"
-            text_blocks.append(TextBlock.from_layoutparser(lp_text_block, block_id))
+            text_blocks.append(PDFTextBlock.from_layoutparser(lp_text_block, block_id))
 
-        return Page(
+        return PDFPage(
             text_blocks=text_blocks,
             dimensions=dimensions,
             page_number=page_num,
         )
 
 
-class Document(BaseModel):
+class PDFParserOutput(BaseModel):
     """
     Represents a document and associated pages and text blocks.
 
@@ -163,7 +219,8 @@ class Document(BaseModel):
     :attribute language: list of 2-letter ISO language codes, optional. If null, the OCR processor didn't support language detection
     """
 
-    pages: List[Page]  # List of textblocks in the document
+    id: str
+    pages: List[PDFPage]  # List of textblocks in the document
     filename: str  # Name of the pdf file that this document relates to
     md5hash: str  # MD5 hash of the pdf file
     languages: Optional[
@@ -197,3 +254,31 @@ class Document(BaseModel):
             ]
 
         return self
+
+
+class HTMLParser(ABC):
+    """Base class for an HTML parser."""
+
+    @property
+    def name(self) -> str:
+        """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
+        raise NotImplementedError()
+
+    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
+        """Parse an HTML string directly."""
+        raise NotImplementedError()
+
+    def parse(self, input: ParserInput) -> HTMLParserOutput:
+        """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
+        raise NotImplementedError()
+
+    def _get_empty_response(self, input: ParserInput) -> HTMLParserOutput:
+        """Return ParsedHTML object with empty fields."""
+        return HTMLParserOutput(
+            id=input.id,
+            title="",
+            url=input.url,
+            date=None,
+            text_by_line=[],
+            has_valid_text=False,
+        )

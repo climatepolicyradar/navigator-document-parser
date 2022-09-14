@@ -9,7 +9,7 @@ from readability import Document
 import bleach
 
 from src.html_parser.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
-from src.html_parser.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.base import HTMLParser, ParserInput, HTMLParserOutput
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class ReadabilityParser(HTMLParser):
         """Return parser name"""
         return "readability"
 
-    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
+    def parse(self, input: ParserInput) -> HTMLParserOutput:
         """
         Parse web page using readability.
 
@@ -50,7 +50,7 @@ class ReadabilityParser(HTMLParser):
 
         return self.parse_html(response.text, input)
 
-    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
+    def parse_html(self, html: str, input: ParserInput) -> HTMLParserOutput:
         """Parse HTML using readability
 
         :param html: HTML string to parse

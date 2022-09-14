@@ -1,6 +1,6 @@
 import pytest
 
-from src.html_parser.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.base import HTMLParser, ParserInput, HTMLParserOutput
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
 from src.html_parser.combined import CombinedParser
@@ -25,7 +25,7 @@ def test_parse(url: str, parser: HTMLParser) -> None:
     :param parser: HTML parser
     """
 
-    input = HTMLParserInput.parse_obj({"id": "test_id", "url": url})
+    input = ParserInput.parse_obj({"id": "test_id", "url": url})
 
     parser_result = parser.parse(input)
 
