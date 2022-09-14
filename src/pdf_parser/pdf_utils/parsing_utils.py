@@ -15,8 +15,11 @@ from src.pdf_parser.pdf_utils.base import TextBlock
 
 
 class BaseLayoutExtractor(ABC):
+    """Base class for a layout extractor."""
+
     @abstractmethod
     def get_layout(self, model):
+        """Use a layout model to extract the layout of a page."""
         pass
 
 
@@ -122,6 +125,11 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
     @property
     def layout(self):
+        """
+        Return the current LayoutParser layout object containing only blocks with the types ["Text", "List", "Title", "Ambiguous"]
+
+        :return: LayoutParser layout
+        """
         text_layout = lp.Layout(
             [
                 box
@@ -138,6 +146,12 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
     @property
     def layout_unfiltered(self):
+        """
+        Return the current LayoutParser layout object containing all block types.
+
+        :return: LayoutParser layout
+        """
+
         text_layout = lp.Layout(
             [
                 box
@@ -219,6 +233,10 @@ class LayoutDisambiguator(LayoutParserExtractor):
         Returns:
             The boxes with overlaps elimated.
         """
+
+        if direction not in ("horizontal", "vertical"):
+            raise ValueError("Direction must be 'horizontal' or 'vertical'.")
+
         if direction == "vertical":
             assert (
                 box_1.block_1.coordinates[1] < box_2.block_1.coordinates[1]
@@ -368,17 +386,13 @@ class LayoutDisambiguator(LayoutParserExtractor):
     def _create_unknown_text_blocks(
         self, threshold: float = 0.25, vertical: bool = True
     ) -> lp.Layout:
-        """Create text blocks by grabbing blocks with low confidence scores and subtracting intersections
-         with the current layout to create new text blocks.
+        """Create text blocks by grabbing blocks with low confidence scores and subtracting intersections with the current layout to create new text blocks.
 
-        This has utility beyond the _combine_layouts method because it extracts text even in cases where
-        there are huge text blocks with high emounts of explained area so they aren't caught by the
-        _combine_layouts method.
+        This has utility beyond the _combine_layouts method because it extracts text even in cases where there are huge text blocks with high emounts of explained area so they aren't caught by the _combine_layouts method.
 
         Args:
             threshold: The confidence threshold to use for adding unknown text blocks.
-            vertical: Whether to add unknown text blocks based on vertical or horizontal reading order assumptions
-             (nuance this later, see TODO).
+            vertical: Whether to add unknown text blocks based on vertical or horizontal reading order assumptions (nuance this later, see TODO).
 
         Returns:
             The layout with unidentified (but probable) text blocks added.
@@ -480,8 +494,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
     def disambiguate_layout_advanced(self) -> lp.Layout:
         """Disambiguate the blocks using a hierarchy of heuristics.
 
-        There are a number of hierarchical heuristics we can apply to disambiguate blocks that are fully
-        nested within other blocks:
+        There are a number of hierarchical heuristics we can apply to disambiguate blocks that are fully nested within other blocks:
             - If a list block is contained within another list blocks, the outer list supercedes the inner list.
             - If a list block is within a text block, take the text block on the grounds that it will include
                more text. From a search perspective, this is more desirable than missing out on a list, since
@@ -502,8 +515,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
 
 class DetectReadingOrder:
-    """Helper class for detecting the layout of content from a layoutparser computer vision models
-    using visual heuristics.
+    """Helper class for detecting the layout of content from a layoutparser computer vision models using visual heuristics.
 
     Intent is to handle the following (non-exhaustive) cases:
         - Reading order inference.
@@ -522,12 +534,22 @@ class DetectReadingOrder:
 
     @property
     def ocr_blocks(self) -> lp.Layout:
+        """
+        Return a LayoutParser layout containing all blocks with types to OCR: text, list, title, and ambiguous.
+
+        :return: LayoutParser layout
+        """
         return lp.Layout(
             [b for b in self.layout if b.type in ["Text", "List", "Title", "Ambiguous"]]
         )
 
     @property
     def non_text_blocks(self) -> lp.Layout:
+        """
+        Return a LayoutParser layout containing all blocks with types that shouldn't be OCRed.
+
+        :return: LayoutParser layout
+        """
         return lp.Layout(
             [
                 b
@@ -696,9 +718,9 @@ class OCRProcessor:
             )
 
         # Save OCR result
-        block_with_text = block.set(text=text)
+        block_with_text = block.set(text=text)  # type: ignore
 
-        return block_with_text, language
+        return block_with_text, language  # type: ignore
 
     def process_layout(self) -> List[TextBlock]:
         """
