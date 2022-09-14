@@ -4,14 +4,14 @@ import logging
 import logging.config
 
 import click
-from tqdm.auto import tqdm
 
 import sys
 
 sys.path.append("..")
 
 from src.base import ParserInput  # noqa: E402
-from src.html_parser.combined import CombinedParser  # noqa: E402
+from cli.parse_htmls import run_html_parser  # noqa: E402
+from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {
@@ -43,7 +43,20 @@ logging.config.dictConfig(DEFAULT_LOGGING)
 @click.argument(
     "output_dir", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
-def main(input_dir: Path, output_dir: Path):
+@click.option(
+    "--device",
+    type=click.Choice(["cuda", "cpu"]),
+    help="Device to use for PDF parsing",
+    required=True,
+    default="cpu",
+)
+@click.option(
+    "--parallel",
+    help="Whether to run PDF parsing over multiple processes",
+    is_flag=True,
+    default=False,
+)
+def main(input_dir: Path, output_dir: Path, parallel: bool, device: str):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
 
@@ -51,21 +64,18 @@ def main(input_dir: Path, output_dir: Path):
     :param output_dir: directory of output JSON files (results)
     """
 
-    tasks = (ParserInput.parse_file(_path) for _path in input_dir.glob("*.json"))
+    tasks = [ParserInput.parse_file(_path) for _path in input_dir.glob("*.json")]
 
-    html_parser = CombinedParser()
+    html_tasks = [task for task in tasks if task.content_type == "text/html"]
+    pdf_tasks = [task for task in tasks if task.content_type == "application/pdf"]
 
-    logger.info("Running HTML parser")
+    logger.info(f"Fount {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 
-    for task in tqdm(tasks, total=len(list(input_dir.glob("*.json")))):
-        # TODO: validate the language detection probability threshold
-        parsed_html = html_parser.parse(task).set_languages()
-        output_path = output_dir / f"{task.id}.json"
+    logger.info(f"Running HTML parser on {len(html_tasks)} documents")
+    run_html_parser(html_tasks, output_dir)
 
-        with open(output_path, "w") as f:
-            f.write(parsed_html.json(indent=4, ensure_ascii=False))
-
-        logger.info(f"Output for {task.id} saved to {output_path}")
+    logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
+    run_pdf_parser(pdf_tasks, output_dir, parallel=parallel, device=device)
 
 
 if __name__ == "__main__":

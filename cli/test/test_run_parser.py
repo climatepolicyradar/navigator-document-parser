@@ -8,14 +8,15 @@ from cli.run_parser import main as cli_main
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser():
+def test_run_parser() -> None:
     """Test that the parsing CLI runs and outputs a file."""
     input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
 
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
-        result = runner.invoke(cli_main, [input_dir, output_dir])
+        result = runner.invoke(cli_main, [input_dir, output_dir, "--parallel"])
 
         assert result.exit_code == 0
 
-        assert (Path(output_dir) / "test_id.json").exists()
+        assert (Path(output_dir) / "test_html.json").exists()
+        assert (Path(output_dir) / "test_pdf.json").exists()

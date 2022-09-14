@@ -20,14 +20,6 @@ class ParserInput(BaseModel):
     content_type: str
     document_slug: str
 
-    def is_html(self) -> bool:
-        """Return whether the input is an HTML document."""
-        return self.content_type == "text/html"
-
-    def is_pdf(self) -> bool:
-        """Return whether the input is a PDF document."""
-        return self.content_type == "application/pdf"
-
 
 class ParserOutput(BaseModel):
     """Base class for an output to a parser."""
@@ -221,7 +213,7 @@ class PDFParserOutput(BaseModel):
 
     id: str
     pages: List[PDFPage]  # List of textblocks in the document
-    filename: str  # Name of the pdf file that this document relates to
+    document_slug: str  # for better links to the frontend hopefully soon
     md5hash: str  # MD5 hash of the pdf file
     languages: Optional[
         List[str]

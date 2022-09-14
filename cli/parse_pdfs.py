@@ -6,13 +6,13 @@ import warnings
 from functools import partial
 from pathlib import Path
 import hashlib
-from typing import Callable
+from typing import List, Union
+import tempfile
 
-import click
+import requests
 import fitz
 import layoutparser as lp
 import numpy as np
-from cloudpathlib import CloudPath
 from fitz.fitz import EmptyFileError
 from multiprocessing_logging import install_mp_handler
 from tqdm import tqdm
@@ -22,33 +22,75 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
     LayoutDisambiguator,
     DetectReadingOrder,
 )
+from src.pdf_parser import config
 
-from src.base import PDFParserOutput, PDFPage
+from src.base import PDFParserOutput, PDFPage, ParserInput
 
 
-def parse_file(file, model, model_threshold_restrictive, ocr_agent, output_dir, device):
+def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
+    """
+    Get a PDF from a URL in a ParserInput object.
+
+    :param: parser input
+    :param: directory to save the PDF to
+    :return: path to PDF file in output_dir
+    """
+
+    response = requests.get(parser_input.url)
+
+    if response.status_code != 200:
+        # TODO: what exception should be raised here?
+        raise Exception(f"Could not get PDF from {parser_input.url}")
+
+    if response.headers["Content-Type"] != "application/pdf":
+        raise Exception(
+            f"Content-Type is for {parser_input.id} ({parser_input.url}) is not PDF: {response.headers['Content-Type']}"
+        )
+
+    output_path = Path(output_dir) / f"{parser_input.id}.pdf"
+
+    with open(output_path, "wb") as f:
+        f.write(response.content)
+
+    return output_path
+
+
+def parse_file(
+    input_task: ParserInput,
+    model,
+    model_threshold_restrictive: float,
+    ocr_agent: str,
+    output_dir: Path,
+    device: str,
+):
     """Parse an individual pdf file.
 
     Args:
-        file (str): Path to the pdf file.
+        input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         model (layoutparser.LayoutModel): Layout model to use for parsing.
         model_threshold_restrictive (float): Threshold to use for parsing.
         ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
-        output_dir (str): Path to the output directory.
+        output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
-
     """
+
+    # TODO: do we want to handle exceptions raised by get_pdf here?
+    with tempfile.TemporaryDirectory() as temp_output_dir:
+        pdf_path = download_pdf(input_task, temp_output_dir)
+        page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
+        document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
+
+    # FIXME: handle EmptyFileError here using _pdf_num_pages
 
     model = _get_detectron_model(model, device)
     if ocr_agent == "tesseract":
-        ocr_agent = lp.TesseractAgent(languages="eng")
+        ocr_agent = lp.TesseractAgent()
     elif ocr_agent == "gcv":
-        ocr_agent = lp.GCVAgent(languages="eng")
+        ocr_agent = lp.GCVAgent()
 
-    page_layouts, pdf_images = lp.load_pdf(file, load_images=True)
     pages = []
     for page_idx, image in tqdm(
-        enumerate(pdf_images), total=len(pdf_images), desc=file.name
+        enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
     ):
         # Maybe we should always pass a layout object into the PageParser class.
         layout_disambiguator = LayoutDisambiguator(
@@ -82,26 +124,18 @@ def parse_file(file, model, model_threshold_restrictive, ocr_agent, output_dir, 
         pages.append(page)
 
     document = PDFParserOutput(
-        # FIXME: Add ID based on input task
-        id="",
+        id=input_task.id,
+        document_slug=input_task.document_slug,
         pages=pages,
-        filename=file.stem,
-        md5hash=hashlib.md5(file.read_bytes()).hexdigest(),
+        md5hash=document_md5sum,
     ).set_languages(min_language_proportion=0.4)
 
-    output_path = output_dir / f"{file.stem}.json"
+    output_path = output_dir / f"{input_task.id}.json"
 
     with open(output_path, "w") as f:
         f.write(document.json(indent=4, ensure_ascii=False))
 
     logging.info(f"Saved {output_path.name} to {output_dir}.")
-
-
-def parse_all_files(files: list, func: Callable):
-    """Parse all files in a list in parallel."""
-    cpu_count = multiprocessing.cpu_count() - 1
-    with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-        executor.map(func, files)
 
 
 def _pdf_num_pages(file: str):
@@ -122,63 +156,19 @@ def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
     )
 
 
-@click.command()
-@click.option(
-    "-i",
-    "--input-dir",
-    type=str,
-    required=True,
-    help="The directory to read PDFs from.",
-)
-@click.option(
-    "-o",
-    "--output-dir",
-    type=str,
-    required=True,
-)
-@click.option(
-    "--ocr-agent",
-    type=click.Choice(["tesseract", "gcv"]),
-    required=True,
-    default="tesseract",
-)
-@click.option(
-    "--device", type=click.Choice(["cuda", "cpu"]), required=True, default="cpu"
-)
-@click.option("--parallel", is_flag=True, default=False)
-@click.option("-l", "--test-limit", type=int, default=1)
-@click.option(
-    "-m",
-    "--model",
-    type=str,
-    required=True,
-    help="The model to use for OCR.",
-    default="mask_rcnn_X_101_32x8d_FPN_3x",  # powerful detectron-2 model.
-)
-@click.option(
-    "-ts", "--model-threshold-restrictive", type=float, default=0.5
-)  # Hyperparam, set up config
-def run_cli(
-    input_dir: str,
-    output_dir: str,
-    test_limit: int,
-    ocr_agent: str,
+def run_pdf_parser(
+    input_tasks: List[ParserInput],
+    output_dir: Path,
     parallel: bool,
-    model: str,
-    model_threshold_restrictive: float = 0.4,
     device: str = "cpu",
 ) -> None:
     """
     Run cli to extract semi-structured JSON from document-AI + OCR.
 
     Args:
-        input_dir: The directory containing the PDFs to parse.
+        input_tasks: List of tasks for the parser to process.
         output_dir: The directory to write the parsed PDFs to.
-        ocr_agent: The OCR agent to use.
         parallel: Whether to run parsing over multiple processes.
-        test_limit: Place a limit on the number of PDFs to parse - useful for testing.
-        model: The document AI model to use.
-        model_threshold_restrictive: The threshold to use for the document AI model.
         device: The device to use for the document AI model.
     """
     time_start = time.time()
@@ -189,47 +179,38 @@ def run_cli(
     # Create logger that prints to stdout.
     logging.basicConfig(level=logging.DEBUG)
 
-    logging.info(
-        f"Test limit is {test_limit}. Using {ocr_agent} OCR agent and {model} model."
-    )
-    if ocr_agent == "gcv":
+    logging.info(f"Using {config.OCR_AGENT} OCR agent and {config.MODEL} model.")
+    if config.OCR_AGENT == "gcv":
         logging.warning(
             "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
         )
-    logging.info(f"Reading from {input_dir}.")
-    if input_dir.startswith("s3://"):
-        input_dir_path = CloudPath(input_dir)
-    else:
-        input_dir_path = Path(input_dir)
-
-    if output_dir.startswith("s3://"):
-        output_dir_path = CloudPath(output_dir)
-    else:
-        output_dir_path = Path(output_dir)
 
     logging.info("Iterating through files and parsing pdf content from pages.")
     # Sort pages smallest to largest. Having files of a similar size will help with parallelization.
-    files = sorted(list(input_dir_path.glob("*.pdf")), key=_pdf_num_pages)
-    files = [file for file in files if _pdf_num_pages(file) > 0]
-    files = files[:test_limit]
+    # FIXME: have had to disable this for now because we're using tasks, which don't have direct access to the PDF.
+    # files = sorted(list(input_dir_path.glob("*.pdf")), key=_pdf_num_pages)
 
     file_parser = partial(
         parse_file,
-        model=model,
-        ocr_agent=ocr_agent,
-        output_dir=output_dir_path,
-        model_threshold_restrictive=model_threshold_restrictive,
+        model=config.MODEL,
+        ocr_agent=config.OCR_AGENT,
+        output_dir=output_dir,
+        model_threshold_restrictive=config.MODEL_THRESHOLD_RESTRICTIVE,
         device=device,
     )
     if parallel:
-        parse_all_files(files, file_parser)
+        cpu_count = multiprocessing.cpu_count() - 1
+        with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
+            executor.map(file_parser, input_tasks)
+
     else:
-        for file in files:
-            file_parser(file)
+        for task in input_tasks:
+            file_parser(task)
+
     logging.info("Finished parsing pdf content from pages.")
     time_end = time.time()
     logging.info(f"Time taken: {time_end - time_start} seconds.")
 
 
 if __name__ == "__main__":
-    run_cli()
+    run_pdf_parser()

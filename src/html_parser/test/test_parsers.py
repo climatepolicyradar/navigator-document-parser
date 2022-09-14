@@ -25,7 +25,14 @@ def test_parse(url: str, parser: HTMLParser) -> None:
     :param parser: HTML parser
     """
 
-    input = ParserInput.parse_obj({"id": "test_id", "url": url})
+    input = ParserInput.parse_obj(
+        {
+            "id": "test_id",
+            "url": url,
+            "content_type": "text/html",
+            "document_slug": "YYY",
+        }
+    )
 
     parser_result = parser.parse(input)
 
