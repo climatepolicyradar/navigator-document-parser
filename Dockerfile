@@ -3,10 +3,12 @@ FROM python:3.9
 RUN mkdir /app
 WORKDIR /app
 
-# Install dependencies for pdf2image
+# Install dependencies for pdf2image and tesseract
 RUN apt-get update
 RUN apt-get install ffmpeg libsm6 libxext6  -y
 RUN apt-get install poppler-utils -y
+RUN apt-get install -y tesseract-ocr
+RUN apt-get install -y libtesseract-dev
 
 # Install pip and poetry
 RUN pip install --upgrade pip
