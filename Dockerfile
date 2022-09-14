@@ -13,6 +13,7 @@ COPY ./poetry.lock ./pyproject.toml ./
 # Install python dependencies using poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install
+RUN pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 RUN playwright install
 RUN playwright install-deps
 

@@ -17,6 +17,11 @@ playwright = "^1.25.2"
 readability-lxml = "^0.8.1"
 bleach = "^5.0.1"
 python-json-logger = "^2.0.4"
+torchvision = "^0.13.1"
+torch = "^1.12.1"
+layoutparser = {extras = ["ocr"], version = "^0.3.4"}
+Shapely = "^1.8.4"
+cloudpathlib = {extras = ["s3"], version = "^0.10.0"}
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20.0"
