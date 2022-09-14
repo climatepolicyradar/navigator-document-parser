@@ -28,6 +28,7 @@ class ParserOutput(BaseModel):
     url: AnyHttpUrl
     languages: Optional[List[str]] = None
     translated: bool = False
+    document_slug: str  # for better links to the frontend hopefully soon
 
 
 class HTMLParserOutput(ParserOutput):
@@ -199,7 +200,7 @@ class PDFPage(BaseModel):
         )
 
 
-class PDFParserOutput(BaseModel):
+class PDFParserOutput(ParserOutput):
     """
     Represents a document and associated pages and text blocks.
 
@@ -211,13 +212,8 @@ class PDFParserOutput(BaseModel):
     :attribute language: list of 2-letter ISO language codes, optional. If null, the OCR processor didn't support language detection
     """
 
-    id: str
     pages: List[PDFPage]  # List of textblocks in the document
-    document_slug: str  # for better links to the frontend hopefully soon
     md5hash: str  # MD5 hash of the pdf file
-    languages: Optional[
-        List[str]
-    ] = None  # TODO: validate this against a list of language ISO codes
 
     def set_languages(self, min_language_proportion: float = 0.4):
         """
@@ -272,5 +268,6 @@ class HTMLParser(ABC):
             url=input.url,
             date=None,
             text_by_line=[],
+            document_slug="",
             has_valid_text=False,
         )

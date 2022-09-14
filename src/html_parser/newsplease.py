@@ -86,6 +86,7 @@ class NewsPleaseParser(HTMLParser):
         return HTMLParserOutput(
             id=input.id,
             url=input.url,
+            document_slug=input.document_slug,
             title=newsplease_article.title,
             text_by_line=text_by_line,
             date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class

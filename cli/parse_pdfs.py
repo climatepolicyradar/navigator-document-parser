@@ -125,6 +125,7 @@ def parse_file(
 
     document = PDFParserOutput(
         id=input_task.id,
+        url=input_task.url,
         document_slug=input_task.document_slug,
         pages=pages,
         md5hash=document_md5sum,
@@ -210,7 +211,3 @@ def run_pdf_parser(
     logging.info("Finished parsing pdf content from pages.")
     time_end = time.time()
     logging.info(f"Time taken: {time_end - time_start} seconds.")
-
-
-if __name__ == "__main__":
-    run_pdf_parser()

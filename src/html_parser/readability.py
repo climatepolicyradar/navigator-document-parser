@@ -74,6 +74,7 @@ class ReadabilityParser(HTMLParser):
             id=input.id,
             title=title,
             url=input.url,
+            document_slug=input.document_slug,
             text_by_line=text_by_line,
             date=None,
             has_valid_text=has_valid_text,
