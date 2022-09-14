@@ -3,6 +3,11 @@ FROM python:3.9
 RUN mkdir /app
 WORKDIR /app
 
+# Install dependencies for pdf2image
+RUN apt-get update
+RUN apt-get install ffmpeg libsm6 libxext6  -y
+RUN apt-get install poppler-utils -y
+
 # Install pip and poetry
 RUN pip install --upgrade pip
 RUN pip install "poetry==1.1.8"
