@@ -738,7 +738,7 @@ class OCRProcessor:
 
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
                 text_block = PDFTextBlock.from_layoutparser(
-                    block_with_text, text_block_id
+                    block_with_text, text_block_id, self.page_number
                 )
                 text_block.language = block_language
 

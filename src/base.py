@@ -12,50 +12,7 @@ from langdetect import DetectorFactory
 import layoutparser.elements as lp_elements
 
 
-class ParserInput(BaseModel):
-    """Base class for input to a parser."""
-
-    id: str
-    url: AnyHttpUrl
-    content_type: str
-    document_slug: str
-
-
-class ParserOutput(BaseModel):
-    """Base class for an output to a parser."""
-
-    id: str
-    url: AnyHttpUrl
-    languages: Optional[List[str]] = None
-    translated: bool = False
-    document_slug: str  # for better links to the frontend hopefully soon
-
-
-class HTMLParserOutput(ParserOutput):
-    """Base class for the output of an HTML parser."""
-
-    title: Optional[str]
-    text_by_line: List[str]
-    date: Optional[date]
-    has_valid_text: bool
-
-    def set_languages(self) -> "HTMLParserOutput":
-        """
-        Detect language of the text and set the language attribute. Return an instance of ParsedHTML with the language attribute set.
-
-        TODO: we assume an HTML page contains only one language here. Do we want to try to detect chunks of text with potentially differing languages?
-        """
-
-        # language detection is not deterministic, so we need to set a seed
-        DetectorFactory.seed = 0
-
-        if self.text_by_line:
-            self.languages = [detect(" ".join(self.text_by_line))]
-
-        return self
-
-
-class PDFBlockType(str, Enum):
+class BlockType(str, Enum):
     """
     List of possible block types from the PubLayNet model.
 
@@ -70,32 +27,56 @@ class PDFBlockType(str, Enum):
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
 
 
-class PDFTextBlock(BaseModel):
+class TextBlock(BaseModel):
     """
-    Represents an individual text block on a page.
+    Base class for a text block.
 
-    Stores the text and positional information for a single
-    text block extracted from a document.
-
-    Attributes:
-        text: list of text lines contained in the text block
-        text_block_id: unique identifier for the text block
-        coords: list of coordinates of the vertices defining the boundary of the text block.
-           Each coordinate is a tuple in the format (x, y). (0, 0) is at the top left corner of
-           the page, and the positive x- and y- directions are right and down.
-        type: predicted type of the text block
-        type_confidence: confidence score of the text block being of the predicted type
-        language: language of the text block, 2-letter ISO code, optional.
+    :attribute text: list of text lines contained in the text block
+    :attribute text_block_id: unique identifier for the text block
+    :attribute language: language of the text block. 2-letter ISO code, optional.
+    :attribute type: predicted type of the text block
+    :attribute type_confidence: confidence score of the text block being of the predicted type
     """
 
     text: List[str]
     text_block_id: str
-    coords: List[Tuple[float, float]]
-    type: PDFBlockType
-    type_confidence: float = Field(ge=0, le=1)
     language: Optional[
         str
     ] = None  # TODO: validate this against a list of language ISO codes
+    type: BlockType
+    type_confidence: float = Field(ge=0, le=1)
+
+    def to_string(self) -> str:
+        """Returns the lines in a text block as a string with the lines separated by spaces."""
+
+        return " ".join([line.strip() for line in self.text])
+
+
+class HTMLTextBlock(TextBlock):
+    """
+    Text block parsed from an HTML document.
+
+    Type is set to "Text" with a confidence of 1.0 by default, as we do not predict types for text blocks parsed from HTML.
+    """
+
+    type: BlockType = BlockType.TEXT
+    type_confidence: float = 1.0
+
+
+class PDFTextBlock(TextBlock):
+    """
+    Text block parsed from a PDF document.
+
+    Stores the text and positional information for a single text block extracted from a document.
+
+    :attribute coords: list of coordinates of the vertices defining the boundary of the text block.
+        Each coordinate is a tuple in the format (x, y). (0, 0) is at the top left corner of
+        the page, and the positive x- and y- directions are right and down.
+    :attribute page_number: page number of the page containing the text block.
+    """
+
+    coords: List[Tuple[float, float]]
+    page_number: int = Field(ge=0)
 
     def to_string(self) -> str:
         """Returns the lines in a text block as a string with the lines separated by spaces."""
@@ -104,13 +85,14 @@ class PDFTextBlock(BaseModel):
 
     @classmethod
     def from_layoutparser(
-        cls, text_block: lp_elements.TextBlock, text_block_id: str
+        cls, text_block: lp_elements.TextBlock, text_block_id: str, page_number: int
     ) -> "PDFTextBlock":
         """
         Create a TextBlock from a LayoutParser TextBlock.
 
         :param text_block: LayoutParser TextBlock
         :param text_block_id: ID to use for the resulting TextBlock.
+        :param page_number: Page number of the text block.
         :raises ValueError: if the LayoutParser TextBlock does not have all of the properties `text`, `coordinates`, `score` and `type`.
         :return TextBlock:
         """
@@ -149,55 +131,70 @@ class PDFTextBlock(BaseModel):
             coords=new_format_coordinates,  # type: ignore
             type_confidence=text_block.score,  # type: ignore
             type=text_block.type,  # type: ignore
+            page_number=page_number,
         )
 
 
-class PDFPage(BaseModel):
-    """
-    Represents a page in a document.
+class ParserInput(BaseModel):
+    """Base class for input to a parser."""
 
-    All text blocks on a page are contained within a Page object. Also, the dimensions of the page can
-    be specified.
+    id: str
+    url: AnyHttpUrl
+    content_type: str
+    document_slug: str
 
-    :attribute text_blocks: List of text blocks contained in the document
-    :attribute dimensions: The dimensions of the page as a tuple in the format (x, y), where x is horizontal and y is vertical dimension.
-    :attribute page_number: Unique id of the page, e.g. page number starting at 0.
-    """
 
-    text_blocks: List[PDFTextBlock]
-    dimensions: Tuple[float, float]
-    page_number: int = Field(ge=0)
+class ParserOutput(BaseModel):
+    """Base class for an output to a parser."""
+
+    id: str
+    url: AnyHttpUrl
+    languages: Optional[List[str]] = None
+    text_blocks: List[TextBlock]
+    translated: bool = False
+    document_slug: str  # for better links to the frontend hopefully soon
 
     def to_string(self) -> str:
-        """Return the text blocks in the page as a string"""
+        """Return the text blocks in the parser output as a string"""
 
-        page_text = [text_block.to_string().strip() for text_block in self.text_blocks]
-
-        return "\n".join(page_text)
-
-    @classmethod
-    def from_layoutparser(
-        cls, layout: lp_elements.Layout, page_num: int, dimensions: Tuple[float, float]
-    ) -> "PDFPage":
-        """
-        Create a Page from a LayoutParser Layout.
-
-        :param layout: LayoutParser Layout
-        :param page_num: page number, 0-indexed
-        :param dimensions: (width, height) in pixels
-        :return Page:
-        """
-        text_blocks = []
-
-        for block_idx, lp_text_block in enumerate(layout._blocks):
-            block_id = f"p{page_num}_b{block_idx}"
-            text_blocks.append(PDFTextBlock.from_layoutparser(lp_text_block, block_id))
-
-        return PDFPage(
-            text_blocks=text_blocks,
-            dimensions=dimensions,
-            page_number=page_num,
+        return " ".join(
+            [text_block.to_string().strip() for text_block in self.text_blocks]
         )
+
+
+class PDFPageMetadata(BaseModel):
+    """
+    Set of metadata for a single page of a PDF document.
+
+    :attribute dimensions: (width, height) of the page in pixels
+    """
+
+    page_number: int = Field(ge=0)
+    dimensions: Tuple[float, float]
+
+
+class HTMLParserOutput(ParserOutput):
+    """Base class for the output of an HTML parser."""
+
+    title: Optional[str]
+    text_blocks: List[HTMLTextBlock]
+    date: Optional[date]
+    has_valid_text: bool
+
+    def set_languages(self) -> "HTMLParserOutput":
+        """
+        Detect language of the text and set the language attribute. Return an instance of ParsedHTML with the language attribute set.
+
+        TODO: we assume an HTML page contains only one language here. Do we want to try to detect chunks of text with potentially differing languages?
+        """
+
+        # language detection is not deterministic, so we need to set a seed
+        DetectorFactory.seed = 0
+
+        if len(self.text_blocks) > 0:
+            self.languages = [detect(self.to_string())]
+
+        return self
 
 
 class PDFParserOutput(ParserOutput):
@@ -208,12 +205,13 @@ class PDFParserOutput(ParserOutput):
 
     :attribute pages: List of pages contained in the document
     :attribute filename: Name of the PDF file, without extension
-    :attribute md5hash: md5sum of PDF content
+    :attribute md5sum: md5sum of PDF content
     :attribute language: list of 2-letter ISO language codes, optional. If null, the OCR processor didn't support language detection
     """
 
-    pages: List[PDFPage]  # List of textblocks in the document
-    md5hash: str  # MD5 hash of the pdf file
+    page_metadata: List[PDFPageMetadata]
+    text_blocks: List[PDFTextBlock]
+    md5sum: str
 
     def set_languages(self, min_language_proportion: float = 0.4):
         """
@@ -223,9 +221,7 @@ class PDFParserOutput(ParserOutput):
         """
 
         all_text_block_languages = [
-            text_block.language
-            for page in self.pages
-            for text_block in page.text_blocks
+            text_block.language for text_block in self.text_blocks
         ]
 
         if all([lang is None for lang in all_text_block_languages]):
@@ -267,7 +263,7 @@ class HTMLParser(ABC):
             title="",
             url=input.url,
             date=None,
-            text_by_line=[],
+            text_blocks=[],
             document_slug="",
             has_valid_text=False,
         )

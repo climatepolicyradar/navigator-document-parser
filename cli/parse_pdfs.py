@@ -24,7 +24,7 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
 )
 from src.pdf_parser import config
 
-from src.base import PDFParserOutput, PDFPage, ParserInput
+from src.base import PDFParserOutput, PDFPageMetadata, ParserInput
 
 
 def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
@@ -88,7 +88,9 @@ def parse_file(
     elif ocr_agent == "gcv":
         ocr_agent = lp.GCVAgent()
 
-    pages = []
+    all_pages_metadata = []
+    all_text_blocks = []
+
     for page_idx, image in tqdm(
         enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
     ):
@@ -109,26 +111,27 @@ def parse_file(
             layout=ocr_blocks,
             ocr_agent=ocr_agent,
         )
-        text_blocks = ocr_processor.process_layout()
+        page_text_blocks = ocr_processor.process_layout()
+        all_text_blocks += page_text_blocks
 
         page_dimensions = (
             page_layouts[page_idx].page_data["width"],
             page_layouts[page_idx].page_data["height"],
         )
-        page = PDFPage(
-            text_blocks=text_blocks,
+        page_metadata = PDFPageMetadata(
             dimensions=page_dimensions,
             page_number=page_idx,
         )
 
-        pages.append(page)
+        all_pages_metadata.append(page_metadata)
 
     document = PDFParserOutput(
         id=input_task.id,
         url=input_task.url,
         document_slug=input_task.document_slug,
-        pages=pages,
-        md5hash=document_md5sum,
+        page_metadata=all_pages_metadata,
+        text_blocks=all_text_blocks,
+        md5sum=document_md5sum,
     ).set_languages(min_language_proportion=0.4)
 
     output_path = output_dir / f"{input_task.id}.json"

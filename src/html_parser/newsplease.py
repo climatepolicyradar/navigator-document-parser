@@ -5,7 +5,7 @@ import logging
 from newsplease import NewsPlease
 import requests
 
-from src.base import HTMLParser, ParserInput, HTMLParserOutput
+from src.base import HTMLParser, ParserInput, HTMLParserOutput, HTMLTextBlock
 from src.html_parser.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
@@ -83,12 +83,22 @@ class NewsPleaseParser(HTMLParser):
         text_by_line = text.split("\n")
         has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
 
+        text_blocks = [
+            HTMLTextBlock.parse_obj(
+                {
+                    "text_block_id": f"b{idx}",
+                    "text": [text],
+                }
+            )
+            for idx, text in enumerate(text_by_line)
+        ]
+
         return HTMLParserOutput(
             id=input.id,
             url=input.url,
             document_slug=input.document_slug,
             title=newsplease_article.title,
-            text_by_line=text_by_line,
+            text_blocks=text_blocks,
             date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class
             has_valid_text=has_valid_text,
         )

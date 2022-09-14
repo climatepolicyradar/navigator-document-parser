@@ -56,13 +56,13 @@ class CombinedParser(HTMLParser):
         """
         newsplease_result = NewsPleaseParser().parse_html(html, input)
 
-        if len(newsplease_result.text_by_line) == 0:
+        if len(newsplease_result.text_blocks) == 0:
             return ReadabilityParser().parse_html(html, input)
 
         if (
             max(
-                len(paragraph.split(" "))
-                for paragraph in newsplease_result.text_by_line
+                len(paragraph.to_string().split(" "))
+                for paragraph in newsplease_result.text_blocks
             )
             > self._max_paragraph_words
         ):
@@ -93,7 +93,7 @@ class CombinedParser(HTMLParser):
         parsed_html = self.parse_html(requests_response.text, input)
 
         # If there isn't enough text and there's a `<noscript>` tag in the HTML, try again with JS enabled
-        if (len(parsed_html.text_by_line) < MIN_NO_LINES_FOR_VALID_TEXT) and (
+        if (len(parsed_html.text_blocks) < MIN_NO_LINES_FOR_VALID_TEXT) and (
             "<noscript>" in requests_response.text
         ):
             logger.info(
