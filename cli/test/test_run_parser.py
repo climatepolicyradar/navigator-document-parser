@@ -15,7 +15,7 @@ def test_run_parser() -> None:
 
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
-        result = runner.invoke(cli_main, [input_dir, output_dir])
+        result = runner.invoke(cli_main, [input_dir, output_dir, "--parallel"])
 
         assert result.exit_code == 0
 
