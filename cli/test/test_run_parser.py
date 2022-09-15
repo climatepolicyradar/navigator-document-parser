@@ -5,7 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 from cli.run_parser import main as cli_main
-from src.base import HTMLParserOutput, PDFParserOutput
+from src.base import ParserOutput
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -50,32 +50,37 @@ def test_run_parser_skip_already_done(caplog) -> None:
     with tempfile.TemporaryDirectory() as output_dir:
         with open(Path(output_dir) / "test_pdf.json", "w") as f:
             f.write(
-                PDFParserOutput.parse_obj(
+                ParserOutput.parse_obj(
                     {
                         "id": "test_pdf",
                         "url": "https://www.pdfs.org",
                         "content_type": "application/pdf",
                         "languages": ["en"],
-                        "text_blocks": [],
                         "document_slug": "slug",
-                        "page_metadata": [],
-                        "md5sum": "abcdefg",
+                        "pdf_data": {
+                            "text_blocks": [],
+                            "page_metadata": [],
+                            "md5sum": "abcdefg",
+                        },
                     }
                 ).json()
             )
 
         with open(Path(output_dir) / "test_html.json", "w") as f:
             f.write(
-                HTMLParserOutput.parse_obj(
+                ParserOutput.parse_obj(
                     {
                         "id": "test_html",
                         "url": "https://www.google.org",
                         "content_type": "text/html",
                         "languages": ["en"],
-                        "text_blocks": [],
-                        "date": None,
-                        "has_valid_text": False,
                         "document_slug": "slug",
+                        "html_data": {
+                            "text_blocks": [],
+                            "detected_title": "",
+                            "detected_date": None,
+                            "has_valid_text": False,
+                        },
                     }
                 ).json()
             )

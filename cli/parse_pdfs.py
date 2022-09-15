@@ -23,7 +23,7 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
 )
 from src.pdf_parser import config
 
-from src.base import PDFParserOutput, PDFPageMetadata, ParserInput
+from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 
 
 def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
@@ -124,15 +124,17 @@ def parse_file(
 
         all_pages_metadata.append(page_metadata)
 
-    document = PDFParserOutput(
+    document = ParserOutput(
         id=input_task.id,
         url=input_task.url,
         content_type=input_task.content_type,
         document_slug=input_task.document_slug,
-        page_metadata=all_pages_metadata,
-        text_blocks=all_text_blocks,
-        md5sum=document_md5sum,
-    ).set_languages(min_language_proportion=0.4)
+        pdf_data=PDFData(
+            page_metadata=all_pages_metadata,
+            md5sum=document_md5sum,
+            text_blocks=all_text_blocks,
+        ),
+    ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
     output_path = output_dir / f"{input_task.id}.json"
 

@@ -1,15 +1,18 @@
 """Base classes for parsing."""
 
 from enum import Enum
-from typing import Optional, List, Tuple
+from typing import Optional, Sequence, Tuple, List
 from abc import ABC
 from datetime import date
+import logging
 
 from collections import Counter
-from pydantic import BaseModel, AnyHttpUrl, Field
+from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 from langdetect import detect
 from langdetect import DetectorFactory
 import layoutparser.elements as lp_elements
+
+logger = logging.getLogger(__name__)
 
 
 class BlockType(str, Enum):
@@ -151,23 +154,13 @@ class ParserInput(BaseModel):
     document_slug: str
 
 
-class ParserOutput(BaseModel):
-    """Base class for an output to a parser."""
+class HTMLData(BaseModel):
+    """Set of metadata specific to HTML documents."""
 
-    id: str
-    url: AnyHttpUrl
-    languages: Optional[List[str]] = None
-    text_blocks: List[TextBlock]
-    translated: bool = False
-    document_slug: str  # for better links to the frontend hopefully soon
-    content_type: ContentType
-
-    def to_string(self) -> str:
-        """Return the text blocks in the parser output as a string"""
-
-        return " ".join(
-            [text_block.to_string().strip() for text_block in self.text_blocks]
-        )
+    detected_title: Optional[str]
+    detected_date: Optional[date]
+    has_valid_text: bool
+    text_blocks: Sequence[HTMLTextBlock]
 
 
 class PDFPageMetadata(BaseModel):
@@ -181,20 +174,75 @@ class PDFPageMetadata(BaseModel):
     dimensions: Tuple[float, float]
 
 
-class HTMLParserOutput(ParserOutput):
-    """Base class for the output of an HTML parser."""
+class PDFData(BaseModel):
+    """
+    Set of metadata unique to PDF documents.
 
-    title: Optional[str]
-    text_blocks: List[HTMLTextBlock]
-    date: Optional[date]
-    has_valid_text: bool
+    :attribute pages: List of pages contained in the document
+    :attribute filename: Name of the PDF file, without extension
+    :attribute md5sum: md5sum of PDF content
+    :attribute language: list of 2-letter ISO language codes, optional. If null, the OCR processor didn't support language detection
+    """
 
-    def set_languages(self) -> "HTMLParserOutput":
+    page_metadata: Sequence[PDFPageMetadata]
+    md5sum: str
+    text_blocks: Sequence[PDFTextBlock]
+
+
+class ParserOutput(BaseModel):
+    """Base class for an output to a parser."""
+
+    id: str
+    url: AnyHttpUrl
+    languages: Optional[Sequence[str]] = None
+    translated: bool = False
+    document_slug: str  # for better links to the frontend hopefully soon
+    content_type: ContentType
+    html_data: Optional[HTMLData] = None
+    pdf_data: Optional[PDFData] = None
+
+    @root_validator
+    def check_html_pdf_metadata(cls, values):
+        """Check that html_data is set if content_type is HTML, or pdf_data is set if content_type is PDF."""
+        if values["content_type"] == ContentType.HTML and values["html_data"] is None:
+            raise ValueError("html_metadata must be set for HTML documents")
+
+        if values["content_type"] == ContentType.PDF and values["pdf_data"] is None:
+            raise ValueError("pdf_metadata must be null for HTML documents")
+
+        return values
+
+    @property
+    def text_blocks(self) -> Sequence[TextBlock]:  # type: ignore
         """
-        Detect language of the text and set the language attribute. Return an instance of ParsedHTML with the language attribute set.
+        Return the text blocks in the document. These could differ in format depending on the content type.
 
-        TODO: we assume an HTML page contains only one language here. Do we want to try to detect chunks of text with potentially differing languages?
+        :return: Sequence[TextBlock]
         """
+
+        if self.content_type == ContentType.HTML:
+            return self.html_data.text_blocks  # type: ignore
+        elif self.content_type == ContentType.PDF:
+            return self.pdf_data.text_blocks  # type: ignore
+
+    def to_string(self) -> str:  # type: ignore
+        """Return the text blocks in the parser output as a string"""
+
+        return " ".join(
+            [text_block.to_string().strip() for text_block in self.text_blocks]
+        )
+
+    def detect_and_set_languages(self) -> "ParserOutput":
+        """
+        Detect language of the text and set the language attribute. Return an instance of ParserOutput with the language attribute set.
+
+        Assumes that a document only has one language.
+        """
+
+        if self.content_type != ContentType.HTML:
+            logger.warning(
+                "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
+            )
 
         # language detection is not deterministic, so we need to set a seed
         DetectorFactory.seed = 0
@@ -204,24 +252,9 @@ class HTMLParserOutput(ParserOutput):
 
         return self
 
-
-class PDFParserOutput(ParserOutput):
-    """
-    Represents a document and associated pages and text blocks.
-
-    Stores all of the pages that are contained in a document.
-
-    :attribute pages: List of pages contained in the document
-    :attribute filename: Name of the PDF file, without extension
-    :attribute md5sum: md5sum of PDF content
-    :attribute language: list of 2-letter ISO language codes, optional. If null, the OCR processor didn't support language detection
-    """
-
-    page_metadata: List[PDFPageMetadata]
-    text_blocks: List[PDFTextBlock]
-    md5sum: str
-
-    def set_languages(self, min_language_proportion: float = 0.4):
+    def set_document_languages_from_text_blocks(
+        self, min_language_proportion: float = 0.4
+    ):
         """
         Store the document languages attribute as part of the object by getting all languages with proportion above `min_language_proportion`.
 
@@ -256,23 +289,25 @@ class HTMLParser(ABC):
         """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
         raise NotImplementedError()
 
-    def parse_html(self, html: str, url: str) -> HTMLParserOutput:
+    def parse_html(self, html: str, url: str) -> ParserOutput:
         """Parse an HTML string directly."""
         raise NotImplementedError()
 
-    def parse(self, input: ParserInput) -> HTMLParserOutput:
+    def parse(self, input: ParserInput) -> ParserOutput:
         """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
         raise NotImplementedError()
 
-    def _get_empty_response(self, input: ParserInput) -> HTMLParserOutput:
+    def _get_empty_response(self, input: ParserInput) -> ParserOutput:
         """Return ParsedHTML object with empty fields."""
-        return HTMLParserOutput(
+        return ParserOutput(
             id=input.id,
             content_type=input.content_type,
-            title="",
             url=input.url,
-            date=None,
-            text_blocks=[],
             document_slug=input.document_slug,
-            has_valid_text=False,
+            html_data=HTMLData(
+                text_blocks=[],
+                detected_date=None,
+                detected_title="",
+                has_valid_text=False,
+            ),
         )
