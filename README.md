@@ -5,6 +5,8 @@ Parsers for web pages and PDFs containing laws and policies.
 
 - `make install` - install dependencies using Poetry and set up playwright and pre-commit
 
+To run locally you will then need to enter your Poetry virtual environment with `poetry shell`.
+
 ## Running the CLI
 
 To run in Docker with the `data/raw` folder as input and `data/processed` as output run:
