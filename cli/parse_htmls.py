@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Union
 from pathlib import Path
 import logging
 import logging.config
 
 from tqdm.auto import tqdm
+from cloudpathlib import CloudPath
 
 import sys
 
@@ -15,7 +16,7 @@ from src.html_parser.combined import CombinedParser  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
-def run_html_parser(input_tasks: List[ParserInput], output_dir: Path):
+def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath]):
     """
     Run the parser on a list of input tasks specifying documents to parse, and save the results to an output directory.
 
@@ -32,7 +33,6 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Path):
         parsed_html = html_parser.parse(task).detect_and_set_languages()
         output_path = output_dir / f"{task.id}.json"
 
-        with open(output_path, "w") as f:
-            f.write(parsed_html.json(indent=4, ensure_ascii=False))
+        output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
 
         logger.info(f"Output for {task.id} saved to {output_path}")

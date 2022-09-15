@@ -15,6 +15,7 @@ import layoutparser as lp
 import numpy as np
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
+from cloudpathlib import S3Path
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
@@ -59,7 +60,7 @@ def parse_file(
     model,
     model_threshold_restrictive: float,
     ocr_agent: str,
-    output_dir: Path,
+    output_dir: Union[Path, S3Path],
     device: str,
 ):
     """Parse an individual pdf file.
@@ -138,8 +139,7 @@ def parse_file(
 
     output_path = output_dir / f"{input_task.id}.json"
 
-    with open(output_path, "w") as f:
-        f.write(document.json(indent=4, ensure_ascii=False))
+    output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
     logging.info(f"Saved {output_path.name} to {output_dir}.")
 
@@ -164,7 +164,7 @@ def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
 
 def run_pdf_parser(
     input_tasks: List[ParserInput],
-    output_dir: Path,
+    output_dir: Union[Path, S3Path],
     parallel: bool,
     device: str = "cpu",
 ) -> None:
