@@ -8,8 +8,8 @@ import requests
 from readability import Document
 import bleach
 
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
-from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
+from src.html_parser.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
+from src.base import HTMLParser, ParserInput, ParserOutput, HTMLData, HTMLTextBlock
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class ReadabilityParser(HTMLParser):
         """Return parser name"""
         return "readability"
 
-    def parse(self, input: HTMLParserInput) -> HTMLParserOutput:
+    def parse(self, input: ParserInput) -> ParserOutput:
         """
         Parse web page using readability.
 
@@ -50,7 +50,7 @@ class ReadabilityParser(HTMLParser):
 
         return self.parse_html(response.text, input)
 
-    def parse_html(self, html: str, input: HTMLParserInput) -> HTMLParserOutput:
+    def parse_html(self, html: str, input: ParserInput) -> ParserOutput:
         """Parse HTML using readability
 
         :param html: HTML string to parse
@@ -69,14 +69,28 @@ class ReadabilityParser(HTMLParser):
         text_by_line = self._combine_bullet_lines_with_next(text_by_line)
         has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
 
+        text_blocks = [
+            HTMLTextBlock.parse_obj(
+                {
+                    "text_block_id": f"b{idx}",
+                    "text": [text],
+                }
+            )
+            for idx, text in enumerate(text_by_line)
+        ]
+
         # Readability doesn't provide a date
-        return HTMLParserOutput(
+        return ParserOutput(
             id=input.id,
-            title=title,
+            content_type=input.content_type,
             url=input.url,
-            text_by_line=text_by_line,
-            date=None,
-            has_valid_text=has_valid_text,
+            document_slug=input.document_slug,
+            html_data=HTMLData(
+                detected_title=title,
+                detected_date=None,
+                has_valid_text=has_valid_text,
+                text_blocks=text_blocks,
+            ),
         )
 
     @staticmethod

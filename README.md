@@ -1,9 +1,11 @@
-# HTML Parsing
+# Navigator Document Parser
 
-Using article extraction techniques to parse web pages containing climate laws and policies.
+Parsers for web pages and PDFs containing laws and policies.
 ## Setup
 
 - `make install` - install dependencies using Poetry and set up playwright and pre-commit
+
+To run locally you will then need to enter your Poetry virtual environment with `poetry shell`.
 
 ## Running the CLI
 
@@ -15,42 +17,150 @@ make run_docker
 
 The CLI operates on an input folder of tasks defined by JSON files in the following format.
 
-``` json
+``` python
 {
-    "id": "document_id",
-    "url": "https://www.gov.uk/feed-in-tariffs"
+  "id": "test_html",
+  "url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
+  "content_type": "text/html", # or "application/pdf"
+  "document_slug": "YYY"
 }
 ```
 
-It outputs JSON files named `id.json`, with `id` being the ID of each input documebt, to an output folder in this format:
+It outputs JSON files named `id.json`, with `id` being the ID of each input document, to an output folder in one of these formats:
 
-``` json
+``` python
+# HTMLs
 {
-    "id": "test_id",
-    "url": "https://www.gov.uk/feed-in-tariffs",
-    "title": "Smart Export Guarantee (SEG): earn money for exporting the renewable electricity you have generated",
-    "text_by_line": [
-        "If you generate renewable electricity in your home or business, you can feed back into the grid any electricity that you don’t use. Under the Smart Export Guarantee ( SEG ) you will be paid for every unit of electricity that you feed back. You won’t be paid for any that you use yourself.",
-        "What you need to apply for a SEG tariff",
-        "You need to have a renewable electricity generating system that meets the SEG eligibility requirements.",
-        "You must have a meter capable of providing half-hourly export readings. This would typically be a smart meter. Speak to your energy supplier about getting a smart meter installed if you do not already have one.",
-        "You need to show that your installation and installer are certified through the microgeneration certification scheme (MCS) or equivalent.",
-        "You cannot receive a SEG tariff if you are receiving export payments under the Feed-in Tariff scheme.",
-        "How to get a SEG tariff",
-        "You need to apply directly to a SEG tariff supplier to get paid. The Ofgem website lists the energy suppliers that provide SEG tariffs.",
-        "Your SEG tariff supplier does not need to be the same as the supplier that provides your energy.",
-        "SEG suppliers are required to offer you a tariff but are free to determine the terms of the tariff they offer, for example whether it is fixed or variable.",
-        "Tariffs can change over time so you should regularly check to make sure you remain on a competitive tariff.",
-        "If you have a storage device, such as a household battery or electric vehicle, that has the ability to import and export electricity, it could also be used to benefit from the SEG . Your prospective SEG tariff supplier can advise you about this.",
-        "How much could you save?",
-        "Use the Energy Saving Trust calculator to estimate:",
-        "how much you could save from solar panels or other renewable electricity generating systems",
-        "how much you could earn selling unused energy back",
-        "Although you will not be paid for electricity that you use yourself, you will save money through importing less from the grid."
+    "id": "test_html",
+    "url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
+    "languages": [
+        "en"
     ],
-    "date": "2020-01-01",
-    "has_valid_text": true,
-    "language": "en",
-    "translated": false
+    "translated": false,
+    "document_slug": "YYY",
+    "content_type": "text/html",
+    "html_data": {
+        "detected_title": "Can't find what you are looking for?",
+        "detected_date": "2022-05-15",
+        "has_valid_text": false,
+        "text_blocks": [
+            {
+                "text": [
+                    "Can't find what you are looking for?"
+                ],
+                "text_block_id": "b0",
+                "language": null,
+                "type": "Text",
+                "type_confidence": 1.0
+            },
+            {
+                "text": [
+                    "It looks like the page or file you are trying to access has moved, or the web address you have entered is incorrect."
+                ],
+                "text_block_id": "b1",
+                "language": null,
+                "type": "Text",
+                "type_confidence": 1.0
+            },
+            {
+                "text": [
+                    "You can try:"
+                ],
+                "text_block_id": "b2",
+                "language": null,
+                "type": "Text",
+                "type_confidence": 1.0
+            }
+        ]
+    },
+    "pdf_data": null
+}
+
+# PDFs
+{
+    "id": "test_pdf",
+    "url": "https://cdn.climatepolicyradar.org/EUR/2013/EUR-2013-01-01-Overview+of+CAP+Reform+2014-2020_6237180d8c443d72c06c9167019ca177.pdf",
+    "languages": null,
+    "translated": false,
+    "document_slug": "XYX",
+    "content_type": "application/pdf",
+    "html_data": null,
+    "pdf_data": {
+        "page_metadata": [
+            {
+                "page_number": 0,
+                "dimensions": [
+                    596.0,
+                    842.0
+                ]
+            },
+            {
+                "page_number": 1,
+                "dimensions": [
+                    596.0,
+                    842.0
+                ]
+            }
+        ],
+        "md5sum": "6237180d8c443d72c06c9167019ca177",
+        "text_blocks": [
+            {
+                "text": [
+                    "Contact: 06 Agriculture, and\nural Development Unit Tor\nAgree Paley Anais\n"
+                ],
+                "text_block_id": "p_0_b_0",
+                "language": null,
+                "type": "Text",
+                "type_confidence": 0.6339805126190186,
+                "coords": [
+                    [
+                        10.998469352722168,
+                        702.727294921875
+                    ],
+                    [
+                        134.93479919433594,
+                        702.727294921875
+                    ],
+                    [
+                        134.93479919433594,
+                        737.7978515625
+                    ],
+                    [
+                        10.998469352722168,
+                        737.7978515625
+                    ]
+                ],
+                "page_number": 0
+            },
+            {
+                "text": [
+                    "In short, EU agriculture needs to attain\nhigher levels of production of safe and\nquality food, while preserving the natural\nresources that agricultural productivity\ndepends upon.\n"
+                ],
+                "text_block_id": "p_1_b_0",
+                "language": null,
+                "type": "Title",
+                "type_confidence": 0.577865481376648,
+                "coords": [
+                    [
+                        26.7734375,
+                        313.9053039550781
+                    ],
+                    [
+                        281.1876525878906,
+                        313.9053039550781
+                    ],
+                    [
+                        281.1876525878906,
+                        380.9349365234375
+                    ],
+                    [
+                        26.7734375,
+                        380.9349365234375
+                    ]
+                ],
+                "page_number": 1
+            },
+        ]
+    }
 }
 ```

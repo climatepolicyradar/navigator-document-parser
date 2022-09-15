@@ -3,6 +3,13 @@ FROM python:3.9
 RUN mkdir /app
 WORKDIR /app
 
+# Install dependencies for pdf2image and tesseract
+RUN apt-get update
+RUN apt-get install ffmpeg libsm6 libxext6  -y
+RUN apt-get install poppler-utils -y
+RUN apt-get install -y tesseract-ocr
+RUN apt-get install -y libtesseract-dev
+
 # Install pip and poetry
 RUN pip install --upgrade pip
 RUN pip install "poetry==1.1.8"
@@ -13,6 +20,7 @@ COPY ./poetry.lock ./pyproject.toml ./
 # Install python dependencies using poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install
+RUN pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 RUN playwright install
 RUN playwright install-deps
 

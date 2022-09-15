@@ -1,9 +1,9 @@
 import pytest
 
-from src.base import HTMLParser, HTMLParserInput, HTMLParserOutput
-from src.newsplease import NewsPleaseParser
-from src.readability import ReadabilityParser
-from src.combined import CombinedParser
+from src.base import HTMLParser, ParserInput, ParserOutput
+from src.html_parser.newsplease import NewsPleaseParser
+from src.html_parser.readability import ReadabilityParser
+from src.html_parser.combined import CombinedParser
 
 
 @pytest.mark.parametrize(
@@ -25,9 +25,16 @@ def test_parse(url: str, parser: HTMLParser) -> None:
     :param parser: HTML parser
     """
 
-    input = HTMLParserInput.parse_obj({"id": "test_id", "url": url})
+    input = ParserInput.parse_obj(
+        {
+            "id": "test_id",
+            "url": url,
+            "content_type": "text/html",
+            "document_slug": "YYY",
+        }
+    )
 
     parser_result = parser.parse(input)
 
-    assert isinstance(parser_result, HTMLParserOutput)
+    assert isinstance(parser_result, ParserOutput)
     assert parser_result != parser._get_empty_response(input)
