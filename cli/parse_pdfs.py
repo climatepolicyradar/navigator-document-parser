@@ -127,6 +127,7 @@ def parse_file(
     document = PDFParserOutput(
         id=input_task.id,
         url=input_task.url,
+        content_type=input_task.content_type,
         document_slug=input_task.document_slug,
         page_metadata=all_pages_metadata,
         text_blocks=all_text_blocks,

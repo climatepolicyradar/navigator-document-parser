@@ -96,6 +96,7 @@ class NewsPleaseParser(HTMLParser):
         return HTMLParserOutput(
             id=input.id,
             url=input.url,
+            content_type=input.content_type,
             document_slug=input.document_slug,
             title=newsplease_article.title,
             text_blocks=text_blocks,

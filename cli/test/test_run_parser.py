@@ -54,6 +54,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                     {
                         "id": "test_pdf",
                         "url": "https://www.pdfs.org",
+                        "content_type": "application/pdf",
                         "languages": ["en"],
                         "text_blocks": [],
                         "document_slug": "slug",
@@ -69,6 +70,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                     {
                         "id": "test_html",
                         "url": "https://www.google.org",
+                        "content_type": "text/html",
                         "languages": ["en"],
                         "text_blocks": [],
                         "date": None,

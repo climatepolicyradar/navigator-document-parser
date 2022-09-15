@@ -27,6 +27,13 @@ class BlockType(str, Enum):
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
 
 
+class ContentType(str, Enum):
+    """List of document content types that can be handled by the parser."""
+
+    HTML = "text/html"
+    PDF = "application/pdf"
+
+
 class TextBlock(BaseModel):
     """
     Base class for a text block.
@@ -140,7 +147,7 @@ class ParserInput(BaseModel):
 
     id: str
     url: AnyHttpUrl
-    content_type: str
+    content_type: ContentType
     document_slug: str
 
 
@@ -153,6 +160,7 @@ class ParserOutput(BaseModel):
     text_blocks: List[TextBlock]
     translated: bool = False
     document_slug: str  # for better links to the frontend hopefully soon
+    content_type: ContentType
 
     def to_string(self) -> str:
         """Return the text blocks in the parser output as a string"""
@@ -260,10 +268,11 @@ class HTMLParser(ABC):
         """Return ParsedHTML object with empty fields."""
         return HTMLParserOutput(
             id=input.id,
+            content_type=input.content_type,
             title="",
             url=input.url,
             date=None,
             text_blocks=[],
-            document_slug="",
+            document_slug=input.document_slug,
             has_valid_text=False,
         )

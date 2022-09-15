@@ -82,6 +82,7 @@ class ReadabilityParser(HTMLParser):
         # Readability doesn't provide a date
         return HTMLParserOutput(
             id=input.id,
+            content_type=input.content_type,
             title=title,
             url=input.url,
             document_slug=input.document_slug,
