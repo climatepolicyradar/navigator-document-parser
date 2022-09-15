@@ -6,6 +6,7 @@ from typing import List, Optional
 import sys
 
 import click
+from cloudpathlib import S3Path
 
 sys.path.append("..")
 
@@ -37,12 +38,8 @@ logging.config.dictConfig(DEFAULT_LOGGING)
 
 
 @click.command()
-@click.argument(
-    "input_dir", type=click.Path(exists=True, file_okay=False, path_type=Path)
-)
-@click.argument(
-    "output_dir", type=click.Path(exists=True, file_okay=False, path_type=Path)
-)
+@click.argument("input_dir", type=str)
+@click.argument("output_dir", type=str)
 @click.option(
     "--device",
     type=click.Choice(["cuda", "cpu"]),
@@ -69,13 +66,20 @@ logging.config.dictConfig(DEFAULT_LOGGING)
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--s3",
+    help="Input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.",
+    is_flag=True,
+    default=False,
+)
 def main(
-    input_dir: Path,
-    output_dir: Path,
+    input_dir: str,
+    output_dir: str,
     parallel: bool,
     device: str,
     files: Optional[List[str]],
     redo: bool,
+    s3: bool,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
@@ -85,19 +89,32 @@ def main(
     :param parallel: whether to run PDF parsing over multiple processes
     :param device: device to use for PDF parsing
     :param files: list of filenames to parse, relative to the input directory. Can be used to select a subset of files to parse.
-    :param redo: redo parsing for files that have already been parsed. Defaults to False,
+    :param redo: redo parsing for files that have already been parsed. Defaults to False.
+    :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
     """
 
-    # This relies on the names of output files being {id}.json at the moment, as otherwise we have to guess whether a file is serialised from PDF or JSON.
+    if s3:
+        input_dir_as_path = S3Path(input_dir)
+        output_dir_as_path = S3Path(output_dir)
+    else:
+        input_dir_as_path = Path(input_dir)
+        output_dir_as_path = Path(output_dir)
+
+    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath objects to pathlib.Path objects.
     document_ids_previously_parsed = set(
-        [ParserOutput.parse_file(path).id for path in output_dir.glob("*.json")]
+        [
+            ParserOutput.parse_raw(path.read_text()).id
+            for path in output_dir_as_path.glob("*.json")
+        ]
     )
 
     files_to_parse = (
-        (input_dir / f for f in files) if files else input_dir.glob("*.json")
+        (input_dir_as_path / f for f in files)
+        if files
+        else input_dir_as_path.glob("*.json")
     )
 
-    tasks = [ParserInput.parse_file(_path) for _path in files_to_parse]
+    tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
 
     if not redo and document_ids_previously_parsed.intersection(
         {task.id for task in tasks}
@@ -115,10 +132,10 @@ def main(
     logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 
     logger.info(f"Running HTML parser on {len(html_tasks)} documents")
-    run_html_parser(html_tasks, output_dir)
+    run_html_parser(html_tasks, output_dir_as_path)
 
     logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
-    run_pdf_parser(pdf_tasks, output_dir, parallel=parallel, device=device)
+    run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device)
 
 
 if __name__ == "__main__":
