@@ -9,7 +9,7 @@ import click
 
 sys.path.append("..")
 
-from src.base import ParserInput  # noqa: E402
+from src.base import ParserInput, ParserOutput  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 
@@ -90,7 +90,7 @@ def main(
 
     # This relies on the names of output files being {id}.json at the moment, as otherwise we have to guess whether a file is serialised from PDF or JSON.
     document_ids_previously_parsed = set(
-        [path.stem for path in output_dir.glob("*.json")]
+        [ParserOutput.parse_file(path).id for path in output_dir.glob("*.json")]
     )
 
     files_to_parse = (
