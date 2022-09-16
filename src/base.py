@@ -2,7 +2,7 @@
 
 from enum import Enum
 from typing import Optional, Sequence, Tuple, List
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import date
 import logging
 
@@ -289,14 +289,17 @@ class HTMLParser(ABC):
     """Base class for an HTML parser."""
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
         raise NotImplementedError()
 
+    @abstractmethod
     def parse_html(self, html: str, url: str) -> ParserOutput:
         """Parse an HTML string directly."""
         raise NotImplementedError()
 
+    @abstractmethod
     def parse(self, input: ParserInput) -> ParserOutput:
         """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
         raise NotImplementedError()
