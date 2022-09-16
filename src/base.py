@@ -2,7 +2,7 @@
 
 from enum import Enum
 from typing import Optional, Sequence, Tuple, List
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import date
 import logging
 
@@ -149,6 +149,8 @@ class ParserInput(BaseModel):
     """Base class for input to a parser."""
 
     id: str
+    document_name: str
+    document_description: str
     url: AnyHttpUrl
     content_type: ContentType
     document_slug: str
@@ -193,6 +195,8 @@ class ParserOutput(BaseModel):
     """Base class for an output to a parser."""
 
     id: str
+    document_name: str
+    document_description: str
     url: AnyHttpUrl
     languages: Optional[Sequence[str]] = None
     translated: bool = False
@@ -285,14 +289,17 @@ class HTMLParser(ABC):
     """Base class for an HTML parser."""
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
         raise NotImplementedError()
 
+    @abstractmethod
     def parse_html(self, html: str, url: str) -> ParserOutput:
         """Parse an HTML string directly."""
         raise NotImplementedError()
 
+    @abstractmethod
     def parse(self, input: ParserInput) -> ParserOutput:
         """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
         raise NotImplementedError()
@@ -302,6 +309,8 @@ class HTMLParser(ABC):
         return ParserOutput(
             id=input.id,
             content_type=input.content_type,
+            document_name=input.document_name,
+            document_description=input.document_description,
             url=input.url,
             document_slug=input.document_slug,
             html_data=HTMLData(

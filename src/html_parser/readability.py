@@ -83,6 +83,8 @@ class ReadabilityParser(HTMLParser):
         return ParserOutput(
             id=input.id,
             content_type=input.content_type,
+            document_name=input.document_name,
+            document_description=input.document_description,
             url=input.url,
             document_slug=input.document_slug,
             html_data=HTMLData(
