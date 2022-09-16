@@ -149,6 +149,8 @@ class ParserInput(BaseModel):
     """Base class for input to a parser."""
 
     id: str
+    document_name: str
+    document_description: str
     url: AnyHttpUrl
     content_type: ContentType
     document_slug: str
@@ -193,6 +195,8 @@ class ParserOutput(BaseModel):
     """Base class for an output to a parser."""
 
     id: str
+    document_name: str
+    document_description: str
     url: AnyHttpUrl
     languages: Optional[Sequence[str]] = None
     translated: bool = False
@@ -302,6 +306,8 @@ class HTMLParser(ABC):
         return ParserOutput(
             id=input.id,
             content_type=input.content_type,
+            document_name=input.document_name,
+            document_description=input.document_description,
             url=input.url,
             document_slug=input.document_slug,
             html_data=HTMLData(

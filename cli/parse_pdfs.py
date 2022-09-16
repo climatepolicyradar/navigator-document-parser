@@ -128,6 +128,8 @@ def parse_file(
     document = ParserOutput(
         id=input_task.id,
         url=input_task.url,
+        document_name=input_task.document_name,
+        document_description=input_task.document_description,
         content_type=input_task.content_type,
         document_slug=input_task.document_slug,
         pdf_data=PDFData(
