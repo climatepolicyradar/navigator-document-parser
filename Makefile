@@ -4,6 +4,7 @@ install:
 	poetry install
 	poetry run pre-commit install
 	poetry run playwright install 
+	poetry run pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 	cp .env.example .env
 
 run_local:
