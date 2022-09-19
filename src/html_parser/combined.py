@@ -9,7 +9,7 @@ from playwright.sync_api._generated import Playwright
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
 from src.base import HTMLParser, ParserInput, ParserOutput
-from src.html_parser.config import (
+from src.config import (
     MIN_NO_LINES_FOR_VALID_TEXT,
     HTTP_REQUEST_TIMEOUT,
     MAX_PARAGRAPH_LENGTH_WORDS,

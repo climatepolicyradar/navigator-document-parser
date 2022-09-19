@@ -11,8 +11,10 @@ from cloudpathlib import S3Path
 sys.path.append("..")
 
 from src.base import ParserInput, ParserOutput  # noqa: E402
+from src.config import TARGET_LANGUAGES  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
+from cli.translate_outputs import translate_parser_outputs  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {
@@ -136,6 +138,11 @@ def main(
 
     logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
     run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device)
+
+    logger.info(
+        f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"
+    )
+    translate_parser_outputs(output_dir_as_path)
 
 
 if __name__ == "__main__":
