@@ -8,7 +8,7 @@ import requests
 from readability import Document
 import bleach
 
-from src.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
+from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
 from src.base import HTMLParser, ParserInput, ParserOutput, HTMLData, HTMLTextBlock
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class ReadabilityParser(HTMLParser):
                 input.url,
                 verify=False,
                 allow_redirects=True,
-                timeout=HTTP_REQUEST_TIMEOUT,
+                timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
             logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
@@ -67,7 +67,7 @@ class ReadabilityParser(HTMLParser):
             line.strip() for line in text_html_stripped.split("\n") if line.strip()
         ]
         text_by_line = self._combine_bullet_lines_with_next(text_by_line)
-        has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
+        has_valid_text = len(text_by_line) >= HTML_MIN_NO_LINES_FOR_VALID_TEXT
 
         text_blocks = [
             HTMLTextBlock.parse_obj(
