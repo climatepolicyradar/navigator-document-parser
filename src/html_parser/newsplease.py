@@ -6,7 +6,7 @@ from newsplease import NewsPlease
 import requests
 
 from src.base import HTMLParser, ParserInput, ParserOutput, HTMLTextBlock, HTMLData
-from src.html_parser.config import MIN_NO_LINES_FOR_VALID_TEXT, HTTP_REQUEST_TIMEOUT
+from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class NewsPleaseParser(HTMLParser):
                 input.url,
                 verify=False,
                 allow_redirects=True,
-                timeout=HTTP_REQUEST_TIMEOUT,
+                timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
 
         except Exception as e:
@@ -81,7 +81,7 @@ class NewsPleaseParser(HTMLParser):
             return self._get_empty_response(input)
 
         text_by_line = text.split("\n")
-        has_valid_text = len(text_by_line) >= MIN_NO_LINES_FOR_VALID_TEXT
+        has_valid_text = len(text_by_line) >= HTML_MIN_NO_LINES_FOR_VALID_TEXT
 
         text_blocks = [
             HTMLTextBlock.parse_obj(

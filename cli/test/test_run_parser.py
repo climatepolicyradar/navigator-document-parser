@@ -1,11 +1,18 @@
 from pathlib import Path
 import tempfile
+from unittest import mock
 
 import pytest
 from click.testing import CliRunner
 
 from cli.run_parser import main as cli_main
 from src.base import ParserOutput
+
+patcher = mock.patch(
+    "src.translator.translate.translate_text",
+    mock.MagicMock(return_value=["translated text"]),
+)
+patcher.start()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -21,6 +28,9 @@ def test_run_parser() -> None:
 
         assert (Path(output_dir) / "test_html.json").exists()
         assert (Path(output_dir) / "test_pdf.json").exists()
+
+        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
+        assert (Path(output_dir) / "test_pdf_translated_en.json").exists()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")

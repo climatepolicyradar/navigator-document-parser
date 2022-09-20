@@ -22,7 +22,7 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
     LayoutDisambiguator,
     DetectReadingOrder,
 )
-from src.pdf_parser import config
+from src import config
 
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 
@@ -186,8 +186,10 @@ def run_pdf_parser(
     # Create logger that prints to stdout.
     logging.basicConfig(level=logging.DEBUG)
 
-    logging.info(f"Using {config.OCR_AGENT} OCR agent and {config.MODEL} model.")
-    if config.OCR_AGENT == "gcv":
+    logging.info(
+        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    )
+    if config.PDF_OCR_AGENT == "gcv":
         logging.warning(
             "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
         )
@@ -199,10 +201,10 @@ def run_pdf_parser(
 
     file_parser = partial(
         parse_file,
-        model=config.MODEL,
-        ocr_agent=config.OCR_AGENT,
+        model=config.LAYOUTPARSER_MODEL,
+        ocr_agent=config.PDF_OCR_AGENT,
         output_dir=output_dir,
-        model_threshold_restrictive=config.MODEL_THRESHOLD_RESTRICTIVE,
+        model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
         device=device,
     )
     if parallel:

@@ -9,10 +9,10 @@ from playwright.sync_api._generated import Playwright
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
 from src.base import HTMLParser, ParserInput, ParserOutput
-from src.html_parser.config import (
-    MIN_NO_LINES_FOR_VALID_TEXT,
-    HTTP_REQUEST_TIMEOUT,
-    MAX_PARAGRAPH_LENGTH_WORDS,
+from src.config import (
+    HTML_MIN_NO_LINES_FOR_VALID_TEXT,
+    HTML_HTTP_REQUEST_TIMEOUT,
+    HTML_MAX_PARAGRAPH_LENGTH_WORDS,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,9 @@ class CombinedParser(HTMLParser):
 
     """
 
-    def __init__(self, max_paragraph_words: int = MAX_PARAGRAPH_LENGTH_WORDS) -> None:
+    def __init__(
+        self, max_paragraph_words: int = HTML_MAX_PARAGRAPH_LENGTH_WORDS
+    ) -> None:
         """
         Initialise combined parser
 
@@ -84,7 +86,7 @@ class CombinedParser(HTMLParser):
                 input.url,
                 verify=False,
                 allow_redirects=True,
-                timeout=HTTP_REQUEST_TIMEOUT,
+                timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
             logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
@@ -93,7 +95,7 @@ class CombinedParser(HTMLParser):
         parsed_html = self.parse_html(requests_response.text, input)
 
         # If there isn't enough text and there's a `<noscript>` tag in the HTML, try again with JS enabled
-        if (len(parsed_html.text_blocks) < MIN_NO_LINES_FOR_VALID_TEXT) and (
+        if (len(parsed_html.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) and (
             "<noscript>" in requests_response.text
         ):
             logger.info(
