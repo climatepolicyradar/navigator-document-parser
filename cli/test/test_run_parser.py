@@ -1,11 +1,18 @@
 from pathlib import Path
 import tempfile
+from unittest import mock
 
 import pytest
 from click.testing import CliRunner
 
 from cli.run_parser import main as cli_main
 from src.base import ParserOutput
+
+patcher = mock.patch(
+    "src.translator.translate.translate_text",
+    mock.MagicMock(return_value="translated text"),
+)
+patcher.start()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
