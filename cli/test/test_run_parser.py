@@ -10,7 +10,7 @@ from src.base import ParserOutput
 
 patcher = mock.patch(
     "src.translator.translate.translate_text",
-    mock.MagicMock(return_value="translated text"),
+    mock.MagicMock(return_value=["translated text"]),
 )
 patcher.start()
 
