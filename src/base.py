@@ -252,7 +252,10 @@ class ParserOutput(BaseModel):
         DetectorFactory.seed = 0
 
         if len(self.text_blocks) > 0:
-            self.languages = [detect(self.to_string())]
+            detected_language = detect(self.to_string())
+            self.languages = [detected_language]
+            for text_block in self.text_blocks:
+                text_block.language = detected_language
 
         return self
 

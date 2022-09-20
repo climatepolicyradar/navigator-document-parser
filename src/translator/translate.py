@@ -40,7 +40,8 @@ def translate_parser_output(
     :return: translated ParserOutput object
     """
 
-    new_parser_output = parser_output.copy()
+    # A deep copy here prevents text blocks in the original ParserOutput object from being modified in place
+    new_parser_output = parser_output.copy(deep=True)
 
     # Translate document name, document description and text
     new_parser_output.document_name = translate_text(
@@ -53,10 +54,12 @@ def translate_parser_output(
     if new_parser_output.html_data is not None:
         for block in new_parser_output.html_data.text_blocks:
             block.text = translate_text(block.text, target_language)
+            block.language = target_language
 
     if new_parser_output.pdf_data is not None:
         for block in new_parser_output.pdf_data.text_blocks:
             block.text = translate_text(block.text, target_language)
+            block.language = target_language
 
     # Set language and translation status of new ParserOutput object
     # TODO: is this language in the correct format?
