@@ -21,3 +21,8 @@ test:
 
 run_docker:
 	docker run --network host -v ${PWD}/data:/app/data html-parser python -m cli.run_parser ./data/raw ./data/processed
+
+run_local_dotenv:
+	cp .env.example .env
+	docker build -t html-parser_local .
+	docker run --env-file .env -it html-parser_local python -m cli.run_parser --s3 s3://data-pipeline-a64047a/runs/09-16-2022_17:36___d848799b-3b9c-4ca3-9ec6-4653f40ce6b6/loader_output/ s3://data-pipeline-a64047a/runs/09-16-2022_17:36___d848799b-3b9c-4ca3-9ec6-4653f4
