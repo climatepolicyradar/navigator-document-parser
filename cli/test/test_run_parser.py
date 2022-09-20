@@ -29,6 +29,9 @@ def test_run_parser() -> None:
         assert (Path(output_dir) / "test_html.json").exists()
         assert (Path(output_dir) / "test_pdf.json").exists()
 
+        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
+        assert (Path(output_dir) / "test_pdf_translated_en.json").exists()
+
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_specific_files() -> None:
