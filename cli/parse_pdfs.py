@@ -20,7 +20,7 @@ from cloudpathlib import S3Path
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
     LayoutDisambiguator,
-    DetectReadingOrder,
+    PostProcessor,
 )
 from src import config
 
@@ -103,8 +103,8 @@ def parse_file(
             logging.info(f"No layout found for page {page_idx}.")
             continue
         disambiguated_layout = layout_disambiguator.disambiguate_layout()
-        reading_order_detector = DetectReadingOrder(disambiguated_layout)
-        ocr_blocks = reading_order_detector.infer_reading_order()
+        postprocessor = PostProcessor(disambiguated_layout)
+        ocr_blocks = postprocessor.postprocess()
         ocr_processor = OCRProcessor(
             image=np.array(image),
             page_number=page_idx,
