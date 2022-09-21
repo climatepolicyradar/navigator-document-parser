@@ -7,6 +7,7 @@ import sys
 
 import click
 from cloudpathlib import S3Path
+import pydantic  # noqa: E402
 
 sys.path.append("..")
 
@@ -116,7 +117,14 @@ def main(
         else input_dir_as_path.glob("*.json")
     )
 
-    tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
+    # tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
+    tasks = []
+    for path in files_to_parse:
+        try:
+            tasks.append(ParserInput.parse_raw(path.read_text()))
+
+        except pydantic.error_wrappers.ValidationError as e:
+            logger.error(f"Could not parse {path}: {e}")
 
     if not redo and document_ids_previously_parsed.intersection(
         {task.id for task in tasks}
