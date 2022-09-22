@@ -1,1 +1,2 @@
-python -m cli.run_parser --s3 $s3_bucket_in $s3_bucket_out
+python -m pytest
+# python -m cli.run_parser --s3 $s3_in $s3_out

@@ -29,3 +29,9 @@ run_local_dotenv:
 run_s3: 
 	docker build -t html-parser-s3 . 
 	docker run html-parser-s3 
+
+build_and_push_ecr: 
+	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 281621126254.dkr.ecr.us-east-1.amazonaws.com
+	docker build -t parser-2263e83 .
+	docker tag parser-2263e83:latest 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest
+	docker push 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest	
