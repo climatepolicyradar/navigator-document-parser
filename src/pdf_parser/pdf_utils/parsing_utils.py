@@ -447,8 +447,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
 
 class PostProcessor:
-    """Helper class for detecting the layout of content from a layoutparser computer vision models
-    using visual heuristics.
+    """Helper for detecting the layout of content from a layoutparser computer vision models using visual heuristics.
 
     Intent is to handle the following (non-exhaustive) cases:
         - Reading order inference.
@@ -456,6 +455,8 @@ class PostProcessor:
 
     Attributes:
         layout: The layoutparser layout of the page.
+        layout_unfiltered: The layoutparser layout of the page before filtering (i.e. no thresholds or disambiguation).
+        threshold: The confidence threshold to use for adding unknown text blocks from the unfiltered layout.
     """
 
     def __init__(
@@ -473,6 +474,7 @@ class PostProcessor:
 
     @property
     def ocr_blocks(self) -> lp.Layout:
+        """Return the text blocks for OCR from the layout."""
         return lp.Layout(
             [b for b in self.layout if b.type in ["Text", "List", "Title", "Ambiguous"]]
         )
@@ -524,19 +526,15 @@ class PostProcessor:
         x2 = max([b.coordinates[2] for b in column_blocks])
         # Iteratively fill in gaps between subsequent blocks.
         new_blocks = []
-        for ix, block in enumerate(column_blocks):
-            for ix2, block2 in enumerate(column_blocks):
-                if ix2 == ix + 1:
-                    y1_new = block.coordinates[3]
-                    y2_new = block2.coordinates[1]
-                    height_new = y2_new - y1_new
-                    if height_new > height_threshold:
-                        # create a new block
-                        new_block_shape = lp.Rectangle(x1, y1_new, x2, y2_new)
-                        new_block = lp.TextBlock(new_block_shape, type="Ambiguous")
-                        new_blocks.append(new_block)
-                else:
-                    continue
+
+        for ix in range(len(column_blocks) - 1):
+            y1_new = column_blocks[ix].coordinates[3]
+            y2_new = column_blocks[ix + 1].coordinates[1]
+            height_new = y2_new - y1_new
+            if height_new > height_threshold:
+                new_block_shape = lp.Rectangle(x1, y1_new, x2, y2_new)
+                new_block = lp.TextBlock(new_block_shape, type="Ambiguous", score=1.0)
+                new_blocks.append(new_block)
         return new_blocks
 
     def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.95):
@@ -635,8 +633,8 @@ class PostProcessor:
         """Fill column areas not captured by restrictive perspectives if captured by the permissive perspective.
 
         Args:
-            columnar_layouts_restrictive: list of column layouts from a restrictive perspective.
-            columnar_layouts_permissive: list of page column layouts from a strict perspective.
+            columnar_layouts_restrictive: list with each element the text block layout of a single column of a page.
+            columnar_layouts_permissive: list with each element the text block layout of a single column of a page.
 
         Returns:
             The columnar layouts with the inferred missing blocks.
@@ -694,20 +692,23 @@ class PostProcessor:
                     new_text_blocks.append(unaccounted_text_block)
         return new_text_blocks
 
-    # TODO: Instead of this, we can use Google OCR to extract all text from a page and index everything not indexed.
-    #  TODO: Noticed a bug that needs fixing with high priority. This function fails because it doesn't account for
-    #   columns - if we're applying vertically we must do it separately for each column. This is nontrivial as it
-    #   will change the execution order.
     def postprocess(
         self,
         inference_method: str = "gaps",
     ) -> lp.Layout:
-        """Create text blocks by grabbing blocks with low confidence scores and subtracting intersections
-         with the current layout to create new text blocks.
+        """Infer probable text blocks that haven't been detected and infer reading order.
 
         This has utility beyond the _combine_layouts method because it extracts text even in cases where
         there are huge text blocks with high emounts of explained area so they aren't caught by the
         _combine_layouts method.
+
+        Note the default inference method is "gaps". This method fills in gaps in previously inferred columns
+        if the gaps are too big to be white space. The risk is false positives (i.e. genuine whitespace that is
+        larger than the threshold) or the capture of figures/tables that the parser missed. This is rare, but can
+        be corrected for downstream using heuristics from the text returned by OCR if need be. The alternative method,
+        perspectives, tried to fill gaps in areas covered by detectron2 text blocks with low confidence scores. Empirically,
+        this method was less effective than the gaps method because detectron2 sometimes fails to detect text blocks at all,
+        even with low confidence.
 
         Args:
             inference_method: The method to use for inferring the missing blocks. Options are "gaps" and "threshold". See docstrings for details.
@@ -728,6 +729,7 @@ class PostProcessor:
         elif (
             inference_method == "perspective"
         ):  # infer blocks based on coverage of gaps by boxes from a more permissive perspective.
+            assert self.layout_unfiltered is not None
             text_blocks_permissive = lp.Layout(
                 [b for b in self.layout_unfiltered if b.score >= self.threshold]
             )
@@ -745,6 +747,8 @@ class PostProcessor:
             new_text_blocks = self._infer_missing_blocks_from_perspectives(
                 column_layouts, additional_layouts_all
             )
+        else:
+            raise ValueError("Inference method must be either 'gaps' or 'perspective'.")
 
         # reorder the new inferred text blocks and create a final layout object.
         unordered_layout = lp.Layout([*[b for b in self.layout], *new_text_blocks])

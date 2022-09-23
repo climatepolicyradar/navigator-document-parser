@@ -109,7 +109,6 @@ def main(
             for path in output_dir_as_path.glob("*.json")
         ]
     )
-
     files_to_parse = (
         (input_dir_as_path / f for f in files)
         if files
@@ -117,7 +116,6 @@ def main(
     )
 
     tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
-
     if not redo and document_ids_previously_parsed.intersection(
         {task.id for task in tasks}
     ):

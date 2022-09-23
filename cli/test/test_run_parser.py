@@ -25,7 +25,6 @@ def test_run_parser() -> None:
         result = runner.invoke(cli_main, [input_dir, output_dir, "--parallel"])
 
         assert result.exit_code == 0
-
         assert (Path(output_dir) / "test_html.json").exists()
         assert (Path(output_dir) / "test_pdf.json").exists()
 
