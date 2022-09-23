@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import tempfile
 from unittest import mock
@@ -26,11 +27,26 @@ def test_run_parser() -> None:
 
         assert result.exit_code == 0
 
-        assert (Path(output_dir) / "test_html.json").exists()
-        assert (Path(output_dir) / "test_pdf.json").exists()
+        # TODO could get this dynamically from output_dir
+        root = "/tmp"
 
-        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
-        assert (Path(output_dir) / "test_pdf_translated_en.json").exists()
+        print(f"Files in /tmp {os.listdir(root)}")
+
+        all_files = []
+        for path, subdirs, files in os.walk(root):
+            for dir in subdirs:
+                dir_path = os.path.join(path, dir)
+                dir_files = os.listdir(dir_path)
+                print(f"Files in {dir_path}: {dir_files}")
+                for file in dir_files:
+                    all_files.append(file)
+
+        assert any("test_html.json" in file for file in all_files)
+        assert any("test_pdf.json" in file for file in all_files)
+
+        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a
+        # translation of the PDF
+        assert any("test_pdf_translated_en.json" in file for file in all_files)
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")

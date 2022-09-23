@@ -27,7 +27,9 @@ from src import config
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 
 
-def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
+def download_pdf(
+    parser_input: ParserInput, output_dir: Union[Path, str]
+) -> Path or None:
     """
     Get a PDF from a URL in a ParserInput object.
 
@@ -39,8 +41,9 @@ def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Pat
     response = requests.get(parser_input.url)
 
     if response.status_code != 200:
-        # TODO: what exception should be raised here?
-        raise Exception(f"Could not get PDF from {parser_input.url}")
+        # TODO: output file path and error code to a log file
+        logging.exception(f"Could not get PDF from {parser_input.url}")
+        return None
 
     if response.headers["Content-Type"] != "application/pdf":
         raise Exception(
@@ -77,73 +80,77 @@ def parse_file(
     # TODO: do we want to handle exceptions raised by get_pdf here?
     with tempfile.TemporaryDirectory() as temp_output_dir:
         pdf_path = download_pdf(input_task, temp_output_dir)
-        page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
-        document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
-    # FIXME: handle EmptyFileError here using _pdf_num_pages
+        if pdf_path is None:
+            pass
+        else:
+            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
+            document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
-    model = _get_detectron_model(model, device)
-    if ocr_agent == "tesseract":
-        ocr_agent = lp.TesseractAgent()
-    elif ocr_agent == "gcv":
-        ocr_agent = lp.GCVAgent()
+            # FIXME: handle EmptyFileError here using _pdf_num_pages
 
-    all_pages_metadata = []
-    all_text_blocks = []
+            model = _get_detectron_model(model, device)
+            if ocr_agent == "tesseract":
+                ocr_agent = lp.TesseractAgent()
+            elif ocr_agent == "gcv":
+                ocr_agent = lp.GCVAgent()
 
-    for page_idx, image in tqdm(
-        enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
-    ):
-        # Maybe we should always pass a layout object into the PageParser class.
-        layout_disambiguator = LayoutDisambiguator(
-            image, model, model_threshold_restrictive
-        )
-        initial_layout = layout_disambiguator.layout
-        if len(initial_layout) == 0:
-            logging.info(f"No layout found for page {page_idx}.")
-            continue
-        disambiguated_layout = layout_disambiguator.disambiguate_layout()
-        reading_order_detector = DetectReadingOrder(disambiguated_layout)
-        ocr_blocks = reading_order_detector.infer_reading_order()
-        ocr_processor = OCRProcessor(
-            image=np.array(image),
-            page_number=page_idx,
-            layout=ocr_blocks,
-            ocr_agent=ocr_agent,
-        )
-        page_text_blocks = ocr_processor.process_layout()
-        all_text_blocks += page_text_blocks
+            all_pages_metadata = []
+            all_text_blocks = []
 
-        page_dimensions = (
-            page_layouts[page_idx].page_data["width"],
-            page_layouts[page_idx].page_data["height"],
-        )
-        page_metadata = PDFPageMetadata(
-            dimensions=page_dimensions,
-            page_number=page_idx,
-        )
+            for page_idx, image in tqdm(
+                enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
+            ):
+                # Maybe we should always pass a layout object into the PageParser class.
+                layout_disambiguator = LayoutDisambiguator(
+                    image, model, model_threshold_restrictive
+                )
+                initial_layout = layout_disambiguator.layout
+                if len(initial_layout) == 0:
+                    logging.info(f"No layout found for page {page_idx}.")
+                    continue
+                disambiguated_layout = layout_disambiguator.disambiguate_layout()
+                reading_order_detector = DetectReadingOrder(disambiguated_layout)
+                ocr_blocks = reading_order_detector.infer_reading_order()
+                ocr_processor = OCRProcessor(
+                    image=np.array(image),
+                    page_number=page_idx,
+                    layout=ocr_blocks,
+                    ocr_agent=ocr_agent,
+                )
+                page_text_blocks = ocr_processor.process_layout()
+                all_text_blocks += page_text_blocks
 
-        all_pages_metadata.append(page_metadata)
+                page_dimensions = (
+                    page_layouts[page_idx].page_data["width"],
+                    page_layouts[page_idx].page_data["height"],
+                )
+                page_metadata = PDFPageMetadata(
+                    dimensions=page_dimensions,
+                    page_number=page_idx,
+                )
 
-    document = ParserOutput(
-        id=input_task.id,
-        url=input_task.url,
-        document_name=input_task.document_name,
-        document_description=input_task.document_description,
-        content_type=input_task.content_type,
-        document_slug=input_task.document_slug,
-        pdf_data=PDFData(
-            page_metadata=all_pages_metadata,
-            md5sum=document_md5sum,
-            text_blocks=all_text_blocks,
-        ),
-    ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
+                all_pages_metadata.append(page_metadata)
 
-    output_path = output_dir / f"{input_task.id}.json"
+                document = ParserOutput(
+                    id=input_task.id,
+                    url=input_task.url,
+                    document_name=input_task.document_name,
+                    document_description=input_task.document_description,
+                    content_type=input_task.content_type,
+                    document_slug=input_task.document_slug,
+                    pdf_data=PDFData(
+                        page_metadata=all_pages_metadata,
+                        md5sum=document_md5sum,
+                        text_blocks=all_text_blocks,
+                    ),
+                ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
-    output_path.write_text(document.json(indent=4, ensure_ascii=False))
+                output_path = output_dir / f"{input_task.id}.json"
 
-    logging.info(f"Saved {output_path.name} to {output_dir}.")
+                output_path.write_text(document.json(indent=4, ensure_ascii=False))
+
+                logging.info(f"Saved {output_path.name} to {output_dir}.")
 
 
 def _pdf_num_pages(file: str):
