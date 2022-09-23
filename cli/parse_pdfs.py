@@ -132,25 +132,25 @@ def parse_file(
 
                 all_pages_metadata.append(page_metadata)
 
-                document = ParserOutput(
-                    id=input_task.id,
-                    url=input_task.url,
-                    document_name=input_task.document_name,
-                    document_description=input_task.document_description,
-                    content_type=input_task.content_type,
-                    document_slug=input_task.document_slug,
-                    pdf_data=PDFData(
-                        page_metadata=all_pages_metadata,
-                        md5sum=document_md5sum,
-                        text_blocks=all_text_blocks,
-                    ),
-                ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
+            document = ParserOutput(
+                id=input_task.id,
+                url=input_task.url,
+                document_name=input_task.document_name,
+                document_description=input_task.document_description,
+                content_type=input_task.content_type,
+                document_slug=input_task.document_slug,
+                pdf_data=PDFData(
+                    page_metadata=all_pages_metadata,
+                    md5sum=document_md5sum,
+                    text_blocks=all_text_blocks,
+                ),
+            ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
-                output_path = output_dir / f"{input_task.id}.json"
+            output_path = output_dir / f"{input_task.id}.json"
 
-                output_path.write_text(document.json(indent=4, ensure_ascii=False))
+            output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
-                logging.info(f"Saved {output_path.name} to {output_dir}.")
+            logging.info(f"Saved {output_path.name} to {output_dir}.")
 
 
 def _pdf_num_pages(file: str):

@@ -104,12 +104,24 @@ def main(
         output_dir_as_path = Path(output_dir)
 
     # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath objects to pathlib.Path objects.
-    document_ids_previously_parsed = set(
-        [
-            ParserOutput.parse_raw(path.read_text()).id
-            for path in output_dir_as_path.glob("*.json")
-        ]
-    )
+    document_ids_previously_parsed = []
+    for path in output_dir_as_path.glob("*.json"):
+        try:
+            document_ids_previously_parsed.append(
+                ParserOutput.parse_raw(path.read_text()).id
+            )
+        except pydantic.ValidationError as e:
+            logger.error(
+                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).id"
+            )
+    document_ids_previously_parsed = set(document_ids_previously_parsed)
+
+    # document_ids_previously_parsed = set(
+    #     [
+    #         ParserOutput.parse_raw(path.read_text()).id
+    #         for path in output_dir_as_path.glob("*.json")
+    #     ]
+    # )
 
     files_to_parse = (
         (input_dir_as_path / f for f in files)
@@ -124,7 +136,9 @@ def main(
             tasks.append(ParserInput.parse_raw(path.read_text()))
 
         except pydantic.error_wrappers.ValidationError as e:
-            logger.error(f"Could not parse {path}: {e}")
+            logger.error(
+                f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
+            )
 
     if not redo and document_ids_previously_parsed.intersection(
         {task.id for task in tasks}
