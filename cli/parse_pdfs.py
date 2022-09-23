@@ -50,7 +50,7 @@ def download_pdf(
             f"Content-Type is for {parser_input.id} ({parser_input.url}) is not PDF: {response.headers['Content-Type']}"
         )
 
-    output_path = Path(output_dir) / f"{parser_input.id}.pdf"
+    output_path = Path(output_dir) / f"{parser_input.id}.json"
 
     with open(output_path, "wb") as f:
         f.write(response.content)
