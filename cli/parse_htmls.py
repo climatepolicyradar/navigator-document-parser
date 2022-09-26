@@ -13,7 +13,26 @@ sys.path.append("..")
 from src.base import ParserInput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
+
+class TqdmLoggingHandler(logging.Handler):
+    """Instantiate a logger that can output tqdm progress bars."""
+
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        """Emit a log message."""
+        try:
+            msg = self.format(record)
+            tqdm.tqdm.write(msg)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(TqdmLoggingHandler())
 
 
 def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath]):
