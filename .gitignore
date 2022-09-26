@@ -160,3 +160,5 @@ dmypy.json
 
 # Dockerfile that would contain creds
 Dockerfile
+Dockerfile.aws.example
+Dockerfile.local.example
