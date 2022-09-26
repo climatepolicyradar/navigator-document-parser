@@ -103,7 +103,8 @@ def main(
         input_dir_as_path = Path(input_dir)
         output_dir_as_path = Path(output_dir)
 
-    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath objects to pathlib.Path objects.
+    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
+    # objects to pathlib.Path objects.
     document_ids_previously_parsed = []
     for path in output_dir_as_path.glob("*.json"):
         try:
@@ -116,20 +117,12 @@ def main(
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
 
-    # document_ids_previously_parsed = set(
-    #     [
-    #         ParserOutput.parse_raw(path.read_text()).id
-    #         for path in output_dir_as_path.glob("*.json")
-    #     ]
-    # )
-
     files_to_parse = (
         (input_dir_as_path / f for f in files)
         if files
         else input_dir_as_path.glob("*.json")
     )
 
-    # tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
     tasks = []
     counter = 0
     for path in files_to_parse:
