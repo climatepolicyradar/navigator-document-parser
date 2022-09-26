@@ -14,25 +14,25 @@ from src.base import ParserInput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
 
-class TqdmLoggingHandler(logging.Handler):
-    """Instantiate a logger that can output tqdm progress bars."""
-
-    def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
-
-    def emit(self, record):
-        """Emit a log message."""
-        try:
-            msg = self.format(record)
-            tqdm.tqdm.write(msg)
-            self.flush()
-        except Exception:
-            self.handleError(record)
+# class TqdmLoggingHandler(logging.Handler):
+#     """Instantiate a logger that can output tqdm progress bars."""
+#
+#     def __init__(self, level=logging.NOTSET):
+#         super().__init__(level)
+#
+#     def emit(self, record):
+#         """Emit a log message."""
+#         try:
+#             msg = self.format(record)
+#             tqdm.tqdm.write(msg)
+#             self.flush()
+#         except Exception:
+#             self.handleError(record)
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(TqdmLoggingHandler())
+# logger.setLevel(logging.INFO)
+# logger.addHandler(TqdmLoggingHandler())
 
 
 def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath]):
@@ -43,11 +43,10 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
     :param output_dir: directory of output JSON files (results)
     """
 
-    html_parser = CombinedParser()
-
     logger.info("Running HTML parser")
 
     for task in tqdm(input_tasks):
+        html_parser = CombinedParser()
         # TODO: validate the language detection probability threshold
         parsed_html = html_parser.parse(task).detect_and_set_languages()
         output_path = output_dir / f"{task.id}.json"
