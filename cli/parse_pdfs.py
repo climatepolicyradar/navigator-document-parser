@@ -38,8 +38,11 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-
-    response = requests.get(parser_input.url)
+    try:
+        response = requests.get(parser_input.url)
+    except Exception as e:
+        logging.error(f"Could not fetch {parser_input.url} for {parser_input.id}: {e}")
+        return None
 
     if response.status_code != 200:
         # TODO: output file path and error code to a log file
