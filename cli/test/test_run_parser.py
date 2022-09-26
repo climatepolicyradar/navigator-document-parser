@@ -1,10 +1,10 @@
-import os
 from pathlib import Path
 import tempfile
 from unittest import mock
 
 import pytest
 from click.testing import CliRunner
+from cloudpathlib.local import LocalS3Path
 
 from cli.run_parser import main as cli_main
 from src.base import ParserOutput
@@ -16,37 +16,46 @@ patcher = mock.patch(
 patcher.start()
 
 
+@pytest.fixture()
+def test_input_dir() -> Path:
+    return (Path(__file__).parent / "test_data" / "input").resolve()
+
+
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser() -> None:
+def test_run_parser_local(test_input_dir) -> None:
     """Test that the parsing CLI runs and outputs a file."""
-    input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
 
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
-        result = runner.invoke(cli_main, [input_dir, output_dir, "--parallel"])
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+        )
 
         assert result.exit_code == 0
+        assert (Path(output_dir) / "test_html.json").exists()
+        assert (Path(output_dir) / "test_pdf.json").exists()
 
-        # TODO could get this dynamically from output_dir
-        root = "/tmp"
+        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
+        assert (Path(output_dir) / "test_pdf_translated_en.json").exists()
 
-        print(f"Files in /tmp {os.listdir(root)}")
 
-        all_files = []
-        for path, subdirs, files in os.walk(root):
-            for dir in subdirs:
-                dir_path = os.path.join(path, dir)
-                dir_files = os.listdir(dir_path)
-                print(f"Files in {dir_path}: {dir_files}")
-                for file in dir_files:
-                    all_files.append(file)
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_run_parser_s3(test_input_dir) -> None:
+    """Test that the parsing CLI runs and outputs a file."""
 
-        assert any("test_html.json" in file for file in all_files)
-        assert any("test_pdf.json" in file for file in all_files)
+    input_dir = "s3://test-bucket/test-input-dir"
+    output_dir = "s3://test-bucket/test-output-dir"
 
-        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a
-        # translation of the PDF
-        assert any("test_pdf_translated_en.json" in file for file in all_files)
+    # Copy test data to mock of S3 path
+    input_file_path = LocalS3Path(f"{input_dir}/test_html.json")
+    input_file_path.write_text((test_input_dir / "test_html.json").read_text())
+
+    with mock.patch("cli.run_parser.S3Path", LocalS3Path):
+        runner = CliRunner()
+        result = runner.invoke(cli_main, [input_dir, output_dir, "--s3", "--parallel"])
+
+        assert result.exit_code == 0
+        assert (LocalS3Path(output_dir) / "test_html.json").exists()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")

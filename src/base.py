@@ -117,7 +117,6 @@ class PDFTextBlock(TextBlock):
             }.items()
             if v is None
         ]
-
         if len(null_values_of_lp_block) > 0:
             raise ValueError(
                 f"LayoutParser TextBlock has null values: {null_values_of_lp_block}"

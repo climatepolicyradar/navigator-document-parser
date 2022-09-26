@@ -1,7 +1,6 @@
 import concurrent.futures
 import logging
 import multiprocessing
-import os
 import time
 import warnings
 from functools import partial
@@ -9,6 +8,7 @@ from pathlib import Path
 import hashlib
 from typing import List, Union
 import tempfile
+import os
 
 import requests
 import fitz
@@ -21,7 +21,7 @@ from cloudpathlib import S3Path
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
     LayoutDisambiguator,
-    DetectReadingOrder,
+    PostProcessor,
 )
 from src import config
 
@@ -54,7 +54,7 @@ def download_pdf(
             f"Content-Type is for {parser_input.id} ({parser_input.url}) is not PDF: {response.headers['Content-Type']}"
         )
 
-    output_path = Path(output_dir) / f"{parser_input.id}.json"
+    output_path = Path(output_dir) / f"{parser_input.id}.pdf"
 
     with open(output_path, "wb") as f:
         f.write(response.content)
@@ -114,8 +114,8 @@ def parse_file(
                     logging.info(f"No layout found for page {page_idx}.")
                     continue
                 disambiguated_layout = layout_disambiguator.disambiguate_layout()
-                reading_order_detector = DetectReadingOrder(disambiguated_layout)
-                ocr_blocks = reading_order_detector.infer_reading_order()
+                postprocessor = PostProcessor(disambiguated_layout)
+                ocr_blocks = postprocessor.postprocess()
                 ocr_processor = OCRProcessor(
                     image=np.array(image),
                     page_number=page_idx,
