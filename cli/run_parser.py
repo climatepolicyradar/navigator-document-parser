@@ -124,19 +124,14 @@ def main(
     )
 
     tasks = []
-    counter = 0
     for path in files_to_parse:
-        counter += 1
-        if (
-            counter % 8 == 0
-        ):  # Reducing the number of files to parse to speed up testing.
-            try:
-                tasks.append(ParserInput.parse_raw(path.read_text()))
+        try:
+            tasks.append(ParserInput.parse_raw(path.read_text()))
 
-            except pydantic.error_wrappers.ValidationError as e:
-                logger.error(
-                    f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
-                )
+        except pydantic.error_wrappers.ValidationError as e:
+            logger.error(
+                f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
+            )
 
     if not redo and document_ids_previously_parsed.intersection(
         {task.id for task in tasks}
