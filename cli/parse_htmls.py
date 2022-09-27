@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 import logging.config
 
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from cloudpathlib import CloudPath
 
 import sys
@@ -14,7 +14,26 @@ from src.base import ParserInput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
 
+class TqdmLoggingHandler(logging.Handler):
+    """Handler for logging to tqdm"""
+
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        """Emit a log message"""
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception as e:
+            print(f"Error emitting tqdm logging handler: {e}")
+            self.handleError(record)
+
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(TqdmLoggingHandler())
 
 
 def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath]):
