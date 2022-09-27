@@ -836,11 +836,15 @@ class OCRProcessor:
             text = gcv_response.full_text_annotation.text
 
             # We assume one language per text block here which seems reasonable, but may not always be true.
-            language = (
-                gcv_response.full_text_annotation.pages[0]
-                .property.detected_languages[0]
-                .language_code
-            )
+            try:
+                language = (
+                    gcv_response.full_text_annotation.pages[0]
+                    .property.detected_languages[0]
+                    .language_code
+                )
+            except IndexError:
+                # No language was found in the GCV response
+                language = None
 
         # Save OCR result
         block_with_text = block.set(text=text)  # type: ignore
