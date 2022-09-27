@@ -86,7 +86,9 @@ def parse_file(
         pdf_path = download_pdf(input_task, temp_output_dir)
 
         if pdf_path is None:
-            pass
+            logging.info(
+                f"PDF path is None for: {input_task.url} at {temp_output_dir}."
+            )
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
