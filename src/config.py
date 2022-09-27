@@ -17,5 +17,8 @@ LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE = float(
 )
 PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "gcv")
 
+TEST_RUN = os.getenv("TEST_RUN", False)
+RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", True)
+RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", True)
 
 # TODO: http request headers?
