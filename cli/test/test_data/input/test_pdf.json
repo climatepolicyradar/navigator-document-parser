@@ -1,8 +1,8 @@
 {
-  "id": "test_pdf",
-  "url": "https://cdn.climatepolicyradar.org/MLI/2013/MLI-2013-07-06-Order+No.+2013-2374+_+MSIPC-SG+establishing+the+Steering+Committee+for+Disaster+Risk+Management+and+Adaptation+to+Climate+Change+Project_7a66d325b62dc6f18e6fbb18b51d5db9.pdf",
+  "document_id": "test_pdf",
+  "document_url": "https://cdn.climatepolicyradar.org/MLI/2013/MLI-2013-07-06-Order+No.+2013-2374+_+MSIPC-SG+establishing+the+Steering+Committee+for+Disaster+Risk+Management+and+Adaptation+to+Climate+Change+Project_7a66d325b62dc6f18e6fbb18b51d5db9.pdf",
   "document_name": "test_pdf",
   "document_description": "test_pdf_description",
-  "content_type": "application/pdf",
+  "document_content_type": "application/pdf",
   "document_slug": "XYX"
 }

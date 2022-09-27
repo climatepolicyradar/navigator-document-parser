@@ -33,9 +33,13 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
-            article = NewsPlease.from_html(html=html, url=input.url, fetch_images=False)
+            article = NewsPlease.from_html(
+                html=html, url=input.document_url, fetch_images=False
+            )
         except Exception as e:
-            logger.error(f"Failed to parse {input.url} for {input.id}: {e}")
+            logger.error(
+                f"Failed to parse {input.document_url} for {input.document_id}: {e}"
+            )
             return self._get_empty_response(input)
 
         return self._newsplease_article_to_parsed_html(article, input)
@@ -51,14 +55,16 @@ class NewsPleaseParser(HTMLParser):
 
         try:
             response = requests.get(
-                input.url,
+                input.document_url,
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
 
         except Exception as e:
-            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            logger.error(
+                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+            )
             return self._get_empty_response(input)
 
         return self.parse_html(response.text, input)
@@ -94,11 +100,11 @@ class NewsPleaseParser(HTMLParser):
         ]
 
         return ParserOutput(
-            id=input.id,
-            url=input.url,
+            document_id=input.document_id,
+            document_url=input.document_url,
             document_name=input.document_name,
             document_description=input.document_description,
-            content_type=input.content_type,
+            document_content_type=input.document_content_type,
             document_slug=input.document_slug,
             html_data=HTMLData(
                 detected_title=newsplease_article.title,
