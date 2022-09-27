@@ -109,11 +109,11 @@ def main(
     for path in output_dir_as_path.glob("*.json"):
         try:
             document_ids_previously_parsed.append(
-                ParserOutput.parse_raw(path.read_text()).id
+                ParserOutput.parse_raw(path.read_text()).document_id
             )
         except pydantic.ValidationError as e:
             logger.error(
-                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).id"
+                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
 
@@ -134,17 +134,21 @@ def main(
             )
 
     if not redo and document_ids_previously_parsed.intersection(
-        {task.id for task in tasks}
+        {task.document_id for task in tasks}
     ):
         logger.warning(
-            f"Found {len(document_ids_previously_parsed.intersection({task.id for task in tasks}))} documents that have already parsed. Skipping."
+            f"Found {len(document_ids_previously_parsed.intersection({task.document_id for task in tasks}))} documents that have already parsed. Skipping."
         )
         tasks = [
-            task for task in tasks if task.id not in document_ids_previously_parsed
+            task
+            for task in tasks
+            if task.document_id not in document_ids_previously_parsed
         ]
 
-    html_tasks = [task for task in tasks if task.content_type == "text/html"]
-    pdf_tasks = [task for task in tasks if task.content_type == "application/pdf"]
+    html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
+    pdf_tasks = [
+        task for task in tasks if task.document_content_type == "application/pdf"
+    ]
 
     logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 

@@ -45,16 +45,15 @@ def download_pdf(
         return None
 
     if response.status_code != 200:
-        # TODO: output file path and error code to a log file
-        logging.exception(f"Could not get PDF from {parser_input.url}")
+        logging.exception(f"Could not get PDF from {parser_input.document_url}")
         return None
 
     if response.headers["Content-Type"] != "application/pdf":
         raise Exception(
-            f"Content-Type is for {parser_input.id} ({parser_input.url}) is not PDF: {response.headers['Content-Type']}"
+            f"Content-Type is for {parser_input.document_id} ({parser_input.document_url}) is not PDF: {response.headers['Content-Type']}"
         )
 
-    output_path = Path(output_dir) / f"{parser_input.id}.pdf"
+    output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
     with open(output_path, "wb") as f:
         f.write(response.content)
@@ -139,11 +138,11 @@ def parse_file(
                 all_pages_metadata.append(page_metadata)
 
             document = ParserOutput(
-                id=input_task.id,
-                url=input_task.url,
+                document_id=input_task.document_id,
+                document_url=input_task.document_url,
                 document_name=input_task.document_name,
                 document_description=input_task.document_description,
-                content_type=input_task.content_type,
+                document_content_type=input_task.document_content_type,
                 document_slug=input_task.document_slug,
                 pdf_data=PDFData(
                     page_metadata=all_pages_metadata,
@@ -152,7 +151,7 @@ def parse_file(
                 ),
             ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
-            output_path = output_dir / f"{input_task.id}.json"
+            output_path = output_dir / f"{input_task.document_id}.json"
 
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
 

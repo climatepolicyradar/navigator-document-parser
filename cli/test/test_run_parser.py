@@ -89,11 +89,11 @@ def test_run_parser_skip_already_done(caplog) -> None:
             f.write(
                 ParserOutput.parse_obj(
                     {
-                        "id": "test_pdf",
-                        "url": "https://www.pdfs.org",
+                        "document_id": "test_pdf",
+                        "document_url": "https://www.pdfs.org",
                         "document_name": "test_pdf",
                         "document_description": "test_pdf_description",
-                        "content_type": "application/pdf",
+                        "document_content_type": "application/pdf",
                         "languages": ["en"],
                         "document_slug": "slug",
                         "pdf_data": {
@@ -109,11 +109,11 @@ def test_run_parser_skip_already_done(caplog) -> None:
             f.write(
                 ParserOutput.parse_obj(
                     {
-                        "id": "test_html",
-                        "url": "https://www.google.org",
+                        "document_id": "test_html",
+                        "document_url": "https://www.google.org",
                         "document_name": "test_html",
                         "document_description": "test_html_description",
-                        "content_type": "text/html",
+                        "document_content_type": "text/html",
                         "languages": ["en"],
                         "document_slug": "slug",
                         "html_data": {

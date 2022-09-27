@@ -1,8 +1,8 @@
 {
-    "id": "test_html",
-    "url": "https://www.gov.uk/feed-in-tariffs", 
+    "document_id": "test_html",
+    "document_url": "https://www.gov.uk/feed-in-tariffs", 
     "document_name": "test_html",
     "document_description": "test_html_description", 
-    "content_type": "text/html",
+    "document_content_type": "text/html",
     "document_slug": "YYY"
 }

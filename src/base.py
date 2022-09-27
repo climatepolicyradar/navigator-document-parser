@@ -147,11 +147,11 @@ class PDFTextBlock(TextBlock):
 class ParserInput(BaseModel):
     """Base class for input to a parser."""
 
-    id: str
+    document_id: str
     document_name: str
     document_description: str
-    url: AnyHttpUrl
-    content_type: ContentType
+    document_url: AnyHttpUrl
+    document_content_type: ContentType
     document_slug: str
 
 
@@ -193,24 +193,30 @@ class PDFData(BaseModel):
 class ParserOutput(BaseModel):
     """Base class for an output to a parser."""
 
-    id: str
+    document_id: str
     document_name: str
     document_description: str
-    url: AnyHttpUrl
+    document_url: AnyHttpUrl
     languages: Optional[Sequence[str]] = None
     translated: bool = False
     document_slug: str  # for better links to the frontend hopefully soon
-    content_type: ContentType
+    document_content_type: ContentType
     html_data: Optional[HTMLData] = None
     pdf_data: Optional[PDFData] = None
 
     @root_validator
     def check_html_pdf_metadata(cls, values):
         """Check that html_data is set if content_type is HTML, or pdf_data is set if content_type is PDF."""
-        if values["content_type"] == ContentType.HTML and values["html_data"] is None:
+        if (
+            values["document_content_type"] == ContentType.HTML
+            and values["html_data"] is None
+        ):
             raise ValueError("html_metadata must be set for HTML documents")
 
-        if values["content_type"] == ContentType.PDF and values["pdf_data"] is None:
+        if (
+            values["document_content_type"] == ContentType.PDF
+            and values["pdf_data"] is None
+        ):
             raise ValueError("pdf_metadata must be null for HTML documents")
 
         return values
@@ -223,9 +229,9 @@ class ParserOutput(BaseModel):
         :return: Sequence[TextBlock]
         """
 
-        if self.content_type == ContentType.HTML:
+        if self.document_content_type == ContentType.HTML:
             return self.html_data.text_blocks  # type: ignore
-        elif self.content_type == ContentType.PDF:
+        elif self.document_content_type == ContentType.PDF:
             return self.pdf_data.text_blocks  # type: ignore
 
     def to_string(self) -> str:  # type: ignore
@@ -242,7 +248,7 @@ class ParserOutput(BaseModel):
         Assumes that a document only has one language.
         """
 
-        if self.content_type != ContentType.HTML:
+        if self.document_content_type != ContentType.HTML:
             logger.warning(
                 "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
             )
@@ -309,11 +315,11 @@ class HTMLParser(ABC):
     def _get_empty_response(self, input: ParserInput) -> ParserOutput:
         """Return ParsedHTML object with empty fields."""
         return ParserOutput(
-            id=input.id,
-            content_type=input.content_type,
+            document_id=input.document_id,
+            document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,
-            url=input.url,
+            document_url=input.document_url,
             document_slug=input.document_slug,
             html_data=HTMLData(
                 text_blocks=[],

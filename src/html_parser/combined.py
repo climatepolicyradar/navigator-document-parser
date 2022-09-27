@@ -83,13 +83,15 @@ class CombinedParser(HTMLParser):
 
         try:
             requests_response = requests.get(
-                input.url,
+                input.document_url,
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
-            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            logger.error(
+                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+            )
             return self._get_empty_response(input)
 
         try:
@@ -103,18 +105,20 @@ class CombinedParser(HTMLParser):
             "<noscript>" in requests_response.text
         ):
             logger.info(
-                f"Falling back to JS-enabled browser for {input.id} ({input.url})"
+                f"Falling back to JS-enabled browser for {input.document_id} ({input.document_url})"
             )
             try:
                 with sync_playwright() as playwright:
                     html_playwright = self._get_html_with_js_enabled(
-                        playwright, input.url
+                        playwright, input.document_url
                     )
                     parsed_html_playwright = self.parse_html(html_playwright, input)
 
                 return parsed_html_playwright
             except Exception as e:
-                logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+                logger.error(
+                    f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                )
                 return self._get_empty_response(input)
 
         return parsed_html

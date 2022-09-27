@@ -36,13 +36,15 @@ class ReadabilityParser(HTMLParser):
 
         try:
             response = requests.get(
-                input.url,
+                input.document_url,
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
-            logger.error(f"Could not fetch {input.url} for {input.id}: {e}")
+            logger.error(
+                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+            )
             return self._get_empty_response(input)
 
         if response.status_code != 200:
@@ -81,11 +83,11 @@ class ReadabilityParser(HTMLParser):
 
         # Readability doesn't provide a date
         return ParserOutput(
-            id=input.id,
-            content_type=input.content_type,
+            document_id=input.document_id,
+            document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,
-            url=input.url,
+            document_url=input.document_url,
             document_slug=input.document_slug,
             html_data=HTMLData(
                 detected_title=title,

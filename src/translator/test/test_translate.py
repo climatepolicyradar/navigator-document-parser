@@ -62,7 +62,12 @@ def test_translate_parser_output() -> None:
     )
 
     # Check attributes that should not have changed
-    for attr in ("id", "url", "document_slug", "content_type"):
+    for attr in (
+        "document_id",
+        "document_url",
+        "document_slug",
+        "document_content_type",
+    ):
         assert getattr(translated_parser_output, attr) == getattr(parser_output, attr)
 
     for html_attr in ("detected_title", "detected_date", "has_valid_text"):
