@@ -157,7 +157,7 @@ def parse_file(
 
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
-            logging.info(f"Saved {output_path.document_name} to {output_dir}.")
+            logging.info(f"Saved {output_path.name} to {output_dir}.")
 
             os.remove(pdf_path)
 
