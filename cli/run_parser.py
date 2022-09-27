@@ -105,7 +105,7 @@ def main(
     # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath objects to pathlib.Path objects.
     document_ids_previously_parsed = set(
         [
-            ParserOutput.parse_raw(path.read_text()).id
+            ParserOutput.parse_raw(path.read_text()).document_id
             for path in output_dir_as_path.glob("*.json")
         ]
     )
@@ -117,17 +117,21 @@ def main(
 
     tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
     if not redo and document_ids_previously_parsed.intersection(
-        {task.id for task in tasks}
+        {task.document_id for task in tasks}
     ):
         logger.warning(
-            f"Found {len(document_ids_previously_parsed.intersection({task.id for task in tasks}))} documents that have already parsed. Skipping."
+            f"Found {len(document_ids_previously_parsed.intersection({task.document_id for task in tasks}))} documents that have already parsed. Skipping."
         )
         tasks = [
-            task for task in tasks if task.id not in document_ids_previously_parsed
+            task
+            for task in tasks
+            if task.document_id not in document_ids_previously_parsed
         ]
 
-    html_tasks = [task for task in tasks if task.content_type == "text/html"]
-    pdf_tasks = [task for task in tasks if task.content_type == "application/pdf"]
+    html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
+    pdf_tasks = [
+        task for task in tasks if task.document_content_type == "application/pdf"
+    ]
 
     logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 

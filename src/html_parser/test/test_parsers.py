@@ -27,11 +27,11 @@ def test_parse(url: str, parser: HTMLParser) -> None:
 
     input = ParserInput.parse_obj(
         {
-            "id": "test_id",
-            "url": url,
+            "document_id": "test_id",
+            "document_url": url,
             "document_name": "test_html",
             "document_description": "test_html_description",
-            "content_type": "text/html",
+            "document_content_type": "text/html",
             "document_slug": "YYY",
         }
     )

@@ -31,8 +31,8 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
     for task in tqdm(input_tasks):
         # TODO: validate the language detection probability threshold
         parsed_html = html_parser.parse(task).detect_and_set_languages()
-        output_path = output_dir / f"{task.id}.json"
+        output_path = output_dir / f"{task.document_id}.json"
 
         output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
 
-        logger.info(f"Output for {task.id} saved to {output_path}")
+        logger.info(f"Output for {task.document_id} saved to {output_path}")
