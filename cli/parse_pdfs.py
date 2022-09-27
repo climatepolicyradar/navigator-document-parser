@@ -73,9 +73,10 @@ def download_pdf(
         return None
 
     if response.headers["Content-Type"] != "application/pdf":
-        raise Exception(
+        logging.exception(
             f"Content-Type is for {parser_input.document_id} ({parser_input.document_url}) is not PDF: {response.headers['Content-Type']}"
         )
+        return None
 
     output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
