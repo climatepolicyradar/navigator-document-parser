@@ -13,7 +13,8 @@ sys.path.append("..")
 
 from src.base import ParserInput, ParserOutput  # noqa: E402
 from src.config import TARGET_LANGUAGES  # noqa: E402
-from cli.parse_htmls import run_html_parser  # noqa: E402
+
+# from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.translate_outputs import translate_parser_outputs  # noqa: E402
 
@@ -154,7 +155,7 @@ def main(
     logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 
     logger.info(f"Running HTML parser on {len(html_tasks)} documents")
-    run_html_parser(html_tasks, output_dir_as_path)
+    # run_html_parser(html_tasks, output_dir_as_path)
 
     logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
     run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device)
