@@ -28,6 +28,28 @@ from src import config
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 
 
+class TqdmLoggingHandler(logging.Handler):
+    """Handler for logging to tqdm"""
+
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        """Emit a log message"""
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception as e:
+            print(f"Error emitting tqdm logging handler: {e}")
+            self.handleError(record)
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(TqdmLoggingHandler())
+
+
 def download_pdf(
     parser_input: ParserInput, output_dir: Union[Path, str]
 ) -> Path or None:
@@ -201,9 +223,6 @@ def run_pdf_parser(
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
 
-    # Create logger that prints to stdout.
-    logging.basicConfig(level=logging.DEBUG)
-
     logging.info(
         f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
     )
@@ -228,10 +247,10 @@ def run_pdf_parser(
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            executor.map(file_parser, input_tasks)
+            executor.map(file_parser, tqdm(input_tasks))
 
     else:
-        for task in input_tasks:
+        for task in tqdm(input_tasks):
             file_parser(task)
 
     logging.info("Finished parsing pdf content from pages.")
