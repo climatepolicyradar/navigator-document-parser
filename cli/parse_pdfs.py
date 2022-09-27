@@ -39,9 +39,11 @@ def download_pdf(
     :return: path to PDF file in output_dir
     """
     try:
-        response = requests.get(parser_input.url)
+        response = requests.get(parser_input.document_url)
     except Exception as e:
-        logging.error(f"Could not fetch {parser_input.url} for {parser_input.id}: {e}")
+        logging.error(
+            f"Could not fetch {parser_input.document_url} for {parser_input.document_id}: {e}"
+        )
         return None
 
     if response.status_code != 200:
@@ -86,7 +88,7 @@ def parse_file(
 
         if pdf_path is None:
             logging.info(
-                f"PDF path is None for: {input_task.url} at {temp_output_dir}."
+                f"PDF path is None for: {input_task.document_url} at {temp_output_dir}."
             )
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
@@ -155,7 +157,7 @@ def parse_file(
 
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
-            logging.info(f"Saved {output_path.name} to {output_dir}.")
+            logging.info(f"Saved {output_path.document_name} to {output_dir}.")
 
             os.remove(pdf_path)
 
