@@ -732,6 +732,8 @@ class PostProcessor:
 
         # reorder the new inferred text blocks and create a final layout object.
         unordered_layout = lp.Layout([*[b for b in self.layout], *new_text_blocks])
+        if len(unordered_layout) == 0:
+            return lp.Layout([])
         df_text_blocks = self._group_blocks_into_columns(unordered_layout)
         df_natural_reading_order = df_text_blocks.sort_values(
             ["x_1_min", "y_1"], ascending=[True, True]
