@@ -90,20 +90,28 @@ def parse_file(
     elif ocr_agent == "gcv":
         ocr_agent = lp.GCVAgent()
 
+    num_pages = len(pdf_images)
+
     all_pages_metadata = []
     all_text_blocks = []
 
     for page_idx, image in tqdm(
-        enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
+        enumerate(pdf_images), total=num_pages, desc=pdf_path.name
     ):
         # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
         # and processing time
         if debug:
-            if len(pdf_images) > 10:
+            rng = np.random.random()
+            if num_pages in range(1, 10):
                 # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
                 # of pages)
-                np.random.seed(42)
-                if np.random.random() > 0.1:
+                if rng > 0.5:
+                    continue
+            elif num_pages in range(10, 100):
+                if rng > 0.1:
+                    continue
+            else:
+                if rng > 0.05:
                     continue
         # Maybe we should always pass a layout object into the PageParser class.
         layout_disambiguator = LayoutDisambiguator(
@@ -117,6 +125,8 @@ def parse_file(
         postprocessor = PostProcessor(disambiguated_layout)
         postprocessor.postprocess()
         ocr_blocks = postprocessor.ocr_blocks
+        if len(ocr_blocks) == 0:
+            continue
         ocr_processor = OCRProcessor(
             image=np.array(image),
             page_number=page_idx,
@@ -159,25 +169,26 @@ def parse_file(
 
         all_pages_metadata.append(page_metadata)
 
-    document = ParserOutput(
-        document_id=input_task.document_id,
-        document_url=input_task.document_url,
-        document_name=input_task.document_name,
-        document_description=input_task.document_description,
-        document_content_type=input_task.document_content_type,
-        document_slug=input_task.document_slug,
-        pdf_data=PDFData(
-            page_metadata=all_pages_metadata,
-            md5sum=document_md5sum,
-            text_blocks=all_text_blocks,
-        ),
-    ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
+    if all_pages_metadata:
+        document = ParserOutput(
+            document_id=input_task.document_id,
+            document_url=input_task.document_url,
+            document_name=input_task.document_name,
+            document_description=input_task.document_description,
+            document_content_type=input_task.document_content_type,
+            document_slug=input_task.document_slug,
+            pdf_data=PDFData(
+                page_metadata=all_pages_metadata,
+                md5sum=document_md5sum,
+                text_blocks=all_text_blocks,
+            ),
+        ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
-    output_path = output_dir / f"{input_task.document_id}.json"
+        output_path = output_dir / f"{input_task.document_id}.json"
 
-    output_path.write_text(document.json(indent=4, ensure_ascii=False))
+        output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
-    logging.info(f"Saved {output_path.name} to {output_dir}.")
+        logging.info(f"Saved {output_path.name} to {output_dir}.")
 
 
 def _pdf_num_pages(file: str):
