@@ -4,9 +4,11 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
+
 from cloudpathlib.local import LocalS3Path
 
 from cli.run_parser import main as cli_main
+
 from src.base import ParserOutput
 
 patcher = mock.patch(
@@ -24,9 +26,9 @@ def test_input_dir() -> Path:
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_local(test_input_dir) -> None:
     """Test that the parsing CLI runs and outputs a file."""
-
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
+
         result = runner.invoke(
             cli_main, [str(test_input_dir), output_dir, "--parallel"]
         )

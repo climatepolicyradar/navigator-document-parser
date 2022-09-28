@@ -154,3 +154,9 @@ dmypy.json
 
 # Mac OS files
 .DS_Store
+
+# Pycharm idea
+.idea/*
+
+# Dockerfile that would contain creds
+Dockerfile
