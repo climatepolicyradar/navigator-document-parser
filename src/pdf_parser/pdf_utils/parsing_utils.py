@@ -434,7 +434,7 @@ class PostProcessor:
     def ocr_blocks(self) -> lp.Layout:
         """Return the text blocks for OCR from the layout."""
         return lp.Layout(
-            [b for b in self.layout if b.type in ["Text", "List", "Title", "Ambiguous"]]
+            [b for b in self.layout if b.type in ["Text", "List", "Title", "Ambiguous", "Inferred from gaps"]]
         )
 
     def _split_layout_into_cols(self, blocks) -> List[lp.Layout]:
@@ -491,7 +491,7 @@ class PostProcessor:
             height_new = y2_new - y1_new
             if height_new > height_threshold:
                 new_block_shape = lp.Rectangle(x1, y1_new, x2, y2_new)
-                new_block = lp.TextBlock(new_block_shape, type="Ambiguous", score=1.0)
+                new_block = lp.TextBlock(new_block_shape, type="Inferred from gaps", score=1.0)
                 new_blocks.append(new_block)
         return new_blocks
 
