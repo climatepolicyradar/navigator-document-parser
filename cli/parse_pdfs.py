@@ -92,6 +92,7 @@ def parse_file(
     model,
     model_threshold_restrictive: float,
     ocr_agent: str,
+    debug: bool,
     output_dir: Union[Path, S3Path],
     device: str,
 ):
@@ -101,6 +102,7 @@ def parse_file(
         input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         model (layoutparser.LayoutModel): Layout model to use for parsing.
         model_threshold_restrictive (float): Threshold to use for parsing.
+        debug (bool): Whether to save debug images.
         ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
@@ -138,6 +140,15 @@ def parse_file(
             for page_idx, image in tqdm(
                 enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
             ):
+                # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
+                # and processing time
+                if debug:
+                    if len(pdf_images) > 10:
+                        # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
+                        # of pages)
+                        np.random.seed(42)
+                        if np.random.random() > 0.1:
+                            continue
                 # Maybe we should always pass a layout object into the PageParser class.
                 layout_disambiguator = LayoutDisambiguator(
                     image, model, model_threshold_restrictive
@@ -156,6 +167,16 @@ def parse_file(
                     ocr_agent=ocr_agent,
                 )
                 page_text_blocks = ocr_processor.process_layout()
+                # If running in visual debug mode, save images of the final layout to check how the model is performing.
+                if debug:
+                    doc_name = input_task.document_name
+                    page_number = page_idx + 1
+                    image_output_path = (
+                        Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
+                    )
+                    lp.draw_box(
+                        image, ocr_blocks, show_element_type=True, box_alpha=0.2
+                    ).save(image_output_path)
                 all_text_blocks += page_text_blocks
 
                 page_dimensions = (
@@ -216,6 +237,7 @@ def run_pdf_parser(
     input_tasks: List[ParserInput],
     output_dir: Union[Path, S3Path],
     parallel: bool,
+    debug: bool,
     device: str = "cpu",
 ) -> None:
     """
@@ -225,11 +247,15 @@ def run_pdf_parser(
         input_tasks: List of tasks for the parser to process.
         output_dir: The directory to write the parsed PDFs to.
         parallel: Whether to run parsing over multiple processes.
+        debug: Whether to run in debug mode (puts images of resulting layouts in output_dir).
         device: The device to use for the document AI model.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
+
+    # Create logger that prints to stdout.
+    logging.basicConfig(level=logging.DEBUG)
 
     logging.info(
         f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
@@ -249,6 +275,7 @@ def run_pdf_parser(
         model=config.LAYOUTPARSER_MODEL,
         ocr_agent=config.PDF_OCR_AGENT,
         output_dir=output_dir,
+        debug=debug,
         model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
         device=device,
     )
