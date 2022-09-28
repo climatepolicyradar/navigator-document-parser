@@ -115,8 +115,8 @@ def parse_file(
             continue
         disambiguated_layout = layout_disambiguator.disambiguate_layout()
         postprocessor = PostProcessor(disambiguated_layout)
-        postprocessed_layout = postprocessor.postprocess()
-        ocr_blocks = postprocessed_layout.ocr_blocks
+        postprocessor.postprocess()
+        ocr_blocks = postprocessor.ocr_blocks
         ocr_processor = OCRProcessor(
             image=np.array(image),
             page_number=page_idx,
