@@ -17,6 +17,7 @@ import numpy as np
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
 from cloudpathlib import S3Path
+import psutil
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
@@ -106,6 +107,11 @@ def parse_file(
     """
 
     # TODO: do we want to handle exceptions raised by get_pdf here?
+    logging.info(
+        f"Beginning parsing for: {input_task.document_id} at {input_task.document_url}."
+    )
+    logging.info(psutil.virtual_memory())
+
     with tempfile.TemporaryDirectory() as temp_output_dir:
         pdf_path = download_pdf(input_task, temp_output_dir)
 
