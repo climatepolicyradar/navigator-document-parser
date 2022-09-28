@@ -74,6 +74,9 @@ logging.config.dictConfig(DEFAULT_LOGGING)
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
+)
 def main(
     input_dir: str,
     output_dir: str,
@@ -82,6 +85,7 @@ def main(
     files: Optional[List[str]],
     redo: bool,
     s3: bool,
+    debug: bool,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
@@ -93,6 +97,7 @@ def main(
     :param files: list of filenames to parse, relative to the input directory. Can be used to select a subset of files to parse.
     :param redo: redo parsing for files that have already been parsed. Defaults to False.
     :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
+    :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
     """
 
     if s3:
@@ -101,6 +106,11 @@ def main(
     else:
         input_dir_as_path = Path(input_dir)
         output_dir_as_path = Path(output_dir)
+
+    # if visual debugging is on, create a debug directory
+    if debug:
+        debug_dir = output_dir_as_path / "debug"
+        debug_dir.mkdir(exist_ok=True)
 
     # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath objects to pathlib.Path objects.
     document_ids_previously_parsed = set(
@@ -139,7 +149,7 @@ def main(
     run_html_parser(html_tasks, output_dir_as_path)
 
     logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
-    run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device)
+    run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug)
 
     logger.info(
         f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"
