@@ -34,6 +34,7 @@ def test_run_parser_local(test_input_dir) -> None:
         assert result.exit_code == 0
         assert (Path(output_dir) / "test_html.json").exists()
         assert (Path(output_dir) / "test_pdf.json").exists()
+        assert (Path(output_dir) / "test_no_content_type.json").exists()
 
         # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
         assert (Path(output_dir) / "test_pdf_translated_en.json").exists()

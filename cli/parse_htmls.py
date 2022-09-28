@@ -20,7 +20,7 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
     """
     Run the parser on a list of input tasks specifying documents to parse, and save the results to an output directory.
 
-    :param input_dir: directory of input JSON files (task specifications)
+    :param input_tasks: list of input tasks specifying documents to parse
     :param output_dir: directory of output JSON files (results)
     """
 

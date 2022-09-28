@@ -14,6 +14,9 @@ from src.base import ParserInput, ParserOutput  # noqa: E402
 from src.config import TARGET_LANGUAGES  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
+from cli.parse_no_content_type import (  # noqa: E402
+    process_documents_with_no_content_type,
+)
 from cli.translate_outputs import translate_parser_outputs  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -138,18 +141,30 @@ def main(
             if task.document_id not in document_ids_previously_parsed
         ]
 
+    no_document_tasks = [
+        task for task in tasks if task.document_content_type is None
+    ]  # tasks without a URL or content type
     html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
     pdf_tasks = [
         task for task in tasks if task.document_content_type == "application/pdf"
     ]
 
-    logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
+    logger.info(
+        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse."
+    )
+
+    logger.info(
+        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type."
+    )
+    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
 
     logger.info(f"Running HTML parser on {len(html_tasks)} documents")
     run_html_parser(html_tasks, output_dir_as_path)
 
     logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
-    run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug)
+    run_pdf_parser(
+        pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
+    )
 
     logger.info(
         f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"
