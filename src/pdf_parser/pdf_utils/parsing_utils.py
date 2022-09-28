@@ -329,12 +329,12 @@ class LayoutDisambiguator(LayoutParserExtractor):
                     box_2.block_1 = rect_2
         return blocks
 
-    def _unnest_boxes(self, unnest_inflation_factor: float = 0.2) -> lp.Layout:
+    def _unnest_boxes(self, unnest_inflation_value: int = 15) -> lp.Layout:
         """
         Recursively Unnest boxes.
 
         Args:
-            unnest_inflation_factor: The amount to inflate the unnested box by (i.e. a soft margin coefficient).
+            unnest_inflation_value: The amount to inflate the unnested box by (i.e. a soft margin coefficient).
 
         Returns:
             The unnested boxes.
@@ -348,20 +348,19 @@ class LayoutDisambiguator(LayoutParserExtractor):
         counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
         # condition.
         disambiguated_layout = self.layout
+        ixs_to_remove = []
         while stop_cond:
             for ix, box_1 in enumerate(disambiguated_layout):
                 for ix2, box_2 in enumerate(disambiguated_layout):
                     if box_1 == box_2:
                         continue
                     else:
-                        # Ass a soft-margin for the is_in function to allow for some leeway in the containment check.
-                        height_inflation = unnest_inflation_factor * box_2.height
-                        width_inflation = unnest_inflation_factor * box_2.width
+                        # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
                         soft_margin = {
-                            "top": height_inflation,
-                            "bottom": height_inflation,
-                            "left": width_inflation,
-                            "right": width_inflation,
+                            "top": unnest_inflation_value,
+                            "bottom": unnest_inflation_value,
+                            "left": unnest_inflation_value,
+                            "right": unnest_inflation_value,
                         }
                         if box_1.is_in(box_2, soft_margin):
                             counter += 1
@@ -370,17 +369,18 @@ class LayoutDisambiguator(LayoutParserExtractor):
                                 remove_ix = ix2
                             else:
                                 remove_ix = ix
-                            disambiguated_layout = lp.Layout(
-                                [
-                                    box
-                                    for index, box in enumerate(disambiguated_layout)
-                                    if index != remove_ix
-                                ]
-                            )
+                            ixs_to_remove.append(remove_ix)
                 # stop condition: no contained blocks
                 if counter == 0:
                     stop_cond = False
                 counter = 0
+        disambiguated_layout = lp.Layout(
+            [
+                box
+                for index, box in enumerate(disambiguated_layout)
+                if index not in ixs_to_remove
+            ]
+        )
         return disambiguated_layout
 
     def _calculate_coverage(self):
@@ -394,7 +394,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         return coverage
 
     def disambiguate_layout(
-        self, unnest_inflation_factor: float = 0.2, threshold: float = 0.35
+        self, unnest_inflation_factor: int = 15, threshold: float = 0.35
     ) -> lp.Layout:
         """Disambiguate the layout by unnesting nested boxes using heuristics and removing overlaps for OCR.
 
@@ -403,7 +403,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         repeated until there are no more boxes within other boxes.
 
         Args:
-            unnest_inflation_factor: The amount by which to inflate the bounding boxes when checking for containment.
+            unnest_inflation_value: The amount by which to inflate the bounding boxes when checking for containment.
             threshold: The confidence threshold to use for adding unknown text blocks.
 
         Returns:
@@ -411,7 +411,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         """
         # Unnest boxes so that there are no boxes within other boxes.
         disambiguated_layout = self._unnest_boxes(
-            unnest_inflation_factor=unnest_inflation_factor
+            unnest_inflation_factor=unnest_inflation_value
         )
         # TODO: These functions are buggy/not working as anticipated.
         #  Fix them and then uncomment.
