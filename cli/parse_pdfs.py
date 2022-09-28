@@ -117,7 +117,8 @@ def parse_file(
 
         if pdf_path is None:
             logging.info(
-                f"PDF path is None for: {input_task.document_url} at {temp_output_dir}."
+                f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
+                f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
