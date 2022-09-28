@@ -351,7 +351,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         return coverage
 
     def disambiguate_layout(
-        self, unnest_inflation_factor: int = 15, threshold: float = 0.35
+        self, unnest_inflation_value: int = 15, threshold: float = 0.35
     ) -> lp.Layout:
         """Disambiguate the layout by unnesting nested boxes using heuristics and removing overlaps for OCR.
 
@@ -368,7 +368,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         """
         # Unnest boxes so that there are no boxes within other boxes.
         disambiguated_layout = self._unnest_boxes(
-            unnest_inflation_factor=unnest_inflation_value
+            unnest_inflation_value=unnest_inflation_value
         )
         # TODO: These functions are buggy/not working as anticipated.
         #  Fix them and then uncomment.
@@ -434,7 +434,12 @@ class PostProcessor:
     def ocr_blocks(self) -> lp.Layout:
         """Return the text blocks for OCR from the layout."""
         return lp.Layout(
-            [b for b in self.layout if b.type in ["Text", "List", "Title", "Ambiguous", "Inferred from gaps"]]
+            [
+                b
+                for b in self.layout
+                if b.type
+                in ["Text", "List", "Title", "Ambiguous", "Inferred from gaps"]
+            ]
         )
 
     def _split_layout_into_cols(self, blocks) -> List[lp.Layout]:
@@ -491,7 +496,9 @@ class PostProcessor:
             height_new = y2_new - y1_new
             if height_new > height_threshold:
                 new_block_shape = lp.Rectangle(x1, y1_new, x2, y2_new)
-                new_block = lp.TextBlock(new_block_shape, type="Inferred from gaps", score=1.0)
+                new_block = lp.TextBlock(
+                    new_block_shape, type="Inferred from gaps", score=1.0
+                )
                 new_blocks.append(new_block)
         return new_blocks
 
@@ -537,14 +544,14 @@ class PostProcessor:
                 if lst == lst_2:
                     continue
                 # if there are shared elements, merge the two groups.
-                if set(lst).intersection(lst2):
-                    col_groups[ix].extend(lst2)
+                if set(lst).intersection(lst_2):
+                    col_groups[ix].extend(lst_2)
 
         # Remove duplicate block indices in each group.
-        deduplicated_groups = [list(set(l)) for l in col_groups]
+        deduplicated_groups = [list(set(ls)) for ls in col_groups]
         # Remove duplicate groups.
         deduplicated_groups.sort()
-        final_column_groups = list(k for k, _ in itertools.groupby(lb))
+        final_column_groups = list(k for k, _ in itertools.groupby(deduplicated_groups))
 
         return final_column_groups
 
