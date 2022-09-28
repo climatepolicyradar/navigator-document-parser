@@ -509,6 +509,7 @@ class PostProcessor:
         is a heuristic encoding of a reading order prior.
 
         Args:
+            blocks: The text blocks to group into columns.
             threshold: The threshold for the percentage of overlap in the x-direction.
 
         Returns:
@@ -553,7 +554,14 @@ class PostProcessor:
         deduplicated_groups.sort()
         final_column_groups = list(k for k, _ in itertools.groupby(deduplicated_groups))
 
-        return final_column_groups
+        # Now return a group index for each block. (e.g if block 1 is in group 0, block 2 is in group 1, etc.)
+        block_group_idxs = []
+        for num in range(len(blocks)):
+            for ix, group_list in enumerate(final_column_groups):
+                if num in group_list:
+                    block_group_idxs.append(ix)
+
+        return block_group_idxs
 
     def _group_blocks_into_columns(
         self, blocks: lp.Layout, threshold: float = 0.25
