@@ -491,6 +491,7 @@ class PostProcessor:
         new_blocks = []
 
         for ix in range(len(column_blocks) - 1):
+            # TODO: Add logic to handle cases where the first or last block is missing.
             y1_new = column_blocks[ix].coordinates[3]
             y2_new = column_blocks[ix + 1].coordinates[1]
             height_new = y2_new - y1_new
@@ -687,6 +688,44 @@ class PostProcessor:
                     new_text_blocks.append(unaccounted_text_block)
         return new_text_blocks
 
+    @staticmethod
+    def _filter_inferred_blocks(
+        blocks: lp.Layout, remove_threshold: float = 0.20
+    ) -> lp.Layout:
+        """Remove inferred blocks if they are covered by other blocks. Heuristic.
+
+        Args:
+            blocks: The text blocks to filter.
+            remove_threshold: The threshold of area overlap above which to remove the inferred block.
+
+        Returns:
+            lp.Layout with Inferred blocks removed if more than remove_threshold of their area
+            is accounted for by other blocks.
+
+        """
+        # For blocks with type "Inferred from gaps", remove them if more than the removal threshold
+        # is accounted for by other blocks.
+        ixs_to_remove = []
+        for ix, block in enumerate(blocks):
+            if block.type != "Inferred from gaps":
+                continue
+            else:
+                block_area = block.area
+                accounted_for_area = 0
+                for other_block in blocks:
+                    if block == other_block:
+                        continue
+                    # Assumption that the other blocks do not overlap. This is almost always true.
+                    intersect_area = block.intersect(other_block).area
+                    if intersect_area > 0:
+                        accounted_for_area += intersect_area
+                    accounted_for_area += intersect_area
+                accounted_for_fraction = accounted_for_area / block_area
+                if accounted_for_fraction > remove_threshold:
+                    ixs_to_remove.append(ix)
+
+        return lp.Layout([b for ix, b in enumerate(blocks) if ix not in ixs_to_remove])
+
     def postprocess(
         self,
         inference_method: str = "gaps",
@@ -712,6 +751,8 @@ class PostProcessor:
             The layout with unidentified (but probable) text blocks added.
         """
         text_blocks = self.ocr_blocks
+        if len(text_blocks) == 0:
+            return lp.Layout([])
         # group blocks into columns and return the layout of each column in a list.
         column_layouts = self._split_layout_into_cols(text_blocks)
 
@@ -754,7 +795,8 @@ class PostProcessor:
             ["x_1_min", "y_1"], ascending=[True, True]
         )
         reading_order = df_natural_reading_order.index.tolist()
-        self.layout = lp.Layout([unordered_layout[i] for i in reading_order])
+        layout = lp.Layout([unordered_layout[i] for i in reading_order])
+        self.layout = self._filter_inferred_blocks(layout)
         return self.layout
 
 
@@ -829,7 +871,6 @@ class OCRProcessor:
         if isinstance(self.ocr_agent, ocr.TesseractAgent):
             language = None
             text = self.ocr_agent.detect(segment_image, return_only_text=True)
-
         elif isinstance(self.ocr_agent, ocr.GCVAgent):
             gcv_response = self.ocr_agent.detect(segment_image, return_response=True)
             text = gcv_response.full_text_annotation.text
@@ -844,6 +885,14 @@ class OCRProcessor:
             except IndexError:
                 # No language was found in the GCV response
                 language = None
+        else:
+            raise ValueError(
+                "The OCR agent must be either a TesseractAgent or a GCVAgent."
+            )
+
+        # Heuristic to get rid of blocks with no text or text that is too short.
+        if len(text.split(" ")) < 3:
+            return None, None
 
         # Save OCR result
         block_with_text = padded_block.set(text=text)  # type: ignore
@@ -861,6 +910,8 @@ class OCRProcessor:
             for block_idx, block in enumerate(self.layout):
                 future = executor.submit(self._perform_ocr, self.image, block)
                 block_with_text, block_language = future.result()
+                if block_with_text is None:
+                    continue
                 if block.type == "Ambiguous":
                     block_with_text.type = self._infer_block_type(block)
 
