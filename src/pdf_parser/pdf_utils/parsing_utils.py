@@ -2,6 +2,7 @@ import concurrent.futures
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Tuple, Union, Optional
+import itertools
 
 import layoutparser as lp
 import numpy as np
@@ -560,13 +561,35 @@ class PostProcessor:
         df_overlap = (
             df_overlap > threshold
         )  # same x-column if intersection over union > threshold
-        # For each block, get a list of shared blocks.
-        shared_blocks = df_overlap.apply(
+        # For each block, get a list of blocks indices in the same column.
+        shared_col_idxs = df_overlap.apply(
             lambda row: str(row[row].index.tolist()), axis=1
         )
-        # put into numeric groups for cleanness.
-        column_groups = pd.factorize(shared_blocks)[0]
-        return column_groups
+        # Get a list with each element a list of the block indices for each unique group.
+        unique_shared_col_idxs = [eval(i) for i in shared_col_idxs.unique()]
+
+        # In some cases, the heuristic above creates column groups with overlapping block elements.
+        # This happens when the overlap threshold for inclusion in the same column is exceeded for some but not all
+        # blocks. In this case, we should still infer that the blocks are in the same column. To do this, we
+        # iteratively merge groups if they have overlapping elements, then remove duplicates within the groups
+        # first, then remove duplicates across groups.
+        col_groups = []
+        for ix, lst in enumerate(unique_shared_col_idxs):
+            col_groups.append(lst)
+            for lst_2 in unique_shared_col_idxs:
+                if lst == lst_2:
+                    continue
+                # if there are shared elements, merge the two groups.
+                if set(lst).intersection(lst2):
+                    col_groups[ix].extend(lst2)
+
+        # Remove duplicate block indices in each group.
+        deduplicated_groups = [list(set(l)) for l in col_groups]
+        # Remove duplicate groups.
+        deduplicated_groups.sort()
+        final_column_groups = list(k for k, _ in itertools.groupby(lb))
+
+        return final_column_groups
 
     def _group_blocks_into_columns(
         self, blocks: lp.Layout, threshold: float = 0.95
