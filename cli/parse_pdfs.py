@@ -123,7 +123,7 @@ def parse_file(
             layout=ocr_blocks,
             ocr_agent=ocr_agent,
         )
-        page_text_blocks = ocr_processor.process_layout()
+        page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
         # If running in visual debug mode, save images of the final layout to check how the model is performing.
         if debug:
             doc_name = input_task.document_name
@@ -131,9 +131,21 @@ def parse_file(
             image_output_path = (
                 Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
             )
-            lp.draw_box(image, ocr_blocks, show_element_type=True, box_alpha=0.2).save(
-                image_output_path
-            )
+
+            page_layout = lp.Layout(page_layout_blocks)
+            lp.draw_box(
+                image,
+                page_layout,
+                show_element_type=True,
+                box_alpha=0.2,
+                color_map={
+                    "Inferred from gaps": "red",
+                    "Ambiguous": "green",
+                    "Text": "orange",
+                    "Title": "blue",
+                    "List": "brown",
+                },
+            ).save(image_output_path)
         all_text_blocks += page_text_blocks
 
         page_dimensions = (

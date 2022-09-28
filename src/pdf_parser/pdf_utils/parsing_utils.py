@@ -502,7 +502,7 @@ class PostProcessor:
                 new_blocks.append(new_block)
         return new_blocks
 
-    def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.25):
+    def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.20):
         """Group text blocks into columns depending on an x-overlap threshold.
 
         Assumption is that blocks with a given x-overlap are in the same column. This
@@ -797,9 +797,9 @@ class OCRProcessor:
         image: np.ndarray,
         block: lp.TextBlock,
         left_pad: int = 15,
-        right_pad: int = 5,
-        top_pad: int = 5,
-        bottom_pad: int = 5,
+        right_pad: int = 15,
+        top_pad: int = 2,
+        bottom_pad: int = 2,
     ) -> Tuple[lp.TextBlock, Optional[str]]:
         """
         Perform OCR on a block of text.
@@ -819,9 +819,11 @@ class OCRProcessor:
         # TODO: THis won't work currently because the image isn't part of the class.
         # Pad to improve OCR accuracy as it's fairly tight.
 
-        segment_image = block.pad(
+        padded_block = block.pad(
             left=left_pad, right=right_pad, top=top_pad, bottom=bottom_pad
-        ).crop_image(image)
+        )
+
+        segment_image = padded_block.crop_image(image)
 
         # Perform OCR
         if isinstance(self.ocr_agent, ocr.TesseractAgent):
@@ -844,17 +846,17 @@ class OCRProcessor:
                 language = None
 
         # Save OCR result
-        block_with_text = block.set(text=text)  # type: ignore
+        block_with_text = padded_block.set(text=text)  # type: ignore
 
         return block_with_text, language  # type: ignore
 
-    def process_layout(self) -> List[PDFTextBlock]:
-        """
-        Get text for the text blocks in the layout, and return a `Page` object with text retrieved, and language and text block IDs set per text block.
+    def process_layout(self) -> Tuple[List[PDFTextBlock], List[lp.TextBlock]]:
+        """Get text for blocks in the layout and return a `Page` with text, language id per text block
 
-        :return: list of text blocks
+        :return: list of text blocks with text, language and text block IDs set + a list of text blocks in
+        layoutparser's format (useful for visual debugging).
         """
-        text_blocks = []
+        text_blocks, text_layout = [], []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for block_idx, block in enumerate(self.layout):
                 future = executor.submit(self._perform_ocr, self.image, block)
@@ -869,5 +871,6 @@ class OCRProcessor:
                 text_block.language = block_language
 
                 text_blocks.append(text_block)
+                text_layout.append(block_with_text)
 
-        return text_blocks
+        return text_blocks, text_layout
