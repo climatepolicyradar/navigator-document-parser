@@ -53,8 +53,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
     Attributes:
         image: The image of the page.
         model: The layoutparser model to use.
-        layout_blocks_unfiltered: The layoutparser layout object of text blocks.
-        layout_blocks: The layoutparser layout object of text blocks with a confidence score above the
+        layout_unfiltered: The layoutparser layout object of text blocks.
+        layout: The layoutparser layout object of text blocks with a confidence score above the
         restrictive_theshold: The minimum confidence score for a box to be considered part of the layour in a strict model.
     """
 
@@ -66,9 +66,9 @@ class LayoutDisambiguator(LayoutParserExtractor):
     ):
         super().__init__(image)
         self.model = model
-        self.layout_blocks_unfiltered = lp.Layout([b for b in model.detect(image)])
+        self.layout_unfiltered = lp.Layout([b for b in model.detect(image)])
         self.restrictive_threshold = restrictive_threshold
-        self.layout_blocks = [
+        self.layout = [
             b for b in model.detect(image) if b.score >= restrictive_threshold
         ]
 
@@ -123,49 +123,6 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
     def _get_shapely_poly(self, box):
         return Polygon(self._lp_to_shapely_coords(box.block_1.coordinates))
-
-    @property
-    def layout(self):
-        """
-        Return the current LayoutParser layout object containing only blocks with the types ["Text", "List", "Title", "Ambiguous"]
-
-        :return: LayoutParser layout
-        """
-        text_layout = lp.Layout(
-            [
-                box
-                for box in self.layout_blocks
-                if box.type in ["Text", "List", "Title", "Ambiguous"]
-            ]
-        )
-        return text_layout
-
-    @layout.setter
-    def layout(self, blocks):
-        """Implement setter so property is alterable."""
-        self.layout_blocks = blocks
-
-    @property
-    def layout_unfiltered(self):
-        """
-        Return the current LayoutParser layout object containing all block types.
-
-        :return: LayoutParser layout
-        """
-
-        text_layout = lp.Layout(
-            [
-                box
-                for box in self.layout_blocks_unfiltered
-                if box.type in ["Text", "List", "Title", "Ambiguous"]
-            ]
-        )
-        return text_layout
-
-    @layout_unfiltered.setter
-    def layout_unfiltered(self, blocks):
-        """Implement setter so property is alterable."""
-        self.layout_blocks_unfiltered = blocks
 
     @property
     def unexplained_fractions(self) -> List[float]:
