@@ -538,7 +538,7 @@ class PostProcessor:
                 new_blocks.append(new_block)
         return new_blocks
 
-    def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.95):
+    def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.25):
         """Group text blocks into columns depending on an x-overlap threshold.
 
         Assumption is that blocks with a given x-overlap are in the same column. This
@@ -592,7 +592,7 @@ class PostProcessor:
         return final_column_groups
 
     def _group_blocks_into_columns(
-        self, blocks: lp.Layout, threshold: float = 0.95
+        self, blocks: lp.Layout, threshold: float = 0.25
     ) -> pd.DataFrame:
         """Group the blocks into columns.
 
