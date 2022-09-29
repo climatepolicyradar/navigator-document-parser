@@ -19,6 +19,7 @@ from tqdm import tqdm
 from cloudpathlib import S3Path
 import psutil
 
+from src.job_queue.main import JobQueue
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
     LayoutDisambiguator,
@@ -114,105 +115,107 @@ def parse_file(
     )
     logging.info(psutil.virtual_memory())
 
-    with tempfile.TemporaryDirectory() as temp_output_dir:
-        pdf_path = download_pdf(input_task, temp_output_dir)
+    # TODO Check whether file was previously worked on and skip if so
+    if not JobQueue().skip(input_task.document_id):
+        with tempfile.TemporaryDirectory() as temp_output_dir:
+            pdf_path = download_pdf(input_task, temp_output_dir)
 
-        if pdf_path is None:
-            logging.info(
-                f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
-                f"downloaded, isn't content-type pdf or the response status code is not 200. "
-            )
-        else:
-            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
-            document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
-
-            # FIXME: handle EmptyFileError here using _pdf_num_pages
-
-            model = _get_detectron_model(model, device)
-            if ocr_agent == "tesseract":
-                ocr_agent = lp.TesseractAgent()
-            elif ocr_agent == "gcv":
-                ocr_agent = lp.GCVAgent()
-
-            all_pages_metadata = []
-            all_text_blocks = []
-
-            for page_idx, image in tqdm(
-                enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
-            ):
-                # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
-                # and processing time
-                if debug:
-                    if len(pdf_images) > 10:
-                        # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
-                        # of pages)
-                        np.random.seed(42)
-                        if np.random.random() > 0.1:
-                            continue
-                # Maybe we should always pass a layout object into the PageParser class.
-                layout_disambiguator = LayoutDisambiguator(
-                    image, model, model_threshold_restrictive
+            if pdf_path is None:
+                logging.info(
+                    f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
+                    f"downloaded, isn't content-type pdf or the response status code is not 200. "
                 )
-                initial_layout = layout_disambiguator.layout
-                if len(initial_layout) == 0:
-                    logging.info(f"No layout found for page {page_idx}.")
-                    continue
-                disambiguated_layout = layout_disambiguator.disambiguate_layout()
-                postprocessor = PostProcessor(disambiguated_layout)
-                ocr_blocks = postprocessor.postprocess()
-                ocr_processor = OCRProcessor(
-                    image=np.array(image),
-                    page_number=page_idx,
-                    layout=ocr_blocks,
-                    ocr_agent=ocr_agent,
-                )
-                page_text_blocks = ocr_processor.process_layout()
-                # If running in visual debug mode, save images of the final layout to check how the model is performing.
-                if debug:
-                    doc_name = input_task.document_name
-                    page_number = page_idx + 1
-                    image_output_path = (
-                        Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
+            else:
+                page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
+                document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
+
+                # FIXME: handle EmptyFileError here using _pdf_num_pages
+
+                model = _get_detectron_model(model, device)
+                if ocr_agent == "tesseract":
+                    ocr_agent = lp.TesseractAgent()
+                elif ocr_agent == "gcv":
+                    ocr_agent = lp.GCVAgent()
+
+                all_pages_metadata = []
+                all_text_blocks = []
+
+                for page_idx, image in tqdm(
+                    enumerate(pdf_images), total=len(pdf_images), desc=pdf_path.name
+                ):
+                    # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
+                    # and processing time
+                    if debug:
+                        if len(pdf_images) > 10:
+                            # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
+                            # of pages)
+                            np.random.seed(42)
+                            if np.random.random() > 0.1:
+                                continue
+                    # Maybe we should always pass a layout object into the PageParser class.
+                    layout_disambiguator = LayoutDisambiguator(
+                        image, model, model_threshold_restrictive
                     )
-                    lp.draw_box(
-                        image, ocr_blocks, show_element_type=True, box_alpha=0.2
-                    ).save(image_output_path)
-                all_text_blocks += page_text_blocks
+                    initial_layout = layout_disambiguator.layout
+                    if len(initial_layout) == 0:
+                        logging.info(f"No layout found for page {page_idx}.")
+                        continue
+                    disambiguated_layout = layout_disambiguator.disambiguate_layout()
+                    postprocessor = PostProcessor(disambiguated_layout)
+                    ocr_blocks = postprocessor.postprocess()
+                    ocr_processor = OCRProcessor(
+                        image=np.array(image),
+                        page_number=page_idx,
+                        layout=ocr_blocks,
+                        ocr_agent=ocr_agent,
+                    )
+                    page_text_blocks = ocr_processor.process_layout()
+                    # If running in visual debug mode, save images of the final layout to check how the model is performing.
+                    if debug:
+                        doc_name = input_task.document_name
+                        page_number = page_idx + 1
+                        image_output_path = (
+                            Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
+                        )
+                        lp.draw_box(
+                            image, ocr_blocks, show_element_type=True, box_alpha=0.2
+                        ).save(image_output_path)
+                    all_text_blocks += page_text_blocks
 
-                page_dimensions = (
-                    page_layouts[page_idx].page_data["width"],
-                    page_layouts[page_idx].page_data["height"],
-                )
-                page_metadata = PDFPageMetadata(
-                    dimensions=page_dimensions,
-                    page_number=page_idx,
-                )
+                    page_dimensions = (
+                        page_layouts[page_idx].page_data["width"],
+                        page_layouts[page_idx].page_data["height"],
+                    )
+                    page_metadata = PDFPageMetadata(
+                        dimensions=page_dimensions,
+                        page_number=page_idx,
+                    )
 
-                all_pages_metadata.append(page_metadata)
+                    all_pages_metadata.append(page_metadata)
 
-            document = ParserOutput(
-                document_id=input_task.document_id,
-                document_url=input_task.document_url,
-                document_name=input_task.document_name,
-                document_description=input_task.document_description,
-                document_content_type=input_task.document_content_type,
-                document_slug=input_task.document_slug,
-                pdf_data=PDFData(
-                    page_metadata=all_pages_metadata,
-                    md5sum=document_md5sum,
-                    text_blocks=all_text_blocks,
-                ),
-            ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
+                document = ParserOutput(
+                    document_id=input_task.document_id,
+                    document_url=input_task.document_url,
+                    document_name=input_task.document_name,
+                    document_description=input_task.document_description,
+                    document_content_type=input_task.document_content_type,
+                    document_slug=input_task.document_slug,
+                    pdf_data=PDFData(
+                        page_metadata=all_pages_metadata,
+                        md5sum=document_md5sum,
+                        text_blocks=all_text_blocks,
+                    ),
+                ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
-            output_path = output_dir / f"{input_task.document_id}.json"
+                output_path = output_dir / f"{input_task.document_id}.json"
 
-            output_path.write_text(document.json(indent=4, ensure_ascii=False))
+                output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
-            logging.info(f"Saved {output_path.name} to {output_dir}.")
+                logging.info(f"Saved {output_path.name} to {output_dir}.")
 
-            os.remove(pdf_path)
+                os.remove(pdf_path)
 
-            logging.info(f"Removed downloaded document at - {pdf_path}.")
+                logging.info(f"Removed downloaded document at - {pdf_path}.")
 
 
 def _pdf_num_pages(file: str):
@@ -287,6 +290,8 @@ def run_pdf_parser(
     else:
         for task in tqdm(input_tasks):
             file_parser(task)
+
+    JobQueue().delete_queue()
 
     logging.info("Finished parsing pdf content from pages.")
     time_end = time.time()
