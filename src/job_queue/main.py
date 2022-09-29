@@ -21,17 +21,24 @@ class JobQueue:
         run_dir = os.environ.get("run_dir", "runs/")
         aln_run_dir = "".join(c for c in run_dir if c.isalnum())
         self.queue_name = aln_run_dir + "_parser_job_queue"
-
+        logger.info(f"Queue Name: {self.queue_name}")
         queues = get_queues()
-        queues = [i.split("/")[-1] for i in queues]
+        queues = [i.url.split("/")[-1] for i in queues]
 
         if self.queue_name not in queues:
-            logger.info("Creating queue '%s'", self.queue_name)
-            self.queue = self.sqs.create_queue(QueueName=self.queue_name)
+            logger.info(f"Creating queue: {self.queue_name}")
+            try:
+                self.queue = self.sqs.create_queue(QueueName=self.queue_name)
+            except Exception as e:
+                logger.error(
+                    f"Failed to create queue, retrying - {self.queue_name} - {e}"
+                )
+                time.sleep(61)
+                self.queue = self.sqs.create_queue(QueueName=self.queue_name)
 
         self.queue = get_queue(self.queue_name)
 
-        logger.info("Got queue '%s' with URL=%s", self.queue_name, self.queue.url)
+        logger.info(f"Got queue - {self.queue_name} - {self.queue.url}")
 
     def skip(self, task_id: str) -> bool:
         """
@@ -42,16 +49,16 @@ class JobQueue:
         current_tasks = self.read_messages_()
         for task in current_tasks:
             if task_id == task.body:
-                logger.info("Task %s is in the queue, skipping and deleting.", task_id)
+                logger.info(f"Task {time} is in the queue, skipping and deleting.")
                 self.delete(task_id)
                 return True
         self.send_message_(task_id)
-        logger.info("Task %s is not in the queue, therefore and processing.", task_id)
+        logger.info(f"Task {task_id} is not in the queue, therefore and processing.")
         return False
 
     def delete(self, task_id):
         """Delete a message from the queue."""
-        logger.info("Deleting task %s from the queue.", task_id)
+        logger.info(f"Deleting task {task_id} from the queue.")
         messages = self.read_messages_()
         messages_to_delete = []
 
@@ -62,11 +69,11 @@ class JobQueue:
         if messages_to_delete:
             for i in messages_to_delete:
                 response = delete_message(i)
-                print(response)
+                logger.info(response)
 
     def send_message_(self, task_id):
         """Send a message to the queue."""
-        logger.info("Sending task %s to the queue.", task_id)
+        logger.info(f"Sending task {task_id} to the queue.")
         response = self.sqs_client.send_message(
             QueueUrl=self.queue.url, DelaySeconds=10, MessageBody=(str(task_id))
         )
@@ -107,5 +114,5 @@ class JobQueue:
 
     def delete_queue(self):
         """Delete the queue."""
-        logger.info("Deleting queue '%s'", self.queue_name)
+        logger.info(f"Deleting queue: {self.queue_name}")
         remove_queue(self.queue)

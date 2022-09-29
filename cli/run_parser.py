@@ -143,7 +143,7 @@ def main(
     tasks = []
     counter = 0
     for path in files_to_parse:
-        if TEST_RUN and counter > 100:
+        if bool(TEST_RUN) and counter > 100:
             break
         else:
             try:
@@ -175,11 +175,11 @@ def main(
     logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 
     # TODO run flags don't work for HTML parsing
-    if RUN_HTML_PARSER:
+    if bool(RUN_HTML_PARSER):
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
         run_html_parser(html_tasks, output_dir_as_path)
 
-    if RUN_PDF_PARSER:
+    if bool(RUN_PDF_PARSER):
         logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
         run_pdf_parser(
             pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug

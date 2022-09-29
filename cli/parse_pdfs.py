@@ -291,8 +291,7 @@ def run_pdf_parser(
         for task in tqdm(input_tasks):
             file_parser(task)
 
-    JobQueue().delete_queue()
-
     logging.info("Finished parsing pdf content from pages.")
     time_end = time.time()
     logging.info(f"Time taken: {time_end - time_start} seconds.")
+    JobQueue().delete_queue()
