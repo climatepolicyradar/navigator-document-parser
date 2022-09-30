@@ -3,7 +3,7 @@ import sys
 import time
 import boto3
 import os
-
+import uuid
 from src.job_queue.message_wrapper import receive_messages, delete_message
 from src.job_queue.queue_wrapper import get_queue, get_queues, remove_queue
 
@@ -18,10 +18,15 @@ class JobQueue:
         self.sqs = boto3.resource("sqs", region_name="us-east-1")
         self.sqs_client = boto3.client("sqs", region_name="us-east-1")
 
-        run_dir = os.environ.get("run_dir", "runs/")
+        run_dir = os.environ.get("run_dir", "runs" + str(uuid.uuid4()))
+        if '"' in run_dir:
+            run_dir = run_dir.split('"')[1]
+
         aln_run_dir = "".join(c for c in run_dir if c.isalnum())
         self.queue_name = aln_run_dir + "_parser_job_queue"
+
         logger.info(f"Queue Name: {self.queue_name}")
+
         queues = get_queues()
         queues = [i.url.split("/")[-1] for i in queues]
 
