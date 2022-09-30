@@ -55,6 +55,29 @@ def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Pat
     return output_path
 
 
+def select_page_at_random(num_pages: int) -> int:
+    """Determine whether to include a page using a random number generator. Used for debugging.
+
+    Args:
+        num_pages: The number of pages in the PDF.
+
+    Returns:
+        The page number to include.
+    """
+    rng = np.random.random()
+    if num_pages in range(1, 10):
+        # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
+        # of pages)
+        if rng < 0.5:
+            return True
+    elif num_pages in range(10, 100):
+        if rng < 0.1:
+            return True
+    else:
+        if rng <= 0.05:
+            return True
+
+
 def parse_file(
     input_task: ParserInput,
     model,
@@ -101,18 +124,9 @@ def parse_file(
         # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
         # and processing time
         if debug:
-            rng = np.random.random()
-            if num_pages in range(1, 10):
-                # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
-                # of pages)
-                if rng > 0.5:
-                    continue
-            elif num_pages in range(10, 100):
-                if rng > 0.1:
-                    continue
-            else:
-                if rng > 0.05:
-                    continue
+            select_page = select_page_at_random(num_pages)
+            if not select_page:
+                continue
         # Maybe we should always pass a layout object into the PageParser class.
         layout_disambiguator = LayoutDisambiguator(
             image, model, model_threshold_restrictive
