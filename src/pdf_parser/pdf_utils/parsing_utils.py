@@ -903,6 +903,18 @@ class OCRProcessor:
                 ixs_to_remove.append(ix)
         return lp.Layout([b for ix, b in enumerate(layout) if ix not in ixs_to_remove])
 
+    @staticmethod
+    def _is_block_valid(block: lp.TextBlock) -> bool:
+        """Check if a block is valid."""
+        if block.text is None:
+            return False
+        if len(block.text) == 0:
+            return False
+        # Heuristic to get rid of blocks with no text or text that is too short.
+        if len(block.text.split(" ")) < 3:
+            return False
+        return True
+
     def process_layout(self) -> Tuple[List[PDFTextBlock], List[lp.TextBlock]]:
         """Get text for blocks in the layout and return a `Page` with text, language id per text block
 
@@ -919,7 +931,7 @@ class OCRProcessor:
                 if block.type == "Ambiguous":
                     block_with_text.type = self._infer_block_type(block)
                 # Heuristic to get rid of blocks with no text or text that is too short.
-                if len(block.text.split(" ")) < 3:
+                if not self._is_block_valid(block_with_text):
                     continue
 
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
