@@ -100,6 +100,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ParserOutput.parse_obj(
                     {
                         "document_id": "test_pdf",
+                        "document_metadata": {},
                         "document_url": "https://www.pdfs.org",
                         "document_name": "test_pdf",
                         "document_description": "test_pdf_description",
@@ -120,6 +121,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ParserOutput.parse_obj(
                     {
                         "document_id": "test_html",
+                        "document_metadata": {},
                         "document_url": "https://www.google.org",
                         "document_name": "test_html",
                         "document_description": "test_html_description",

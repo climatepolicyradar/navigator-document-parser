@@ -19,9 +19,12 @@ The CLI operates on an input folder of tasks defined by JSON files in the follow
 
 ``` python
 {
-  "id": "test_html",
-  "url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
-  "content_type": "text/html", # or "application/pdf"
+  "document_id": "test_html",
+  "document_metadata": {},
+  "document_name": "test_html",
+  "document_description": "test_html description",
+  "document_url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
+  "document_content_type": "text/html", # or "application/pdf"
   "document_slug": "YYY"
 }
 ```
@@ -32,6 +35,7 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
 # HTMLs
 {
     "id": "test_html",
+    "document_metadata": {},
     "url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
     "languages": [
         "en"
