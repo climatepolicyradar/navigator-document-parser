@@ -26,6 +26,7 @@ def process_documents_with_no_content_type(
     for task in tqdm(input_tasks):
         output = ParserOutput(
             document_id=task.document_id,
+            document_metadata=task.document_metadata,
             document_name=task.document_name,
             document_description=task.document_description,
             document_url=task.document_url,

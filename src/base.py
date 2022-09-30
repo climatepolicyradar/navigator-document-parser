@@ -148,6 +148,7 @@ class ParserInput(BaseModel):
     """Base class for input to a parser."""
 
     document_id: str
+    document_metadata: dict
     document_name: str
     document_description: str
     document_url: Optional[AnyHttpUrl]
@@ -210,6 +211,7 @@ class ParserOutput(BaseModel):
     """Base class for an output to a parser."""
 
     document_id: str
+    document_metadata: dict
     document_name: str
     document_description: str
     document_url: Optional[AnyHttpUrl]
@@ -355,6 +357,7 @@ class HTMLParser(ABC):
         """Return ParsedHTML object with empty fields."""
         return ParserOutput(
             document_id=input.document_id,
+            document_metadata=input.document_metadata,
             document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,

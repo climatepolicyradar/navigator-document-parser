@@ -192,6 +192,7 @@ def parse_file(
 
             document = ParserOutput(
                 document_id=input_task.document_id,
+                document_metadata=input_task.document_metadata,
                 document_url=input_task.document_url,
                 document_name=input_task.document_name,
                 document_description=input_task.document_description,
