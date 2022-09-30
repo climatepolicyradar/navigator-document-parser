@@ -286,12 +286,12 @@ class LayoutDisambiguator(LayoutParserExtractor):
                     box_2.block_1 = rect_2
         return blocks
 
-    def _unnest_boxes(self, unnest_inflation_value: int = 15) -> lp.Layout:
+    def _unnest_boxes(self, pixel_margin: int = 15) -> lp.Layout:
         """
         Recursively Unnest boxes.
 
         Args:
-            unnest_inflation_value: The amount to inflate the unnested box by (i.e. a soft margin coefficient).
+            pixel_margin: The number of pixels to inflate each box by in each direction when checking for containment (i.e. a soft margin).
 
         Returns:
             The unnested boxes.
@@ -314,10 +314,10 @@ class LayoutDisambiguator(LayoutParserExtractor):
                     else:
                         # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
                         soft_margin = {
-                            "top": unnest_inflation_value,
-                            "bottom": unnest_inflation_value,
-                            "left": unnest_inflation_value,
-                            "right": unnest_inflation_value,
+                            "top": pixel_margin,
+                            "bottom": pixel_margin,
+                            "left": pixel_margin,
+                            "right": pixel_margin,
                         }
                         if box_1.is_in(box_2, soft_margin):
                             counter += 1
@@ -351,7 +351,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         return coverage
 
     def disambiguate_layout(
-        self, unnest_inflation_value: int = 15, threshold: float = 0.35
+        self, pixel_margin: int = 15, threshold: float = 0.35
     ) -> lp.Layout:
         """Disambiguate the layout by unnesting nested boxes using heuristics and removing overlaps for OCR.
 
@@ -360,16 +360,14 @@ class LayoutDisambiguator(LayoutParserExtractor):
         repeated until there are no more boxes within other boxes.
 
         Args:
-            unnest_inflation_value: The amount by which to inflate the bounding boxes when checking for containment.
+            pixel_margin: The number of pixels by which to inflate the bounding boxes when checking for containment (soft margin).
             threshold: The confidence threshold to use for adding unknown text blocks.
 
         Returns:
             The disambiguated layout.
         """
         # Unnest boxes so that there are no boxes within other boxes.
-        disambiguated_layout = self._unnest_boxes(
-            unnest_inflation_value=unnest_inflation_value
-        )
+        disambiguated_layout = self._unnest_boxes(pixel_margin=pixel_margin)
         # TODO: These functions are buggy/not working as anticipated.
         #  Fix them and then uncomment.
         # # Ensure the remaining rectangles have no overlap for OCR.
@@ -890,14 +888,20 @@ class OCRProcessor:
                 "The OCR agent must be either a TesseractAgent or a GCVAgent."
             )
 
-        # Heuristic to get rid of blocks with no text or text that is too short.
-        if len(text.split(" ")) < 3:
-            return None, None
-
         # Save OCR result
         block_with_text = padded_block.set(text=text)  # type: ignore
 
         return block_with_text, language  # type: ignore
+
+    @staticmethod
+    def _remove_empty_text_blocks(layout: lp.Layout) -> lp.Layout:
+        """Remove text blocks with no text from the layout."""
+        # Heuristic to get rid of blocks with no text or text that is too short.
+        ixs_to_remove = []
+        for ix, block in enumerate(layout):
+            if len(block.text.split(" ")) < 3:
+                ixs_to_remove.append(ix)
+        return lp.Layout([b for ix, b in enumerate(layout) if ix not in ixs_to_remove])
 
     def process_layout(self) -> Tuple[List[PDFTextBlock], List[lp.TextBlock]]:
         """Get text for blocks in the layout and return a `Page` with text, language id per text block
@@ -914,6 +918,9 @@ class OCRProcessor:
                     continue
                 if block.type == "Ambiguous":
                     block_with_text.type = self._infer_block_type(block)
+                # Heuristic to get rid of blocks with no text or text that is too short.
+                if len(block.text.split(" ")) < 3:
+                    continue
 
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
                 text_block = PDFTextBlock.from_layoutparser(
