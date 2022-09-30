@@ -105,10 +105,12 @@ def main(
     """
 
     if s3:
-        if '"' in input_dir:
-            input_dir = input_dir.split('"')[1]
-        if '"' in output_dir:
-            output_dir = output_dir.split('"')[1]
+        # fmt: off
+        if '\"' in input_dir:
+            input_dir = input_dir.split('\"')[1]
+        if '\"' in output_dir:
+            output_dir = output_dir.split('\"')[1]
+        # fmt: on
         input_dir_as_path = S3Path(input_dir)
         output_dir_as_path = S3Path(output_dir)
     else:
