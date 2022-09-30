@@ -105,12 +105,6 @@ def main(
     """
 
     if s3:
-        # fmt: off
-        if '\"' in input_dir:
-            input_dir = input_dir.split('\"')[1]
-        if '\"' in output_dir:
-            output_dir = output_dir.split('\"')[1]
-        # fmt: on
         input_dir_as_path = S3Path(input_dir)
         output_dir_as_path = S3Path(output_dir)
     else:
@@ -149,7 +143,7 @@ def main(
     tasks = []
     counter = 0
     for path in files_to_parse:
-        if bool(TEST_RUN) and counter > 100:
+        if bool(TEST_RUN) and counter > 10:
             break
         else:
             try:
@@ -180,7 +174,6 @@ def main(
 
     logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
 
-    # TODO run flags don't work for HTML parsing
     if bool(RUN_HTML_PARSER):
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
         run_html_parser(html_tasks, output_dir_as_path)
