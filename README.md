@@ -112,7 +112,7 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
         "text_blocks": [
             {
                 "text": [
-                    "menginstruksikan:\n\f"
+                    Example text block."
                 ],
                 "text_block_id": "p_0_b_0",
                 "language": null,
@@ -140,7 +140,7 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
             },
             {
                 "text": [
-                    "Untuk:\n\f"
+                    "Example text block."
                 ],
                 "text_block_id": "p_0_b_1",
                 "language": null,
