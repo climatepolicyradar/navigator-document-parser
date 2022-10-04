@@ -20,8 +20,10 @@ The CLI operates on an input folder of tasks defined by JSON files in the follow
 ``` python
 {
   "document_id": "test_html",
-  "document_name": "Policy Document 1"
-  "document_url": "https://www.website.gov.uk/policy_document",
+  "document_metadata": {},
+  "document_name": "test_html",
+  "document_description": "test_html description",
+  "document_url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
   "document_content_type": "text/html", # or "application/pdf"
   "document_slug": "YYY"
 }
@@ -35,8 +37,9 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
     "document_id": "1",
     "document_name": "Policy Document 1",
     "document_url": "https://website.org/path/document",
+    "document_metadata": {}, 
     "languages": [
-        "da"
+        "en"
     ],
     "translated": false,
     "document_slug": "YYYY",
@@ -75,8 +78,8 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
             {
                 "page_number": 0,
                 "dimensions": [
-                    612.0,
-                    936.0
+                    596.0,
+                    842.0
                 ]
             },
             {
@@ -108,7 +111,7 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
                 ]
             }
         ],
-        "md5sum": "3e465fc3e780f4933960e339bd0e70f6",
+        "md5sum": "6237180d8c443d72c06c9167019ca177",
         "text_blocks": [
             {
                 "text": [
@@ -117,23 +120,23 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
                 "text_block_id": "p_0_b_0",
                 "language": null,
                 "type": "Text",
-                "type_confidence": 0.9591814875602722,
+                "type_confidence": 0.6339805126190186,
                 "coords": [
                     [
-                        71.69662475585938,
-                        405.9636535644531
+                        10.998469352722168,
+                        702.727294921875
                     ],
                     [
-                        181.8621826171875,
-                        405.9636535644531
+                        134.93479919433594,
+                        702.727294921875
                     ],
                     [
-                        181.8621826171875,
-                        418.4075012207031
+                        134.93479919433594,
+                        737.7978515625
                     ],
                     [
-                        71.69662475585938,
-                        418.4075012207031
+                        10.998469352722168,
+                        737.7978515625
                     ]
                 ],
                 "page_number": 0
@@ -142,30 +145,30 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
                 "text": [
                     "Example text block."
                 ],
-                "text_block_id": "p_0_b_1",
+                "text_block_id": "p_1_b_0",
                 "language": null,
                 "type": "Title",
-                "type_confidence": 0.7153777480125427,
+                "type_confidence": 0.577865481376648,
                 "coords": [
                     [
-                        71.7964096069336,
-                        692.2425537109375
+                        26.7734375,
+                        313.9053039550781
                     ],
                     [
-                        113.10400390625,
-                        692.2425537109375
+                        281.1876525878906,
+                        313.9053039550781
                     ],
                     [
-                        113.10400390625,
-                        706.488525390625
+                        281.1876525878906,
+                        380.9349365234375
                     ],
                     [
-                        71.7964096069336,
-                        706.488525390625
+                        26.7734375,
+                        380.9349365234375
                     ]
                 ],
-                "page_number": 0
-            }
+                "page_number": 1
+            },
         ]
     }
 }

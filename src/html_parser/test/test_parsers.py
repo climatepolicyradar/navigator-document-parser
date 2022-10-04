@@ -28,6 +28,7 @@ def test_parse(url: str, parser: HTMLParser) -> None:
     input = ParserInput.parse_obj(
         {
             "document_id": "test_id",
+            "document_metadata": {},
             "document_url": url,
             "document_name": "test_html",
             "document_description": "test_html_description",

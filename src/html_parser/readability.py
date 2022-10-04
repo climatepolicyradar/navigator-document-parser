@@ -32,7 +32,13 @@ class ReadabilityParser(HTMLParser):
         :param url: URL of web page
 
         :return ParsedHTML: parsed HTML
+        :raise ValueError: input contains a null value for URL
         """
+
+        if input.document_url is None:
+            raise ValueError(
+                "A URL is required, and it seems like a document without a URL was provided."
+            )
 
         try:
             response = requests.get(
@@ -84,6 +90,7 @@ class ReadabilityParser(HTMLParser):
         # Readability doesn't provide a date
         return ParserOutput(
             document_id=input.document_id,
+            document_metadata=input.document_metadata,
             document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,
