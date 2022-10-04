@@ -121,6 +121,15 @@ def parse_file(
     for page_idx, image in tqdm(
         enumerate(pdf_images), total=num_pages, desc=pdf_path.name
     ):
+        page_dimensions = (
+            page_layouts[page_idx].page_data["width"],
+            page_layouts[page_idx].page_data["height"],
+        )
+        page_metadata = PDFPageMetadata(
+            dimensions=page_dimensions,
+            page_number=page_idx,
+        )
+
         # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
         # and processing time
         if debug:
@@ -134,12 +143,15 @@ def parse_file(
         initial_layout = layout_disambiguator.layout
         if len(initial_layout) == 0:
             logging.info(f"No layout found for page {page_idx}.")
+            all_pages_metadata.append(page_metadata)
             continue
         disambiguated_layout = layout_disambiguator.disambiguate_layout()
         postprocessor = PostProcessor(disambiguated_layout)
         postprocessor.postprocess()
         ocr_blocks = postprocessor.ocr_blocks
         if len(ocr_blocks) == 0:
+            logging.info(f"No text found for page {page_idx}.")
+            all_pages_metadata.append(page_metadata)
             continue
         ocr_processor = OCRProcessor(
             image=np.array(image),
@@ -171,15 +183,6 @@ def parse_file(
                 },
             ).save(image_output_path)
         all_text_blocks += page_text_blocks
-
-        page_dimensions = (
-            page_layouts[page_idx].page_data["width"],
-            page_layouts[page_idx].page_data["height"],
-        )
-        page_metadata = PDFPageMetadata(
-            dimensions=page_dimensions,
-            page_number=page_idx,
-        )
 
         all_pages_metadata.append(page_metadata)
 
