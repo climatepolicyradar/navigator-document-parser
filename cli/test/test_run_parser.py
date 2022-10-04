@@ -34,11 +34,18 @@ def test_run_parser_local(test_input_dir) -> None:
         )
 
         assert result.exit_code == 0
-        assert (Path(output_dir) / "test_html.json").exists()
-        assert (Path(output_dir) / "test_pdf.json").exists()
 
         # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
-        assert (Path(output_dir) / "test_pdf_translated_en.json").exists()
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_no_content_type_translated_en.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            assert ParserOutput.parse_file(output_file)
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -57,7 +64,9 @@ def test_run_parser_s3(test_input_dir) -> None:
         result = runner.invoke(cli_main, [input_dir, output_dir, "--s3", "--parallel"])
 
         assert result.exit_code == 0
-        assert (LocalS3Path(output_dir) / "test_html.json").exists()
+        assert set(LocalS3Path(output_dir).glob("*.json")) == {
+            LocalS3Path(output_dir) / "test_html.json"
+        }
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -74,8 +83,9 @@ def test_run_parser_specific_files() -> None:
 
         assert result.exit_code == 0
 
-        assert (Path(output_dir) / "test_html.json").exists()
-        assert not (Path(output_dir) / "test_pdf.json").exists()
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json"
+        }
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -90,6 +100,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ParserOutput.parse_obj(
                     {
                         "document_id": "test_pdf",
+                        "document_metadata": {},
                         "document_url": "https://www.pdfs.org",
                         "document_name": "test_pdf",
                         "document_description": "test_pdf_description",
@@ -110,6 +121,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ParserOutput.parse_obj(
                     {
                         "document_id": "test_html",
+                        "document_metadata": {},
                         "document_url": "https://www.google.org",
                         "document_name": "test_html",
                         "document_description": "test_html_description",

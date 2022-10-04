@@ -51,7 +51,13 @@ class NewsPleaseParser(HTMLParser):
         :param url: URL of web page
 
         :return ParsedHTML: parsed HTML
+        :raise ValueError: input contains a null value for URL
         """
+
+        if input.document_url is None:
+            raise ValueError(
+                "A URL is required, and it seems like a document without a URL was provided."
+            )
 
         try:
             response = requests.get(
@@ -101,6 +107,7 @@ class NewsPleaseParser(HTMLParser):
 
         return ParserOutput(
             document_id=input.document_id,
+            document_metadata=input.document_metadata,
             document_url=input.document_url,
             document_name=input.document_name,
             document_description=input.document_description,
