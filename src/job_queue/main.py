@@ -54,7 +54,7 @@ class JobQueue:
         current_tasks = self.read_messages_()
         for task in current_tasks:
             if task_id == task.body:
-                logger.info(f"Task {time} is in the queue, skipping and deleting.")
+                logger.info(f"Task {time} is in the queue, skipping and.")
                 self.delete(task_id)
                 return True
         self.send_message_(task_id)
