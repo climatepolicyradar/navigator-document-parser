@@ -28,8 +28,8 @@ class JobQueue:
         if '"' in run_dir:
             run_dir = run_dir.split('"')[1]
 
-        aln_run_dir = "".join(c for c in run_dir if c.isalnum())
-        self.queue_name = aln_run_dir + "_parser_job_queue"
+        alphanumeric_run_dir = "".join(c for c in run_dir if c.isalnum())
+        self.queue_name = alphanumeric_run_dir + "_parser_job_queue"
 
         logger.info(f"Queue Name: {self.queue_name}")
 
