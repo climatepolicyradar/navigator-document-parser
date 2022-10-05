@@ -1,6 +1,5 @@
 import concurrent.futures
 import logging
-import multiprocessing
 import time
 import warnings
 from functools import partial
@@ -281,8 +280,9 @@ def run_pdf_parser(
         device=device,
     )
     if parallel:
-        cpu_count = multiprocessing.cpu_count() - 1
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=config.PDF_N_PROCESSES
+        ) as executor:
             executor.map(file_parser, tqdm(input_tasks))
 
     else:
