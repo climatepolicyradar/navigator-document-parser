@@ -12,8 +12,10 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 
+from src.config import AWS_REGION
+
 logger = logging.getLogger(__name__)
-sqs = boto3.resource("sqs", region_name="us-east-1")
+sqs = boto3.resource("sqs", region_name=AWS_REGION)
 
 
 def send_message(queue, message_body, message_attributes=None):

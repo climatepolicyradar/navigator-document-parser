@@ -6,6 +6,12 @@ import os
 import uuid
 from src.job_queue.message_wrapper import receive_messages, delete_message
 from src.job_queue.queue_wrapper import get_queue, get_queues, remove_queue
+from src.config import (
+    AWS_REGION,
+    QUEUE_CREATE_TIMEOUT,
+    QUEUE_READ_BATCH_SIZE,
+    QUEUE_SEND_MESSAGE_DELAY,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,8 +21,8 @@ class JobQueue:
     """Keep track of the task that the parser is working on to skip it within the retry job container."""
 
     def __init__(self):
-        self.sqs = boto3.resource("sqs", region_name="us-east-1")
-        self.sqs_client = boto3.client("sqs", region_name="us-east-1")
+        self.sqs = boto3.resource("sqs", region_name=AWS_REGION)
+        self.sqs_client = boto3.client("sqs", region_name=AWS_REGION)
 
         run_dir = os.environ.get("run_dir", "runs" + str(uuid.uuid4()))
         if '"' in run_dir:
@@ -38,7 +44,7 @@ class JobQueue:
                 logger.error(
                     f"Failed to create queue, retrying - {self.queue_name} - {e}"
                 )
-                time.sleep(61)
+                time.sleep(QUEUE_CREATE_TIMEOUT)
                 self.queue = self.sqs.create_queue(QueueName=self.queue_name)
 
         self.queue = get_queue(self.queue_name)
@@ -80,7 +86,9 @@ class JobQueue:
         """Send a message to the queue."""
         logger.info(f"Sending task {task_id} to the queue.")
         response = self.sqs_client.send_message(
-            QueueUrl=self.queue.url, DelaySeconds=10, MessageBody=(str(task_id))
+            QueueUrl=self.queue.url,
+            DelaySeconds=QUEUE_SEND_MESSAGE_DELAY,
+            MessageBody=(str(task_id)),
         )
 
         return response
@@ -89,7 +97,7 @@ class JobQueue:
         """Read messages from the queue whilst handling timeouts from queue."""
         messages = []
 
-        batch_size = 10
+        batch_size = QUEUE_READ_BATCH_SIZE
         more_messages = True
         while more_messages:
             received_messages = receive_messages(self.queue, batch_size, 2)
