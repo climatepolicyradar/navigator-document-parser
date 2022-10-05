@@ -27,7 +27,7 @@ run_local_against_s3:
 	docker build -t html-parser_s3 .
 	docker run -e loader_output_s3=s3://data-pipeline-a64047a/unit_tests/runs/loader_output/ -e parser_output_s3=s3://data-pipeline-a64047a/unit_tests/runs/parser_output/ -it html-parser_s3
 
-run_local_tests_against_s3:
+test_against_s3:
 	cp Dockerfile.aws.example Dockerfile
 	docker build -t html-parser_s3 .
 	docker run -it html-parser_s3 python -m pytest
