@@ -28,3 +28,4 @@ RUN playwright install-deps
 COPY ./src ./src
 COPY ./cli ./cli
 COPY ./data ./data
+COPY ./credentials ./credentials
