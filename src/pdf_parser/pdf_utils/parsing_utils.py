@@ -493,7 +493,7 @@ class PostProcessor:
             y1_new = column_blocks[ix].coordinates[3]
             y2_new = column_blocks[ix + 1].coordinates[1]
             height_new = y2_new - y1_new
-            if height_new > height_threshold:
+            if height_new >= height_threshold:
                 new_block_shape = lp.Rectangle(x1, y1_new, x2, y2_new)
                 new_block = lp.TextBlock(
                     new_block_shape, type="Inferred from gaps", score=1.0
@@ -717,7 +717,6 @@ class PostProcessor:
                     intersect_area = block.intersect(other_block).area
                     if intersect_area > 0:
                         accounted_for_area += intersect_area
-                    accounted_for_area += intersect_area
                 accounted_for_fraction = accounted_for_area / block_area
                 if accounted_for_fraction > remove_threshold:
                     ixs_to_remove.append(ix)
