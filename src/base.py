@@ -149,11 +149,28 @@ class ParserInput(BaseModel):
     """Base class for input to a parser."""
 
     document_id: str
+    document_metadata: dict
     document_name: str
     document_description: str
-    document_url: AnyHttpUrl
-    document_content_type: ContentType
+    document_url: Optional[AnyHttpUrl]
+    document_content_type: Optional[ContentType]
     document_slug: str
+
+    @root_validator
+    def check_content_type_and_url(cls, values) -> None:
+        """Either both or neither of content type and url should be null."""
+        if (
+            values["document_content_type"] is None
+            and values["document_url"] is not None
+        ) or (
+            values["document_content_type"] is not None
+            and values["document_url"] is None
+        ):
+            raise ValueError(
+                "Both document_content_type and document_url must be null or not null."
+            )
+
+        return values
 
 
 class HTMLData(BaseModel):
@@ -195,13 +212,14 @@ class ParserOutput(BaseModel):
     """Base class for an output to a parser."""
 
     document_id: str
+    document_metadata: dict
     document_name: str
     document_description: str
-    document_url: AnyHttpUrl
+    document_url: Optional[AnyHttpUrl]
     languages: Optional[Sequence[str]] = None
     translated: bool = False
     document_slug: str  # for better links to the frontend hopefully soon
-    document_content_type: ContentType
+    document_content_type: Optional[ContentType]
     html_data: Optional[HTMLData] = None
     pdf_data: Optional[PDFData] = None
 
@@ -219,6 +237,29 @@ class ParserOutput(BaseModel):
             and values["pdf_data"] is None
         ):
             raise ValueError("pdf_metadata must be null for HTML documents")
+
+        if values["document_content_type"] is None and (
+            values["html_data"] is not None or values["pdf_data"] is not None
+        ):
+            raise ValueError(
+                "html_metadata and pdf_metadata must be null for documents with no content type."
+            )
+
+        return values
+
+    @root_validator
+    def check_content_type_and_url(cls, values) -> None:
+        """Either both or neither of content type and url should be null."""
+        if (
+            values["document_content_type"] is None
+            and values["document_url"] is not None
+        ) or (
+            values["document_content_type"] is not None
+            and values["document_url"] is None
+        ):
+            raise ValueError(
+                "Both document_content_type and document_url must be null or not null."
+            )
 
         return values
 
@@ -317,6 +358,7 @@ class HTMLParser(ABC):
         """Return ParsedHTML object with empty fields."""
         return ParserOutput(
             document_id=input.document_id,
+            document_metadata=input.document_metadata,
             document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,

@@ -7,13 +7,20 @@ import sys
 
 import click
 from cloudpathlib import S3Path
+import pydantic  # noqa: E402
 
 sys.path.append("..")
 
 from src.base import ParserInput, ParserOutput  # noqa: E402
 from src.config import TARGET_LANGUAGES  # noqa: E402
+from src.config import TEST_RUN  # noqa: E402
+from src.config import RUN_PDF_PARSER  # noqa: E402
+from src.config import RUN_HTML_PARSER  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
+from cli.parse_no_content_type import (  # noqa: E402
+    process_documents_with_no_content_type,
+)
 from cli.translate_outputs import translate_parser_outputs  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -112,20 +119,45 @@ def main(
         debug_dir = output_dir_as_path / "debug"
         debug_dir.mkdir(exist_ok=True)
 
-    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath objects to pathlib.Path objects.
-    document_ids_previously_parsed = set(
-        [
-            ParserOutput.parse_raw(path.read_text()).document_id
-            for path in output_dir_as_path.glob("*.json")
-        ]
-    )
+    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
+    # objects to pathlib.Path objects.
+    document_ids_previously_parsed = []
+    for path in output_dir_as_path.glob("*.json"):
+        try:
+            document_ids_previously_parsed.append(
+                ParserOutput.parse_raw(path.read_text()).document_id
+            )
+        except pydantic.ValidationError as e:
+            logger.error(
+                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
+            )
+    document_ids_previously_parsed = set(document_ids_previously_parsed)
+
     files_to_parse = (
         (input_dir_as_path / f for f in files)
         if files
         else input_dir_as_path.glob("*.json")
     )
 
-    tasks = [ParserInput.parse_raw(path.read_text()) for path in files_to_parse]
+    logger.info(
+        f"Run configuration TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}"
+    )
+
+    tasks = []
+    counter = 0
+    for path in files_to_parse:
+        if TEST_RUN and counter > 100:
+            break
+        else:
+            try:
+                tasks.append(ParserInput.parse_raw(path.read_text()))
+
+            except pydantic.error_wrappers.ValidationError as e:
+                logger.error(
+                    f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
+                )
+        counter += 1
+
     if not redo and document_ids_previously_parsed.intersection(
         {task.document_id for task in tasks}
     ):
@@ -138,18 +170,33 @@ def main(
             if task.document_id not in document_ids_previously_parsed
         ]
 
+    no_document_tasks = [
+        task for task in tasks if task.document_content_type is None
+    ]  # tasks without a URL or content type
     html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
     pdf_tasks = [
         task for task in tasks if task.document_content_type == "application/pdf"
     ]
 
-    logger.info(f"Found {len(html_tasks)} HTML tasks and {len(pdf_tasks)} PDF tasks")
+    logger.info(
+        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse."
+    )
 
-    logger.info(f"Running HTML parser on {len(html_tasks)} documents")
-    run_html_parser(html_tasks, output_dir_as_path)
+    logger.info(
+        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type."
+    )
+    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
 
-    logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
-    run_pdf_parser(pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug)
+    # TODO run flags don't work for HTML parsing
+    if RUN_HTML_PARSER:
+        logger.info(f"Running HTML parser on {len(html_tasks)} documents")
+        run_html_parser(html_tasks, output_dir_as_path)
+
+    if RUN_PDF_PARSER:
+        logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
+        run_pdf_parser(
+            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
+        )
 
     logger.info(
         f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"

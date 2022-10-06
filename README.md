@@ -19,9 +19,12 @@ The CLI operates on an input folder of tasks defined by JSON files in the follow
 
 ``` python
 {
-  "id": "test_html",
-  "url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
-  "content_type": "text/html", # or "application/pdf"
+  "document_id": "test_html",
+  "document_metadata": {},
+  "document_name": "test_html",
+  "document_description": "test_html description",
+  "document_url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
+  "document_content_type": "text/html", # or "application/pdf"
   "document_slug": "YYY"
 }
 ```
@@ -31,43 +34,27 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
 ``` python
 # HTMLs
 {
-    "id": "test_html",
-    "url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
+    "document_id": "1",
+    "document_name": "Policy Document 1",
+    "document_url": "https://website.org/path/document",
+    "document_metadata": {}, 
     "languages": [
         "en"
     ],
     "translated": false,
-    "document_slug": "YYY",
-    "content_type": "text/html",
+    "document_slug": "YYYY",
+    "document_content_type": "text/html",
     "html_data": {
-        "detected_title": "Can't find what you are looking for?",
-        "detected_date": "2022-05-15",
-        "has_valid_text": false,
+        "detected_title": "[no-title]",
+        "detected_date": null,
+        "has_valid_text": true,
         "text_blocks": [
             {
                 "text": [
-                    "Can't find what you are looking for?"
+                    "%PDF-1.6"
                 ],
                 "text_block_id": "b0",
-                "language": null,
-                "type": "Text",
-                "type_confidence": 1.0
-            },
-            {
-                "text": [
-                    "It looks like the page or file you are trying to access has moved, or the web address you have entered is incorrect."
-                ],
-                "text_block_id": "b1",
-                "language": null,
-                "type": "Text",
-                "type_confidence": 1.0
-            },
-            {
-                "text": [
-                    "You can try:"
-                ],
-                "text_block_id": "b2",
-                "language": null,
+                "language": "da",
                 "type": "Text",
                 "type_confidence": 1.0
             }
@@ -78,12 +65,13 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
 
 # PDFs
 {
-    "id": "test_pdf",
-    "url": "https://cdn.climatepolicyradar.org/EUR/2013/EUR-2013-01-01-Overview+of+CAP+Reform+2014-2020_6237180d8c443d72c06c9167019ca177.pdf",
+    "document_id": "1",
+    "document_name": "Policy Document 1",
+    "document_url": "https://website.org/path/document",
     "languages": null,
     "translated": false,
-    "document_slug": "XYX",
-    "content_type": "application/pdf",
+    "document_slug": "YYYY",
+    "document_content_type": "application/pdf",
     "html_data": null,
     "pdf_data": {
         "page_metadata": [
@@ -97,8 +85,29 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
             {
                 "page_number": 1,
                 "dimensions": [
-                    596.0,
-                    842.0
+                    612.0,
+                    936.0
+                ]
+            },
+            {
+                "page_number": 2,
+                "dimensions": [
+                    612.0,
+                    936.0
+                ]
+            },
+            {
+                "page_number": 3,
+                "dimensions": [
+                    612.0,
+                    936.0
+                ]
+            },
+            {
+                "page_number": 4,
+                "dimensions": [
+                    612.0,
+                    936.0
                 ]
             }
         ],
@@ -106,7 +115,7 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
         "text_blocks": [
             {
                 "text": [
-                    "Contact: 06 Agriculture, and\nural Development Unit Tor\nAgree Paley Anais\n"
+                    Example text block."
                 ],
                 "text_block_id": "p_0_b_0",
                 "language": null,
@@ -134,7 +143,7 @@ It outputs JSON files named `id.json`, with `id` being the ID of each input docu
             },
             {
                 "text": [
-                    "In short, EU agriculture needs to attain\nhigher levels of production of safe and\nquality food, while preserving the natural\nresources that agricultural productivity\ndepends upon.\n"
+                    "Example text block."
                 ],
                 "text_block_id": "p_1_b_0",
                 "language": null,

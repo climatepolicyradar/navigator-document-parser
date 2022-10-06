@@ -94,7 +94,13 @@ class CombinedParser(HTMLParser):
             )
             return self._get_empty_response(input)
 
-        parsed_html = self.parse_html(requests_response.text, input)
+        try:
+            parsed_html = self.parse_html(requests_response.text, input)
+        except Exception as e:
+            logger.error(
+                f"Could not parse {input.document_url} for {input.document_id}: {e}"
+            )
+            return self._get_empty_response(input)
 
         # If there isn't enough text and there's a `<noscript>` tag in the HTML, try again with JS enabled
         if (len(parsed_html.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) and (
