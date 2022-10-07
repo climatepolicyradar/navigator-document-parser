@@ -62,7 +62,6 @@ def test_run_parser_s3(test_input_dir) -> None:
     with mock.patch("cli.run_parser.S3Path", LocalS3Path):
         runner = CliRunner()
         result = runner.invoke(cli_main, [input_dir, output_dir, "--s3", "--parallel"])
-
         assert result.exit_code == 0
         assert set(LocalS3Path(output_dir).glob("*.json")) == {
             LocalS3Path(output_dir) / "test_html.json"
