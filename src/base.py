@@ -27,6 +27,7 @@ class BlockType(str, Enum):
     LIST = "List"
     TABLE = "Table"
     FIGURE = "Figure"
+    INFERRED = "Inferred from gaps"
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
 
 

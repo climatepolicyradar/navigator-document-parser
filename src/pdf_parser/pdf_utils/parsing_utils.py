@@ -2,6 +2,7 @@ import concurrent.futures
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Tuple, Union, Optional
+import itertools
 
 import layoutparser as lp
 import numpy as np
@@ -52,8 +53,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
     Attributes:
         image: The image of the page.
         model: The layoutparser model to use.
-        layout_blocks_unfiltered: The layoutparser layout object of text blocks.
-        layout_blocks: The layoutparser layout object of text blocks with a confidence score above the
+        layout_unfiltered: The layoutparser layout object of text blocks.
+        layout: The layoutparser layout object of text blocks with a confidence score above the
         restrictive_theshold: The minimum confidence score for a box to be considered part of the layour in a strict model.
     """
 
@@ -65,9 +66,9 @@ class LayoutDisambiguator(LayoutParserExtractor):
     ):
         super().__init__(image)
         self.model = model
-        self.layout_blocks_unfiltered = lp.Layout([b for b in model.detect(image)])
+        self.layout_unfiltered = lp.Layout([b for b in model.detect(image)])
         self.restrictive_threshold = restrictive_threshold
-        self.layout_blocks = [
+        self.layout = [
             b for b in model.detect(image) if b.score >= restrictive_threshold
         ]
 
@@ -122,49 +123,6 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
     def _get_shapely_poly(self, box):
         return Polygon(self._lp_to_shapely_coords(box.block_1.coordinates))
-
-    @property
-    def layout(self):
-        """
-        Return the current LayoutParser layout object containing only blocks with the types ["Text", "List", "Title", "Ambiguous"]
-
-        :return: LayoutParser layout
-        """
-        text_layout = lp.Layout(
-            [
-                box
-                for box in self.layout_blocks
-                if box.type in ["Text", "List", "Title", "Ambiguous"]
-            ]
-        )
-        return text_layout
-
-    @layout.setter
-    def layout(self, blocks):
-        """Implement setter so property is alterable."""
-        self.layout_blocks = blocks
-
-    @property
-    def layout_unfiltered(self):
-        """
-        Return the current LayoutParser layout object containing all block types.
-
-        :return: LayoutParser layout
-        """
-
-        text_layout = lp.Layout(
-            [
-                box
-                for box in self.layout_blocks_unfiltered
-                if box.type in ["Text", "List", "Title", "Ambiguous"]
-            ]
-        )
-        return text_layout
-
-    @layout_unfiltered.setter
-    def layout_unfiltered(self, blocks):
-        """Implement setter so property is alterable."""
-        self.layout_blocks_unfiltered = blocks
 
     @property
     def unexplained_fractions(self) -> List[float]:
@@ -328,12 +286,12 @@ class LayoutDisambiguator(LayoutParserExtractor):
                     box_2.block_1 = rect_2
         return blocks
 
-    def _unnest_boxes(self, unnest_inflation_factor: float = 0.2) -> lp.Layout:
+    def _unnest_boxes(self, pixel_margin: int = 15) -> lp.Layout:
         """
         Recursively Unnest boxes.
 
         Args:
-            unnest_inflation_factor: The amount to inflate the unnested box by (i.e. a soft margin coefficient).
+            pixel_margin: The number of pixels to inflate each box by in each direction when checking for containment (i.e. a soft margin).
 
         Returns:
             The unnested boxes.
@@ -347,20 +305,19 @@ class LayoutDisambiguator(LayoutParserExtractor):
         counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
         # condition.
         disambiguated_layout = self.layout
+        ixs_to_remove = []
         while stop_cond:
             for ix, box_1 in enumerate(disambiguated_layout):
                 for ix2, box_2 in enumerate(disambiguated_layout):
                     if box_1 == box_2:
                         continue
                     else:
-                        # Ass a soft-margin for the is_in function to allow for some leeway in the containment check.
-                        height_inflation = unnest_inflation_factor * box_2.height
-                        width_inflation = unnest_inflation_factor * box_2.width
+                        # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
                         soft_margin = {
-                            "top": height_inflation,
-                            "bottom": height_inflation,
-                            "left": width_inflation,
-                            "right": width_inflation,
+                            "top": pixel_margin,
+                            "bottom": pixel_margin,
+                            "left": pixel_margin,
+                            "right": pixel_margin,
                         }
                         if box_1.is_in(box_2, soft_margin):
                             counter += 1
@@ -369,17 +326,18 @@ class LayoutDisambiguator(LayoutParserExtractor):
                                 remove_ix = ix2
                             else:
                                 remove_ix = ix
-                            disambiguated_layout = lp.Layout(
-                                [
-                                    box
-                                    for index, box in enumerate(disambiguated_layout)
-                                    if index != remove_ix
-                                ]
-                            )
+                            ixs_to_remove.append(remove_ix)
                 # stop condition: no contained blocks
                 if counter == 0:
                     stop_cond = False
                 counter = 0
+        disambiguated_layout = lp.Layout(
+            [
+                box
+                for index, box in enumerate(disambiguated_layout)
+                if index not in ixs_to_remove
+            ]
+        )
         return disambiguated_layout
 
     def _calculate_coverage(self):
@@ -393,7 +351,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         return coverage
 
     def disambiguate_layout(
-        self, unnest_inflation_factor: float = 0.2, threshold: float = 0.35
+        self, pixel_margin: int = 15, threshold: float = 0.35
     ) -> lp.Layout:
         """Disambiguate the layout by unnesting nested boxes using heuristics and removing overlaps for OCR.
 
@@ -402,16 +360,14 @@ class LayoutDisambiguator(LayoutParserExtractor):
         repeated until there are no more boxes within other boxes.
 
         Args:
-            unnest_inflation_factor: The amount by which to inflate the bounding boxes when checking for containment.
+            pixel_margin: The number of pixels by which to inflate the bounding boxes when checking for containment (soft margin).
             threshold: The confidence threshold to use for adding unknown text blocks.
 
         Returns:
             The disambiguated layout.
         """
         # Unnest boxes so that there are no boxes within other boxes.
-        disambiguated_layout = self._unnest_boxes(
-            unnest_inflation_factor=unnest_inflation_factor
-        )
+        disambiguated_layout = self._unnest_boxes(pixel_margin=pixel_margin)
         # TODO: These functions are buggy/not working as anticipated.
         #  Fix them and then uncomment.
         # # Ensure the remaining rectangles have no overlap for OCR.
@@ -476,7 +432,12 @@ class PostProcessor:
     def ocr_blocks(self) -> lp.Layout:
         """Return the text blocks for OCR from the layout."""
         return lp.Layout(
-            [b for b in self.layout if b.type in ["Text", "List", "Title", "Ambiguous"]]
+            [
+                b
+                for b in self.layout
+                if b.type
+                in ["Text", "List", "Title", "Ambiguous", "Inferred from gaps"]
+            ]
         )
 
     def _split_layout_into_cols(self, blocks) -> List[lp.Layout]:
@@ -528,22 +489,26 @@ class PostProcessor:
         new_blocks = []
 
         for ix in range(len(column_blocks) - 1):
+            # TODO: Add logic to handle cases where the first or last block is missing.
             y1_new = column_blocks[ix].coordinates[3]
             y2_new = column_blocks[ix + 1].coordinates[1]
             height_new = y2_new - y1_new
-            if height_new > height_threshold:
+            if height_new >= height_threshold:
                 new_block_shape = lp.Rectangle(x1, y1_new, x2, y2_new)
-                new_block = lp.TextBlock(new_block_shape, type="Ambiguous", score=1.0)
+                new_block = lp.TextBlock(
+                    new_block_shape, type="Inferred from gaps", score=1.0
+                )
                 new_blocks.append(new_block)
         return new_blocks
 
-    def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.95):
+    def _infer_column_groups(self, blocks: lp.Layout, threshold: float = 0.20):
         """Group text blocks into columns depending on an x-overlap threshold.
 
         Assumption is that blocks with a given x-overlap are in the same column. This
         is a heuristic encoding of a reading order prior.
 
         Args:
+            blocks: The text blocks to group into columns.
             threshold: The threshold for the percentage of overlap in the x-direction.
 
         Returns:
@@ -560,16 +525,45 @@ class PostProcessor:
         df_overlap = (
             df_overlap > threshold
         )  # same x-column if intersection over union > threshold
-        # For each block, get a list of shared blocks.
-        shared_blocks = df_overlap.apply(
+        # For each block, get a list of blocks indices in the same column.
+        shared_col_idxs = df_overlap.apply(
             lambda row: str(row[row].index.tolist()), axis=1
         )
-        # put into numeric groups for cleanness.
-        column_groups = pd.factorize(shared_blocks)[0]
-        return column_groups
+        # Get a list with each element a list of the block indices for each unique group.
+        unique_shared_col_idxs = [eval(i) for i in shared_col_idxs.unique()]
+
+        # In some cases, the heuristic above creates column groups with overlapping block elements.
+        # This happens when the overlap threshold for inclusion in the same column is exceeded for some but not all
+        # blocks. In this case, we should still infer that the blocks are in the same column. To do this, we
+        # iteratively merge groups if they have overlapping elements, then remove duplicates within the groups
+        # first, then remove duplicates across groups.
+        col_groups = []
+        for ix, lst in enumerate(unique_shared_col_idxs):
+            col_groups.append(lst)
+            for lst_2 in unique_shared_col_idxs:
+                if lst == lst_2:
+                    continue
+                # if there are shared elements, merge the two groups.
+                if set(lst).intersection(lst_2):
+                    col_groups[ix].extend(lst_2)
+
+        # Remove duplicate block indices in each group.
+        deduplicated_groups = [list(set(ls)) for ls in col_groups]
+        # Remove duplicate groups.
+        deduplicated_groups.sort()
+        final_column_groups = list(k for k, _ in itertools.groupby(deduplicated_groups))
+
+        # Now return a group index for each block. (e.g if block 1 is in group 0, block 2 is in group 1, etc.)
+        block_group_idxs = []
+        for num in range(len(blocks)):
+            for ix, group_list in enumerate(final_column_groups):
+                if num in group_list:
+                    block_group_idxs.append(ix)
+
+        return block_group_idxs
 
     def _group_blocks_into_columns(
-        self, blocks: lp.Layout, threshold: float = 0.95
+        self, blocks: lp.Layout, threshold: float = 0.25
     ) -> pd.DataFrame:
         """Group the blocks into columns.
 
@@ -692,6 +686,43 @@ class PostProcessor:
                     new_text_blocks.append(unaccounted_text_block)
         return new_text_blocks
 
+    @staticmethod
+    def _filter_inferred_blocks(
+        blocks: lp.Layout, remove_threshold: float = 0.20
+    ) -> lp.Layout:
+        """Remove inferred blocks if they are covered by other blocks. Heuristic.
+
+        Args:
+            blocks: The text blocks to filter.
+            remove_threshold: The threshold of area overlap above which to remove the inferred block.
+
+        Returns:
+            lp.Layout with Inferred blocks removed if more than remove_threshold of their area
+            is accounted for by other blocks.
+
+        """
+        # For blocks with type "Inferred from gaps", remove them if more than the removal threshold
+        # is accounted for by other blocks.
+        ixs_to_remove = []
+        for ix, block in enumerate(blocks):
+            if block.type != "Inferred from gaps":
+                continue
+            else:
+                block_area = block.area
+                accounted_for_area = 0
+                for other_block in blocks:
+                    if block == other_block:
+                        continue
+                    # Assumption that the other blocks do not overlap. This is almost always true.
+                    intersect_area = block.intersect(other_block).area
+                    if intersect_area > 0:
+                        accounted_for_area += intersect_area
+                accounted_for_fraction = accounted_for_area / block_area
+                if accounted_for_fraction > remove_threshold:
+                    ixs_to_remove.append(ix)
+
+        return lp.Layout([b for ix, b in enumerate(blocks) if ix not in ixs_to_remove])
+
     def postprocess(
         self,
         inference_method: str = "gaps",
@@ -717,6 +748,8 @@ class PostProcessor:
             The layout with unidentified (but probable) text blocks added.
         """
         text_blocks = self.ocr_blocks
+        if len(text_blocks) == 0:
+            return lp.Layout([])
         # group blocks into columns and return the layout of each column in a list.
         column_layouts = self._split_layout_into_cols(text_blocks)
 
@@ -752,12 +785,15 @@ class PostProcessor:
 
         # reorder the new inferred text blocks and create a final layout object.
         unordered_layout = lp.Layout([*[b for b in self.layout], *new_text_blocks])
+        if len(unordered_layout) == 0:
+            return lp.Layout([])
         df_text_blocks = self._group_blocks_into_columns(unordered_layout)
         df_natural_reading_order = df_text_blocks.sort_values(
             ["x_1_min", "y_1"], ascending=[True, True]
         )
         reading_order = df_natural_reading_order.index.tolist()
-        self.layout = lp.Layout([unordered_layout[i] for i in reading_order])
+        layout = lp.Layout([unordered_layout[i] for i in reading_order])
+        self.layout = self._filter_inferred_blocks(layout)
         return self.layout
 
 
@@ -800,9 +836,9 @@ class OCRProcessor:
         image: np.ndarray,
         block: lp.TextBlock,
         left_pad: int = 15,
-        right_pad: int = 5,
-        top_pad: int = 5,
-        bottom_pad: int = 5,
+        right_pad: int = 15,
+        top_pad: int = 2,
+        bottom_pad: int = 2,
     ) -> Tuple[lp.TextBlock, Optional[str]]:
         """
         Perform OCR on a block of text.
@@ -822,15 +858,16 @@ class OCRProcessor:
         # TODO: THis won't work currently because the image isn't part of the class.
         # Pad to improve OCR accuracy as it's fairly tight.
 
-        segment_image = block.pad(
+        padded_block = block.pad(
             left=left_pad, right=right_pad, top=top_pad, bottom=bottom_pad
-        ).crop_image(image)
+        )
+
+        segment_image = padded_block.crop_image(image)
 
         # Perform OCR
         if isinstance(self.ocr_agent, ocr.TesseractAgent):
             language = None
             text = self.ocr_agent.detect(segment_image, return_only_text=True)
-
         elif isinstance(self.ocr_agent, ocr.GCVAgent):
             gcv_response = self.ocr_agent.detect(segment_image, return_response=True)
             text = gcv_response.full_text_annotation.text
@@ -845,25 +882,56 @@ class OCRProcessor:
             except IndexError:
                 # No language was found in the GCV response
                 language = None
+        else:
+            raise ValueError(
+                "The OCR agent must be either a TesseractAgent or a GCVAgent."
+            )
 
         # Save OCR result
-        block_with_text = block.set(text=text)  # type: ignore
+        block_with_text = padded_block.set(text=text)  # type: ignore
 
         return block_with_text, language  # type: ignore
 
-    def process_layout(self) -> List[PDFTextBlock]:
-        """
-        Get text for the text blocks in the layout, and return a `Page` object with text retrieved, and language and text block IDs set per text block.
+    @staticmethod
+    def _remove_empty_text_blocks(layout: lp.Layout) -> lp.Layout:
+        """Remove text blocks with no text from the layout."""
+        # Heuristic to get rid of blocks with no text or text that is too short.
+        ixs_to_remove = []
+        for ix, block in enumerate(layout):
+            if len(block.text.split(" ")) < 3:
+                ixs_to_remove.append(ix)
+        return lp.Layout([b for ix, b in enumerate(layout) if ix not in ixs_to_remove])
 
-        :return: list of text blocks
+    @staticmethod
+    def _is_block_valid(block: lp.TextBlock) -> bool:
+        """Check if a block is valid."""
+        if block.text is None:
+            return False
+        if len(block.text) == 0:
+            return False
+        # Heuristic to get rid of blocks with no text or text that is too short.
+        if len(block.text.split(" ")) < 3:
+            return False
+        return True
+
+    def process_layout(self) -> Tuple[List[PDFTextBlock], List[lp.TextBlock]]:
+        """Get text for blocks in the layout and return a `Page` with text, language id per text block
+
+        :return: list of text blocks with text, language and text block IDs set + a list of text blocks in
+        layoutparser's format (useful for visual debugging).
         """
-        text_blocks = []
+        text_blocks, text_layout = [], []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for block_idx, block in enumerate(self.layout):
                 future = executor.submit(self._perform_ocr, self.image, block)
                 block_with_text, block_language = future.result()
+                if block_with_text is None:
+                    continue
                 if block.type == "Ambiguous":
                     block_with_text.type = self._infer_block_type(block)
+                # Heuristic to get rid of blocks with no text or text that is too short.
+                if not self._is_block_valid(block_with_text):
+                    continue
 
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
                 text_block = PDFTextBlock.from_layoutparser(
@@ -872,5 +940,6 @@ class OCRProcessor:
                 text_block.language = block_language
 
                 text_blocks.append(text_block)
+                text_layout.append(block_with_text)
 
-        return text_blocks
+        return text_blocks, text_layout
