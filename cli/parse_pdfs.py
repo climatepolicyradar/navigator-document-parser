@@ -17,6 +17,8 @@ import numpy as np
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
 from cloudpathlib import S3Path
+import psutil
+from multiprocessing_logging import install_mp_handler
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
@@ -27,8 +29,32 @@ from src import config
 
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 
+class TqdmLoggingHandler(logging.Handler):
+    """Handler for logging to tqdm"""
 
-def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        """Emit a log message"""
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception as e:
+            print(f"Error emitting tqdm logging handler: {e}")
+            self.handleError(record)
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(TqdmLoggingHandler())
+install_mp_handler(logger)
+
+
+def download_pdf(
+    parser_input: ParserInput, output_dir: Union[Path, str]
+) -> Path or None:
     """
     Get a PDF from a URL in a ParserInput object.
 
