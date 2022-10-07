@@ -200,6 +200,7 @@ def parse_file(
             document_description=input_task.document_description,
             document_content_type=input_task.document_content_type,
             document_slug=input_task.document_slug,
+            document_metadata=input_task.document_metadata,
             pdf_data=PDFData(
                 page_metadata=all_pages_metadata,
                 md5sum=document_md5sum,
