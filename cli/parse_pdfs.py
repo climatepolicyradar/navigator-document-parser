@@ -17,6 +17,7 @@ from fitz.fitz import EmptyFileError
 from tqdm import tqdm
 from cloudpathlib import S3Path
 import psutil
+from multiprocessing_logging import install_mp_handler
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
@@ -48,6 +49,7 @@ class TqdmLoggingHandler(logging.Handler):
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(TqdmLoggingHandler())
+install_mp_handler(logger)
 
 
 def download_pdf(
