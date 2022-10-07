@@ -910,8 +910,9 @@ class OCRProcessor:
         if len(block.text) == 0:
             return False
         # Heuristic to get rid of blocks with no text or text that is too short.
-        if len(block.text.split(" ")) < 3:
-            return False
+        if block.type == "Inferred from gaps":
+            if len(block.text.split(" ")) < 3:
+                return False
         return True
 
     def process_layout(self) -> Tuple[List[PDFTextBlock], List[lp.TextBlock]]:
