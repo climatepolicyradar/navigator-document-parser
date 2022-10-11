@@ -1,3 +1,3 @@
-python -m pytest
-python -m cli.run_parser --s3 $s3_in $s3_out --parallel --debug
+#python -m pytest
+python -m cli.run_parser --s3 $loader_output_s3 $parser_output_s3 --parallel --debug --files $files_to_parse
 

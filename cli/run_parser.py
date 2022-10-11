@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 import logging
 import logging.config
-from typing import List, Optional
+from typing import List, Optional, Union
 import sys
 
 import click
@@ -89,7 +89,7 @@ def main(
     output_dir: str,
     parallel: bool,
     device: str,
-    files: Optional[List[str]],
+    files: Union[Optional[List[str]], str],
     redo: bool,
     s3: bool,
     debug: bool,
@@ -132,6 +132,13 @@ def main(
                 f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
+
+    logger.info("Files to parse 1:", files[0])
+    if files[0]:
+        if type(files[0]) == str:
+            files = files[0].split("$")[1:]
+            files = [file + ".json" for file in files]
+            logger.info("Files to parse 2:", files)
 
     files_to_parse = (
         (input_dir_as_path / f for f in files)
