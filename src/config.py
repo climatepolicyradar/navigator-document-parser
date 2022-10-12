@@ -16,7 +16,7 @@ LAYOUTPARSER_MODEL = os.getenv("LAYOUTPARSER_MODEL", "mask_rcnn_X_101_32x8d_FPN_
 LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE = float(
     os.getenv("LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE", "0.5")
 )
-PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "gcv")
+PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "tesseract")
 
 TEST_RUN = os.getenv("TEST_RUN", False)
 RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", True)

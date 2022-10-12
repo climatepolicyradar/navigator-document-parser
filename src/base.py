@@ -156,21 +156,21 @@ class ParserInput(BaseModel):
     document_content_type: Optional[ContentType]
     document_slug: str
 
-    # @root_validator
-    # def check_content_type_and_url(cls, values) -> None:
-    #     """Either both or neither of content type and url should be null."""
-    #     if (
-    #         values["document_content_type"] is None
-    #         and values["document_url"] is not None
-    #     ) or (
-    #         values["document_content_type"] is not None
-    #         and values["document_url"] is None
-    #     ):
-    #         raise ValueError(
-    #             "Both document_content_type and document_url must be null or not null."
-    #         )
-    #
-    #     return values
+    @root_validator
+    def check_content_type_and_url(cls, values) -> None:
+        """Either both or neither of content type and url should be null."""
+        if (
+            values["document_content_type"] is None
+            and values["document_url"] is not None
+        ) or (
+            values["document_content_type"] is not None
+            and values["document_url"] is None
+        ):
+            raise ValueError(
+                "Both document_content_type and document_url must be null or not null."
+            )
+
+        return values
 
 
 class HTMLData(BaseModel):
