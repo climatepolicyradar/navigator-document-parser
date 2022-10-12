@@ -137,7 +137,6 @@ def main(
     if files[0]:
         if type(files[0]) == str:
             files = files[0].split("$")[1:]
-            files = [file + ".json" for file in files]
             logger.info("Files to parse 2:", files)
 
     files_to_parse = (
@@ -157,7 +156,12 @@ def main(
             break
         else:
             try:
-                tasks.append(ParserInput.parse_raw(path.read_text()))
+                # TODO quick fix for not parsing files with no url
+                file = ParserInput.parse_raw(path.read_text())
+                if file.document_url is None:
+                    logger.error(f"File {path} has no url")
+                else:
+                    tasks.append(file)
 
             except pydantic.error_wrappers.ValidationError as e:
                 logger.error(
@@ -209,6 +213,8 @@ def main(
         f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"
     )
     translate_parser_outputs(output_dir_as_path)
+
+    logger.info("Parsing Complete!!!")
 
 
 if __name__ == "__main__":
