@@ -17,7 +17,6 @@ import numpy as np
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
 from cloudpathlib import S3Path
-import psutil
 from multiprocessing_logging import install_mp_handler
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
@@ -28,6 +27,7 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
 from src import config
 
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
+
 
 class TqdmLoggingHandler(logging.Handler):
     """Handler for logging to tqdm"""
@@ -126,6 +126,8 @@ def parse_file(
         device (str): Device to use for parsing.
     """
 
+    logging.info(f"Processing {input_task.document_id}")
+
     # TODO: do we want to handle exceptions raised by get_pdf here?
     with tempfile.TemporaryDirectory() as temp_output_dir:
         pdf_path = download_pdf(input_task, temp_output_dir)
@@ -150,6 +152,8 @@ def parse_file(
 
         all_pages_metadata = []
         all_text_blocks = []
+
+        logging.info(f"Iterating through pages for -  {input_task.document_id}")
 
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
@@ -218,6 +222,8 @@ def parse_file(
             all_text_blocks += page_text_blocks
 
             all_pages_metadata.append(page_metadata)
+
+        logging.info(f"Processing {input_task.document_id}, setting parser_output...")
 
         document = ParserOutput(
             document_id=input_task.document_id,
