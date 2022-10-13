@@ -4,8 +4,6 @@ import logging
 
 from cloudpathlib import CloudPath
 from tqdm.auto import tqdm
-from tenacity import retry, stop_after_attempt
-import time
 
 from src.config import TARGET_LANGUAGES  # noqa: E402
 from src.base import ParserOutput  # noqa: E402
@@ -50,15 +48,22 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
                 parser_output, target_language
             )
 
-            @retry(stop=stop_after_attempt(7))
-            def stop_after_7_attempts(out_path, parser_out_translated):
-                try:
-                    out_path.write_text(
-                        parser_out_translated.json(indent=4, ensure_ascii=False)
-                    )
-                except Exception as e:
-                    logger.error(f"Error writing {out_path}: {e}")
-                    time.sleep(15)
-                raise Exception
+            try:
+                output_path.write_text(
+                    translated_parser_output.json(indent=4, ensure_ascii=False)
+                )
+            except Exception as e:
+                logger.error(f"Error writing {output_path}: {e}")
 
-            stop_after_7_attempts(output_path, translated_parser_output)
+            # @retry(stop=stop_after_attempt(7))
+            # def stop_after_7_attempts(out_path, parser_out_translated):
+            #     try:
+            #         out_path.write_text(
+            #             parser_out_translated.json(indent=4, ensure_ascii=False)
+            #         )
+            #     except Exception as e:
+            #         logger.error(f"Error writing {out_path}: {e}")
+            #         time.sleep(15)
+            #     raise Exception
+            #
+            # stop_after_7_attempts(output_path, translated_parser_output)
