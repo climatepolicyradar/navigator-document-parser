@@ -26,6 +26,7 @@ PyMuPDF = "^1.20.2"
 google-cloud-translate = "^3.8.2"
 psutil = "^5.9.2"
 multiprocessing-logging = "^0.3.3"
+tenacity = "^8.1.0"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20.0"

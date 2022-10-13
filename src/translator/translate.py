@@ -1,9 +1,12 @@
 from typing import List
 import six
-
-from google.cloud import translate_v2
-
+import time
+from google.cloud import translate_v2  # noqa: E402
 from src.base import ParserOutput
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def translate_text(text: List[str], target_language: str) -> List[str]:
@@ -24,9 +27,22 @@ def translate_text(text: List[str], target_language: str) -> List[str]:
         for _str in text
     ]
 
-    result = translate_client.translate(text, target_language=target_language)
+    # TODO use the following package instead https://tenacity.readthedocs.io/en/latest/
+    i = 0
+    while i < 10:
+        try:
+            logger.info("Making Request to translation api.")
+            result = translate_client.translate(text, target_language=target_language)
+            logger.info("Request to translation api successful.")
+            return [item["translatedText"] for item in result]
+        except Exception as e:
+            logger.info(f"Request to translation api failed. - {e}.")
+        i += 1
+        logger.info(f"Sleeping for: {i*10}s.")
+        time.sleep(i * 10)
 
-    return [item["translatedText"] for item in result]
+    # TODO Return empty translation so we don't break the pipeline but need to push error somewhere
+    return ["" * len(text)]
 
 
 def translate_parser_output(
