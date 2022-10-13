@@ -156,12 +156,7 @@ def main(
             break
         else:
             try:
-                # TODO quick fix for not parsing files with no url
-                file = ParserInput.parse_raw(path.read_text())
-                if file.document_url is None:
-                    logger.error(f"File {path} has no url")
-                else:
-                    tasks.append(file)
+                tasks.append(ParserInput.parse_raw(path.read_text()))
 
             except pydantic.error_wrappers.ValidationError as e:
                 logger.error(
