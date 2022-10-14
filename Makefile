@@ -26,11 +26,11 @@ run_docker:
 run_local_against_s3:
 	cp Dockerfile.aws.example Dockerfile
 	docker build -t html-parser_s3 .
-	docker run -e s3_in=s3://data-pipeline-a64047a/unit_tests/runs/loader_output/ -e s3_out=s3://data-pipeline-a64047a/unit_tests/runs/parser_output/ -it html-parser_s3
+	docker run -e loader_output_s3=s3://data-pipeline-a64047a/unit_tests/runs/loader_output/ -e parser_output_s3=s3://data-pipeline-a64047a/unit_tests/runs/parser_output/ -it html-parser_s3
 
 build_and_push_ecr:
 	cp Dockerfile.aws.example Dockerfile
 	aws ecr get-login-password --region eu-west-2 --profile dev | docker login --username AWS --password-stdin 073457443605.dkr.ecr.eu-west-2.amazonaws.com
-	docker build -t parser-staging-pipeline-b5871ba .
-	docker tag parser-staging-pipeline-b5871ba:latest 073457443605.dkr.ecr.eu-west-2.amazonaws.com/parser-staging-pipeline-b5871ba:latest
-	docker push 073457443605.dkr.ecr.eu-west-2.amazonaws.com/parser-staging-pipeline-b5871ba:latest
+	docker build -t navigator-document-parser-staging .
+	docker tag navigator-document-parser-staging:latest 073457443605.dkr.ecr.eu-west-2.amazonaws.com/navigator-document-parser-staging:latest
+	docker push 073457443605.dkr.ecr.eu-west-2.amazonaws.com/navigator-document-parser-staging:latest
