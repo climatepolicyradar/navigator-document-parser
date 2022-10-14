@@ -16,6 +16,7 @@ from src.config import TARGET_LANGUAGES  # noqa: E402
 from src.config import TEST_RUN  # noqa: E402
 from src.config import RUN_PDF_PARSER  # noqa: E402
 from src.config import RUN_HTML_PARSER  # noqa: E402
+from src.config import FILES_TO_PARSE  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.parse_no_content_type import (  # noqa: E402
@@ -132,6 +133,10 @@ def main(
                 f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
+
+    if FILES_TO_PARSE is not None:
+        files = FILES_TO_PARSE.split("$")[1:]
+    print(f"files: {files}")
 
     files_to_parse = (
         (input_dir_as_path / f for f in files)

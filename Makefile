@@ -30,7 +30,7 @@ run_local_against_s3:
 
 build_and_push_ecr:
 	cp Dockerfile.aws.example Dockerfile
-	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 281621126254.dkr.ecr.us-east-1.amazonaws.com
-	docker build -t parser-2263e83 .
-	docker tag parser-2263e83:latest 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest
-	docker push 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest	
+	aws ecr get-login-password --region eu-west-2 --profile dev | docker login --username AWS --password-stdin 073457443605.dkr.ecr.eu-west-2.amazonaws.com
+	docker build -t parser-staging-pipeline-b5871ba .
+	docker tag parser-staging-pipeline-b5871ba:latest 073457443605.dkr.ecr.eu-west-2.amazonaws.com/parser-staging-pipeline-b5871ba:latest
+	docker push 073457443605.dkr.ecr.eu-west-2.amazonaws.com/parser-staging-pipeline-b5871ba:latest

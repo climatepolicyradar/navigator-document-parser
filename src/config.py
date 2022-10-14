@@ -24,5 +24,9 @@ RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", True)
 
 # Default set by trial and error based on behaviour of the parsing model
 PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() / 2))
-
+FILES_TO_PARSE = str(
+    os.getenv(
+        "FILES_TO_PARSE", "$1331.0.json$1332.0.json$1333.0.json$8234.0.json$8235.0.json"
+    )
+)
 # TODO: http request headers?
