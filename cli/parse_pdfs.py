@@ -310,9 +310,6 @@ def run_pdf_parser(
         )
 
     logging.info("Iterating through files and parsing pdf content from pages.")
-    # Sort pages smallest to largest. Having files of a similar size will help with parallelization.
-    # FIXME: have had to disable this for now because we're using tasks, which don't have direct access to the PDF.
-    # files = sorted(list(input_dir_path.glob("*.pdf")), key=_pdf_num_pages)
 
     file_parser = partial(
         parse_file,
