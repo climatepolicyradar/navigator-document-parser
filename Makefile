@@ -15,7 +15,8 @@ test_local:
 
 build:
 	cp Dockerfile.local.example Dockerfile
-	docker build -t html-parser .
+	docker build -t navigator-document-parser .
+	docker tag navigator-document-parser:latest navigator-document-parser-staging:latest
 
 test:
 	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" --network host html-parser python -m pytest -vvv
