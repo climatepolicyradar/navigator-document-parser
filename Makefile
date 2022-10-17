@@ -26,7 +26,7 @@ run_docker:
 run_local_against_s3:
 	cp Dockerfile.aws.example Dockerfile
 	docker build -t html-parser_s3 .
-	docker run -e loader_output_s3=s3://data-pipeline-a64047a/unit_tests/runs/loader_output/ -e parser_output_s3=s3://data-pipeline-a64047a/unit_tests/runs/parser_output/ -it html-parser_s3
+	docker run -e loader_output_s3=s3://data-staging-pipeline-c591d79/runs/10-17-2022_10:11___19f7fafb-550d-4856-809f-50d7ba0eb7ec/loader_output/ -e parser_output_s3=s3://data-staging-pipeline-c591d79/runs/10-17-2022_10:11___19f7fafb-550d-4856-809f-50d7ba0eb7ec/dummy/ -it html-parser_s3
 
 build_and_push_ecr:
 	cp Dockerfile.aws.example Dockerfile

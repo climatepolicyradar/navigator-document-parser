@@ -67,9 +67,15 @@ def download_pdf(
 
     if response.status_code != 200:
         # TODO: what exception should be raised here?
+        logging.error(
+            f"Error: Status Code for {parser_input.document_id} - {response.status_code}"
+        )
         raise Exception(f"Could not get PDF from {parser_input.document_url}")
 
     if response.headers["Content-Type"] != "application/pdf":
+        logging.error(
+            f"Error: Content-Type for {parser_input.document_id} - {response.headers['Content-Type']}"
+        )
         raise Exception(
             f"Content-Type is for {parser_input.document_id} ({parser_input.document_url}) is not PDF: {response.headers['Content-Type']}"
         )
@@ -130,7 +136,9 @@ def parse_file(
 
     # TODO: do we want to handle exceptions raised by get_pdf here?
     with tempfile.TemporaryDirectory() as temp_output_dir:
+        logging.info(f"Downloading pdf: {input_task.document_id}")
         pdf_path = download_pdf(input_task, temp_output_dir)
+        logging.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             logging.info(
                 f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
@@ -317,11 +325,13 @@ def run_pdf_parser(
     )
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
+        logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
             executor.map(file_parser, input_tasks)
 
     else:
         for task in input_tasks:
+            logging.info("Running in series.")
             file_parser(task)
 
     logging.info("Finished parsing pdf content from pages.")
