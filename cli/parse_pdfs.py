@@ -9,7 +9,7 @@ from pathlib import Path
 import hashlib
 from typing import List, Union
 import tempfile
-
+from datetime import datetime
 import requests
 import fitz
 import layoutparser as lp
@@ -26,7 +26,13 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
 )
 from src import config
 
-from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
+from src.base import (
+    ParserOutput,
+    PDFPageMetadata,
+    PDFData,
+    ParserInput,
+    StandardErrorLog,
+)
 
 
 class TqdmLoggingHandler(logging.Handler):
@@ -77,12 +83,23 @@ def copy_input_to_output_pdf(
                 "pdf_data": {"page_metadata": [], "md5sum": "", "text_blocks": []},
             }
         )
-    except Exception as e:
-        logging.error(f"Error creating blank output: {e}")
-        raise e
 
-    output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
-    logging.info(f"Blank output for {task.document_id} saved to {output_path}.")
+        output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+        logging.info(f"Blank output for {task.document_id} saved to {output_path}.")
+
+    except Exception as e:
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Copy pdf input to output.",
+                    "status_code": None,
+                    "error_type": "ParsingError",
+                    "message": f"{e}",
+                    "document_in_process": output_path,
+                }
+            )
+        )
 
 
 def download_pdf(
@@ -99,17 +116,31 @@ def download_pdf(
     response = requests.get(parser_input.document_url)
 
     if response.status_code != 200:
-        logging.error(
-            f"Error: Status Code for {parser_input.document_id} - {response.status_code}"
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download of pdf.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "RequestError",
+                    "message": "Invalid response code from request.",
+                    "document_in_process": output_dir / parser_input.document_id,
+                }
+            )
         )
-        raise Exception(f"Could not get PDF from {parser_input.document_url}")
 
     if response.headers["Content-Type"] != "application/pdf":
-        logging.error(
-            f"Error: Content-Type for {parser_input.document_id} - {response.headers['Content-Type']}"
-        )
-        raise Exception(
-            f"Content-Type is for {parser_input.document_id} ({parser_input.document_url}) is not PDF: {response.headers['Content-Type']}"
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "ContentTypeError",
+                    "message": "Content-Type is not application/pdf.",
+                    "document_in_process": output_dir / parser_input.document_id,
+                }
+            )
         )
 
     output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"

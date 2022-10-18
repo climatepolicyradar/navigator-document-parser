@@ -1,16 +1,21 @@
 """Base classes for parsing."""
 
-from enum import Enum
-from typing import Optional, Sequence, Tuple, List
-from abc import ABC, abstractmethod
-from datetime import date
 import logging
-
+import logging.config
+from abc import ABC, abstractmethod
 from collections import Counter
-from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
-from langdetect import detect
-from langdetect import DetectorFactory
+from datetime import date
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Optional, Sequence, Tuple, List
+from typing import Union
+
 import layoutparser.elements as lp_elements
+from cloudpathlib import S3Path
+from langdetect import DetectorFactory
+from langdetect import detect
+from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
 logger = logging.getLogger(__name__)
 
@@ -371,3 +376,17 @@ class HTMLParser(ABC):
                 has_valid_text=False,
             ),
         )
+
+
+class StandardErrorLog(BaseModel):
+    """Standardized log format for errors.
+
+    This is used to ensure that we can effectively filter the logs when the application runs in production in AWS.
+    """
+
+    timestamp: datetime
+    pipeline_stage: str
+    status_code: int
+    error_type: str
+    message: str
+    document_in_process: Union[Path, S3Path]

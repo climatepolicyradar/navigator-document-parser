@@ -8,10 +8,11 @@ import sys
 import click
 from cloudpathlib import S3Path
 import pydantic  # noqa: E402
+from datetime import datetime
 
 sys.path.append("..")
 
-from src.base import ParserInput, ParserOutput  # noqa: E402
+from src.base import ParserInput, ParserOutput, StandardErrorLog  # noqa: E402
 from src.config import TARGET_LANGUAGES  # noqa: E402
 from src.config import TEST_RUN  # noqa: E402
 from src.config import RUN_PDF_PARSER  # noqa: E402
@@ -130,10 +131,20 @@ def main(
             )
         except pydantic.ValidationError as e:
             logger.error(
-                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
+                StandardErrorLog.parse_obj(
+                    {
+                        "timestamp": datetime.now(),
+                        "pipeline_stage": "Parser: Parse output files in the output directory to find already parsed.",
+                        "status_code": None,
+                        "error_type": "ParserOutputValidationError",
+                        "message": f"{e}",
+                        "document_in_process": path,
+                    }
+                )
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
 
+    # TODO clean this filth up
     if files:
         logger.info(f"Only parsing files: {files}")
     else:
@@ -169,7 +180,16 @@ def main(
 
             except pydantic.error_wrappers.ValidationError as e:
                 logger.error(
-                    f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
+                    StandardErrorLog.parse_obj(
+                        {
+                            "timestamp": datetime.now(),
+                            "pipeline_stage": "Parser: Parse the input files in the input directory.",
+                            "status_code": None,
+                            "error_type": "ParserInputValidationError",
+                            "message": f"{e}",
+                            "document_in_process": path,
+                        }
+                    )
                 )
         counter += 1
 
