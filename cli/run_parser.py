@@ -202,7 +202,6 @@ def main(
     )
     process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
 
-    # TODO run flags don't work for HTML parsing
     if RUN_HTML_PARSER:
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
         run_html_parser(html_tasks, output_dir_as_path)
