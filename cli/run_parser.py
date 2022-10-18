@@ -134,9 +134,19 @@ def main(
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
 
+    if files:
+        logger.info(f"Only parsing files: {files}")
+    else:
+        logger.info("Parsing all files")
+
     if FILES_TO_PARSE is not None:
+        logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
         files = FILES_TO_PARSE.split("$")[1:]
-    print(f"files: {files}")
+
+    if files:
+        logger.info(f"Only parsing files: {files}")
+    else:
+        logger.info("Parsing all files")
 
     files_to_parse = (
         (input_dir_as_path / f for f in files)

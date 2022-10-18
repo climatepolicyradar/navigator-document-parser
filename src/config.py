@@ -24,4 +24,4 @@ RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", True)
 
 # Default set by trial and error based on behaviour of the parsing model
 PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() / 2))
-FILES_TO_PARSE = str(os.getenv("files_to_parse"))
+FILES_TO_PARSE = os.getenv("files_to_parse")

@@ -16,7 +16,7 @@ import layoutparser as lp
 import numpy as np
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
-from cloudpathlib import S3Path
+from cloudpathlib import S3Path, CloudPath
 from multiprocessing_logging import install_mp_handler
 
 from src.pdf_parser.pdf_utils.parsing_utils import (
@@ -52,6 +52,39 @@ logger.addHandler(TqdmLoggingHandler())
 install_mp_handler(logger)
 
 
+def copy_input_to_output_pdf(
+    task: ParserInput, output_path: Union[Path, CloudPath]
+) -> None:
+    """Necessary to copy the input file to the output to ensure that we don't drop documents.
+
+    The file is copied at the time of processing rather than syncing the entire input directory so that if that
+    parser fails and retries it will not think that all files have already been parsed. :param task: input task
+    specifying the document to copy :param output_path: path to save the copied file
+    """
+    try:
+        blank_output = ParserOutput.parse_obj(
+            {
+                "document_id": task.document_id,
+                "document_metadata": task.document_metadata,
+                "document_name": task.document_name,
+                "document_description": task.document_description,
+                "document_url": task.document_url,
+                "document_slug": task.document_slug,
+                "document_content_type": task.document_content_type,
+                "languages": None,
+                "translated": "false",
+                "html_data": None,
+                "pdf_data": {"page_metadata": [], "md5sum": "", "text_blocks": []},
+            }
+        )
+    except Exception as e:
+        logging.error(f"Error creating blank output: {e}")
+        raise e
+
+    output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+    logging.info(f"Blank output for {task.document_id} saved to {output_path}.")
+
+
 def download_pdf(
     parser_input: ParserInput, output_dir: Union[Path, str]
 ) -> Path or None:
@@ -66,7 +99,6 @@ def download_pdf(
     response = requests.get(parser_input.document_url)
 
     if response.status_code != 200:
-        # TODO: what exception should be raised here?
         logging.error(
             f"Error: Status Code for {parser_input.document_id} - {response.status_code}"
         )
@@ -133,8 +165,8 @@ def parse_file(
     """
 
     logging.info(f"Processing {input_task.document_id}")
+    copy_input_to_output_pdf(input_task, output_dir / f"{input_task.document_id}.json")
 
-    # TODO: do we want to handle exceptions raised by get_pdf here?
     with tempfile.TemporaryDirectory() as temp_output_dir:
         logging.info(f"Downloading pdf: {input_task.document_id}")
         pdf_path = download_pdf(input_task, temp_output_dir)
@@ -149,7 +181,6 @@ def parse_file(
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
         # FIXME: handle EmptyFileError here using _pdf_num_pages
-
         model = _get_detectron_model(model, device)
         if ocr_agent == "tesseract":
             ocr_agent = lp.TesseractAgent()
