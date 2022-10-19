@@ -1,2 +1,2 @@
-python -m cli.run_parser --s3 $loader_output_s3 $parser_output_s3 --parallel
+python -m cli.run_parser --s3 $PARSER_INPUT_PREFIX $EMBEDDINGS_INPUT_PREFIX --parallel
 
