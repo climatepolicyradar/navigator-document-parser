@@ -21,7 +21,7 @@ run_on_specific_files_env:
 
 run_local_against_s3:
 	docker build -t html-parser .
-	docker run -e loader_output_s3=s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ -e parser_output_s3=s3://cpr-dev-data-pipeline-cache/marks/parser_output/ -it html-parser
+	docker run -e PARSER_INPUT_PREFIX=s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ -e EMBEDDINGS_INPUT_PREFIX=s3://cpr-dev-data-pipeline-cache/marks/parser_output/ -it html-parser
 
 build_and_push_ecr:
 	aws ecr get-login-password --region eu-west-2 --profile dev | docker login --username AWS --password-stdin 073457443605.dkr.ecr.eu-west-2.amazonaws.com

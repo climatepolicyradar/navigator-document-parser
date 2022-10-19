@@ -1,14 +1,13 @@
 """A combined parser which uses both readability and newsplease to parse HTML."""
 
 import logging
-
 import requests
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
-
+from datetime import datetime
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
-from src.base import HTMLParser, ParserInput, ParserOutput
+from src.base import HTMLParser, ParserInput, ParserOutput, StandardErrorLog
 from src.config import (
     HTML_MIN_NO_LINES_FOR_VALID_TEXT,
     HTML_HTTP_REQUEST_TIMEOUT,
@@ -80,17 +79,26 @@ class CombinedParser(HTMLParser):
 
         :return ParsedHTML: parsed HTML
         """
-
+        # TODO: Tighten up these except statements?
         try:
             requests_response = requests.get(
-                input.document_url,
+                str(input.document_url),
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
             logger.error(
-                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                StandardErrorLog.parse_obj(
+                    {
+                        "timestamp": datetime.now(),
+                        "pipeline_stage": "Parser: Download HTML file.",
+                        "status_code": "None",
+                        "error_type": "RequestError",
+                        "message": f"{e}",
+                        "document_in_process": str(input.document_id),
+                    }
+                )
             )
             return self._get_empty_response(input)
 
@@ -98,7 +106,16 @@ class CombinedParser(HTMLParser):
             parsed_html = self.parse_html(requests_response.text, input)
         except Exception as e:
             logger.error(
-                f"Could not parse {input.document_url} for {input.document_id}: {e}"
+                StandardErrorLog.parse_obj(
+                    {
+                        "timestamp": datetime.now(),
+                        "pipeline_stage": "Parser: Parse HTML file.",
+                        "status_code": "None",
+                        "error_type": "HTMLParsingError",
+                        "message": f"{e}",
+                        "document_in_process": str(input.document_id),
+                    }
+                )
             )
             return self._get_empty_response(input)
 
@@ -112,14 +129,23 @@ class CombinedParser(HTMLParser):
             try:
                 with sync_playwright() as playwright:
                     html_playwright = self._get_html_with_js_enabled(
-                        playwright, input.document_url
+                        playwright, str(input.document_url)
                     )
                     parsed_html_playwright = self.parse_html(html_playwright, input)
 
                 return parsed_html_playwright
             except Exception as e:
                 logger.error(
-                    f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                    StandardErrorLog.parse_obj(
+                        {
+                            "timestamp": datetime.now(),
+                            "pipeline_stage": "Parser: Get HTML with playwright.",
+                            "status_code": "None",
+                            "error_type": "HTMLParsingError",
+                            "message": f"{e}",
+                            "document_in_process": str(input.document_id),
+                        }
+                    )
                 )
                 return self._get_empty_response(input)
 

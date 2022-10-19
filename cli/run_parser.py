@@ -108,6 +108,7 @@ def main(
     :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
     :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
     """
+    # TODO use standard logging format for all logs.
 
     if s3:
         input_dir_as_path = S3Path(input_dir)
@@ -135,7 +136,7 @@ def main(
                     {
                         "timestamp": datetime.now(),
                         "pipeline_stage": "Parser: Parse output files in the output directory to find already parsed.",
-                        "status_code": None,
+                        "status_code": "None",
                         "error_type": "ParserOutputValidationError",
                         "message": f"{e}",
                         "document_in_process": path,
@@ -184,7 +185,7 @@ def main(
                         {
                             "timestamp": datetime.now(),
                             "pipeline_stage": "Parser: Parse the input files in the input directory.",
-                            "status_code": None,
+                            "status_code": "None",
                             "error_type": "ParserInputValidationError",
                             "message": f"{e}",
                             "document_in_process": path,

@@ -386,7 +386,7 @@ class StandardErrorLog(BaseModel):
 
     timestamp: datetime
     pipeline_stage: str
-    status_code: int
+    status_code: str
     error_type: str
     message: str
-    document_in_process: Union[Path, S3Path]
+    document_in_process: Union[Path, S3Path, str]

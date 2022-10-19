@@ -93,7 +93,7 @@ def copy_input_to_output_pdf(
                 {
                     "timestamp": datetime.now(),
                     "pipeline_stage": "Parser: Copy pdf input to output.",
-                    "status_code": None,
+                    "status_code": "None",
                     "error_type": "ParsingError",
                     "message": f"{e}",
                     "document_in_process": output_path,
@@ -112,8 +112,24 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-
-    response = requests.get(parser_input.document_url)
+    logger.info(f"Downloading {parser_input.document_url} to {output_dir}")
+    try:
+        response = requests.get(parser_input.document_url)
+        logger.info(f"Downloaded {parser_input.document_url} to {output_dir}")
+    except Exception as e:
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download pdf",
+                    "status_code": "None",
+                    "error_type": "RequestError",
+                    "message": f"{e}",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
+        )
+        return None
 
     if response.status_code != 200:
         logger.error(
@@ -124,12 +140,14 @@ def download_pdf(
                     "status_code": f"{response.status_code}",
                     "error_type": "RequestError",
                     "message": "Invalid response code from request.",
-                    "document_in_process": output_dir / parser_input.document_id,
+                    "document_in_process": str(parser_input.document_id),
                 }
             )
         )
 
-    if response.headers["Content-Type"] != "application/pdf":
+        return None
+
+    elif response.headers["Content-Type"] != "application/pdf":
         logger.error(
             StandardErrorLog.parse_obj(
                 {
@@ -138,17 +156,21 @@ def download_pdf(
                     "status_code": f"{response.status_code}",
                     "error_type": "ContentTypeError",
                     "message": "Content-Type is not application/pdf.",
-                    "document_in_process": output_dir / parser_input.document_id,
+                    "document_in_process": str(parser_input.document_id),
                 }
             )
         )
 
-    output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
+        return None
 
-    with open(output_path, "wb") as f:
-        f.write(response.content)
+    else:
+        logger.info(f"Saving {parser_input.document_url} to {output_dir}")
+        output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
-    return output_path
+        with open(output_path, "wb") as f:
+            f.write(response.content)
+
+        return output_path
 
 
 def select_page_at_random(num_pages: int) -> int:
