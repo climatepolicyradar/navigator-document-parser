@@ -17,6 +17,8 @@ import requests
 from cloudpathlib import S3Path
 from fitz.fitz import EmptyFileError
 from multiprocessing_logging import install_mp_handler
+from tqdm import tqdm
+
 from src import config
 from src.base import ParserInput, ParserOutput, PDFData, PDFPageMetadata
 from src.pdf_parser.pdf_utils.parsing_utils import (
@@ -24,7 +26,6 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
     PostProcessor,
 )
-from tqdm import tqdm
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
