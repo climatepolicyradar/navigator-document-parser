@@ -154,5 +154,5 @@ def test_run_parser_skip_already_done(caplog) -> None:
         assert result.exit_code == 0
 
         assert (
-            "Found 2 documents that have already parsed. Skipping." in caplog.messages
+            "Skipping 2 documents that have already been parsed." in caplog.messages
         )
