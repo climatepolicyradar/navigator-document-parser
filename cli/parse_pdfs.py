@@ -1,5 +1,4 @@
 import concurrent.futures
-import logging
 import multiprocessing
 import os
 import time
@@ -9,7 +8,6 @@ from pathlib import Path
 import hashlib
 from typing import List, Union
 import tempfile
-from datetime import datetime
 import requests
 import fitz
 import layoutparser as lp
@@ -31,8 +29,8 @@ from src.base import (
     PDFPageMetadata,
     PDFData,
     ParserInput,
-    StandardErrorLog,
     LogProps,
+    ErrorLog,
 )
 from src.utils import get_logger
 
@@ -77,20 +75,27 @@ def copy_input_to_output_pdf(
         )
 
         output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
-        logging.info(f"Blank output for {task.document_id} saved to {output_path}.")
+        logger.info(
+            f"Blank output for {task.document_id} saved to {output_path}.",
+            extra=default_extras,
+        )
 
     except Exception as e:
         logger.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Copy pdf input to output.",
-                    "status_code": "None",
-                    "error_type": "ParsingError",
-                    "message": f"{e}",
-                    "document_in_process": output_path,
-                }
-            )
+            f"Failed to copy {task.document_id} to {output_path}.",
+            extra={
+                "props": LogProps.parse_obj(
+                    {
+                        "pipeline_run": PIPELINE_RUN,
+                        "pipeline_stage": PIPELINE_STAGE,
+                        "pipeline_stage_subsection": f"{__name__} - output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))",
+                        "document_in_process": f"{task.document_id}",
+                        "error": ErrorLog.parse_obj(
+                            {"status_code": None, "error_message": f"{e}"}
+                        ),
+                    }
+                ).dict()
+            },
         )
 
 
@@ -104,59 +109,83 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-    logger.info(f"Downloading {parser_input.document_url} to {output_dir}")
+    logger.info(
+        f"Downloading {parser_input.document_url} to {output_dir}", extra=default_extras
+    )
     try:
         response = requests.get(parser_input.document_url)
-        logger.info(f"Downloaded {parser_input.document_url} to {output_dir}")
+        logger.info(
+            f"Downloaded {parser_input.document_url} to {output_dir}",
+            extra=default_extras,
+        )
     except Exception as e:
         logger.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Download pdf",
-                    "status_code": "None",
-                    "error_type": "RequestError",
-                    "message": f"{e}",
-                    "document_in_process": str(parser_input.document_id),
-                }
-            )
+            f"Could not fetch {parser_input.document_url} for {parser_input.document_id}: {e}",
+            extra={
+                "props": LogProps.parse_obj(
+                    {
+                        "pipeline_run": PIPELINE_RUN,
+                        "pipeline_stage": PIPELINE_STAGE,
+                        "pipeline_stage_subsection": f"{__name__} - requests.get(parser_input.document_url)",
+                        "document_in_process": f"{parser_input.document_id}",
+                        "error": ErrorLog.parse_obj(
+                            {"status_code": None, "error_message": f"{e}"}
+                        ),
+                    }
+                ).dict()
+            },
         )
         return None
 
     if response.status_code != 200:
         logger.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Download of pdf.",
-                    "status_code": f"{response.status_code}",
-                    "error_type": "RequestError",
-                    "message": "Invalid response code from request.",
-                    "document_in_process": str(parser_input.document_id),
-                }
-            )
+            f"Error code is {response.status_code} for {parser_input.document_url} for {parser_input.document_id}",
+            extra={
+                "props": LogProps.parse_obj(
+                    {
+                        "pipeline_run": PIPELINE_RUN,
+                        "pipeline_stage": PIPELINE_STAGE,
+                        "pipeline_stage_subsection": f"{__name__} - requests.get(parser_input.document_url)",
+                        "document_in_process": f"{parser_input.document_id}",
+                        "error": ErrorLog.parse_obj(
+                            {
+                                "status_code": response.status_code,
+                                "error_message": f"{response.text}",
+                            }
+                        ),
+                    }
+                ).dict()
+            },
         )
-
         return None
 
     elif response.headers["Content-Type"] != "application/pdf":
         logger.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
-                    "status_code": f"{response.status_code}",
-                    "error_type": "ContentTypeError",
-                    "message": "Content-Type is not application/pdf.",
-                    "document_in_process": str(parser_input.document_id),
-                }
-            )
+            f"Wrong content type for {parser_input.document_url} for {parser_input.document_id}",
+            extra={
+                "props": LogProps.parse_obj(
+                    {
+                        "pipeline_run": PIPELINE_RUN,
+                        "pipeline_stage": PIPELINE_STAGE,
+                        "pipeline_stage_subsection": f"{__name__} - requests.get(parser_input.document_url)",
+                        "document_in_process": f"{parser_input.document_id}",
+                        "error": ErrorLog.parse_obj(
+                            {
+                                "status_code": response.status_code,
+                                "error_message": f"{response.text}",
+                            }
+                        ),
+                    }
+                ).dict()
+            },
         )
 
         return None
 
     else:
-        logger.info(f"Saving {parser_input.document_url} to {output_dir}")
+        logger.info(
+            f"Saving {parser_input.document_url} to {output_dir}", extra=default_extras
+        )
         output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
         with open(output_path, "wb") as f:
@@ -209,17 +238,20 @@ def parse_file(
         device (str): Device to use for parsing.
     """
 
-    logging.info(f"Processing {input_task.document_id}")
+    logger.info(f"Processing {input_task.document_id}", extra=default_extras)
     copy_input_to_output_pdf(input_task, output_dir / f"{input_task.document_id}.json")
 
     with tempfile.TemporaryDirectory() as temp_output_dir:
-        logging.info(f"Downloading pdf: {input_task.document_id}")
+        logger.info(f"Downloading pdf: {input_task.document_id}", extra=default_extras)
         pdf_path = download_pdf(input_task, temp_output_dir)
-        logging.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
+        logger.info(
+            f"PDF path for: {input_task.document_id} - {pdf_path}", extra=default_extras
+        )
         if pdf_path is None:
-            logging.info(
+            logger.info(
                 f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
-                f"downloaded, isn't content-type pdf or the response status code is not 200. "
+                f"downloaded, isn't content-type pdf or the response status code is not 200. ",
+                extra=default_extras,
             )
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
@@ -236,8 +268,6 @@ def parse_file(
 
         all_pages_metadata = []
         all_text_blocks = []
-
-        logging.info(f"Iterating through pages for -  {input_task.document_id}")
 
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
@@ -263,7 +293,9 @@ def parse_file(
             )
             initial_layout = layout_disambiguator.layout
             if len(initial_layout) == 0:
-                logging.info(f"No layout found for page {page_idx}.")
+                logger.info(
+                    f"No layout found for page {page_idx}.", extra=default_extras
+                )
                 all_pages_metadata.append(page_metadata)
                 continue
             disambiguated_layout = layout_disambiguator.disambiguate_layout()
@@ -271,7 +303,7 @@ def parse_file(
             postprocessor.postprocess()
             ocr_blocks = postprocessor.ocr_blocks
             if len(ocr_blocks) == 0:
-                logging.info(f"No text found for page {page_idx}.")
+                logger.info(f"No text found for page {page_idx}.", extra=default_extras)
                 all_pages_metadata.append(page_metadata)
                 continue
             ocr_processor = OCRProcessor(
@@ -307,7 +339,10 @@ def parse_file(
 
             all_pages_metadata.append(page_metadata)
 
-        logging.info(f"Processing {input_task.document_id}, setting parser_output...")
+        logger.info(
+            f"Processing {input_task.document_id}, setting parser_output...",
+            extra=default_extras,
+        )
 
         document = ParserOutput(
             document_id=input_task.document_id,
@@ -328,11 +363,13 @@ def parse_file(
 
         output_path.write_text(document.json(indent=4, ensure_ascii=False))
 
-        logging.info(f"Saved {output_path.name} to {output_dir}.")
+        logger.info(f"Saved {output_path.name} to {output_dir}.", extra=default_extras)
 
         os.remove(pdf_path)
 
-        logging.info(f"Removed downloaded document at - {pdf_path}.")
+        logger.info(
+            f"Removed downloaded document at - {pdf_path}.", extra=default_extras
+        )
 
 
 def _pdf_num_pages(file: str):
@@ -374,18 +411,20 @@ def run_pdf_parser(
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
 
-    # Create logger that prints to stdout.
-    logging.basicConfig(level=logging.DEBUG)
-
-    logging.info(
-        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    logger.info(
+        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model.",
+        extra=default_extras,
     )
     if config.PDF_OCR_AGENT == "gcv":
-        logging.warning(
-            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
+        logger.warning(
+            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING.",
+            extra=default_extras,
         )
 
-    logging.info("Iterating through files and parsing pdf content from pages.")
+    logger.info(
+        "Iterating through files and parsing pdf content from pages.",
+        extra=default_extras,
+    )
 
     file_parser = partial(
         parse_file,
@@ -398,15 +437,18 @@ def run_pdf_parser(
     )
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
-        logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
+        logger.info(
+            f"Running in parallel and setting max workers to - {cpu_count}.",
+            extra=default_extras,
+        )
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            executor.map(file_parser, input_tasks)
+            executor.map(file_parser, tqdm(input_tasks))
 
     else:
-        for task in input_tasks:
-            logging.info("Running in series.")
+        for task in tqdm(input_tasks):
+            logger.info("Running in series.", extra=default_extras)
             file_parser(task)
 
-    logging.info("Finished parsing pdf content from pages.")
+    logger.info("Finished parsing pdf content from pages.", extra=default_extras)
     time_end = time.time()
-    logging.info(f"Time taken: {time_end - time_start} seconds.")
+    logger.info(f"Time taken: {time_end - time_start} seconds.", extra=default_extras)

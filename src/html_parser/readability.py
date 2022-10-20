@@ -1,6 +1,5 @@
 """Parser using python-readability library: https://github.com/buriy/python-readability"""
 
-import logging
 from typing import List
 import re
 
@@ -9,9 +8,31 @@ from readability import Document
 import bleach
 
 from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
-from src.base import HTMLParser, ParserInput, ParserOutput, HTMLData, HTMLTextBlock
+from src.base import (
+    HTMLParser,
+    ParserInput,
+    ParserOutput,
+    HTMLData,
+    HTMLTextBlock,
+    LogProps,
+    ErrorLog,
+)
+from src.utils import get_logger
+from src.config import PIPELINE_STAGE  # noqa: E402
+from src.config import PIPELINE_RUN  # noqa: E402
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+default_extras = {
+    "props": LogProps.parse_obj(
+        {
+            "pipeline_run": PIPELINE_RUN,
+            "pipeline_stage": PIPELINE_STAGE,
+            "pipeline_stage_subsection": f"{__name__}",
+            "document_in_process": None,
+            "error": None,
+        }
+    ).dict()
+}
 
 
 class ReadabilityParser(HTMLParser):
@@ -49,7 +70,20 @@ class ReadabilityParser(HTMLParser):
             )
         except Exception as e:
             logger.error(
-                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                f"Could not fetch {input.document_url} for {input.document_id}: {e}",
+                extra={
+                    "props": LogProps.parse_obj(
+                        {
+                            "pipeline_run": PIPELINE_RUN,
+                            "pipeline_stage": PIPELINE_STAGE,
+                            "pipeline_stage_subsection": f"{__name__} - ParserOutput.parse_raw(path.read_text()).document_id",
+                            "document_in_process": f"{input.document_id}",
+                            "error": ErrorLog.parse_obj(
+                                {"status_code": None, "error_message": f"{e}"}
+                            ),
+                        }
+                    ).dict()
+                },
             )
             return self._get_empty_response(input)
 
@@ -67,7 +101,7 @@ class ReadabilityParser(HTMLParser):
         :return ParsedHTML: parsed HTML
         """
 
-        readability_doc = Document(html)
+        readability_doc = Document(html)  # pyright: ignore
         title = readability_doc.title()
         text = readability_doc.summary()
         text_html_stripped = bleach.clean(text, tags=[], strip=True)

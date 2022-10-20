@@ -1,14 +1,35 @@
 """Parser using news-please library: https://github.com/fhamborg/news-please"""
 
-import logging
 
 from newsplease import NewsPlease
 import requests
 
-from src.base import HTMLParser, ParserInput, ParserOutput, HTMLTextBlock, HTMLData
+from src.base import (
+    HTMLParser,
+    ParserInput,
+    ParserOutput,
+    HTMLTextBlock,
+    HTMLData,
+    LogProps,
+    ErrorLog,
+)
 from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
+from src.utils import get_logger
+from src.config import PIPELINE_STAGE  # noqa: E402
+from src.config import PIPELINE_RUN  # noqa: E402
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+default_extras = {
+    "props": LogProps.parse_obj(
+        {
+            "pipeline_run": PIPELINE_RUN,
+            "pipeline_stage": PIPELINE_STAGE,
+            "pipeline_stage_subsection": f"{__name__}",
+            "document_in_process": None,
+            "error": None,
+        }
+    ).dict()
+}
 
 
 class NewsPleaseParser(HTMLParser):
@@ -33,12 +54,13 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
-            article = NewsPlease.from_html(
+            article = NewsPlease.from_html(  # pyright: ignore
                 html=html, url=input.document_url, fetch_images=False
             )
         except Exception as e:
             logger.error(
-                f"Failed to parse {input.document_url} for {input.document_id}: {e}"
+                f"Failed to parse {input.document_url} for {input.document_id}: {e}",
+                extra=default_extras,
             )
             return self._get_empty_response(input)
 
@@ -69,7 +91,20 @@ class NewsPleaseParser(HTMLParser):
 
         except Exception as e:
             logger.error(
-                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                "Error downloading file; skipping...",
+                extra={
+                    "props": LogProps.parse_obj(
+                        {
+                            "pipeline_run": PIPELINE_RUN,
+                            "pipeline_stage": PIPELINE_STAGE,
+                            "pipeline_stage_subsection": f"{__name__} - requests.get",
+                            "document_in_process": f"{input.document_id}",
+                            "error": ErrorLog.parse_obj(
+                                {"status_code": None, "error_message": f"{e}"}
+                            ),
+                        }
+                    ).dict()
+                },
             )
             return self._get_empty_response(input)
 

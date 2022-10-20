@@ -1,7 +1,13 @@
-import logging
 from pythonjsonlogger import jsonlogger
 from datetime import datetime
 from src.config import LOGGING_LEVEL
+import logging
+
+# Set the value of these imported packages to critical; to stop them logging to stdout when logging level is info.
+logging.getLogger("botocore").setLevel(logging.CRITICAL)
+logging.getLogger("boto3").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+logging.getLogger("root").setLevel(logging.CRITICAL)
 
 
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
@@ -49,4 +55,5 @@ def get_logger(name):
     formatter = CustomJsonFormatter("%(timestamp)s %(level)s %(name)s %(message)s")
     logHandler.setFormatter(formatter)
     logger.addHandler(logHandler)
+
     return logger

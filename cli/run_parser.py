@@ -97,7 +97,12 @@ def main(
     :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
     """
     logger.info("Starting parser...", extra=default_extras)
+    logger.info(
+        f"Run configuration TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}",
+        extra=default_extras,
+    )
 
+    # TODO put in function
     if s3:
         input_dir_as_path = S3Path(input_dir)
         output_dir_as_path = S3Path(output_dir)
@@ -105,11 +110,13 @@ def main(
         input_dir_as_path = Path(input_dir)
         output_dir_as_path = Path(output_dir)
 
+    # TODO put in function
     # if visual debugging is on, create a debug directory
     if debug:
         debug_dir = output_dir_as_path / "debug"
         debug_dir.mkdir(exist_ok=True)
 
+    # TODO put in function
     # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
     # objects to pathlib.Path objects.
     document_ids_previously_parsed = []
@@ -137,6 +144,7 @@ def main(
             )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
 
+    # TODO put in function
     if FILES_TO_PARSE is not None:
         files = FILES_TO_PARSE.split("$")[1:]
 
@@ -146,11 +154,7 @@ def main(
         else input_dir_as_path.glob("*.json")
     )
 
-    logger.info(
-        f"Run configuration TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}",
-        extra=default_extras,
-    )
-
+    # TODO put in function
     tasks = []
     counter = 0
     for path in files_to_parse:
@@ -179,6 +183,7 @@ def main(
                 )
         counter += 1
 
+    # TODO put in function
     if not redo and document_ids_previously_parsed.intersection(
         {task.document_id for task in tasks}
     ):
@@ -192,6 +197,7 @@ def main(
             if task.document_id not in document_ids_previously_parsed
         ]
 
+    # TODO put in function
     no_document_tasks = [
         task for task in tasks if task.document_content_type is None
     ]  # tasks without a URL or content type
@@ -212,12 +218,14 @@ def main(
 
     process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
 
+    # TODO put in function
     if RUN_HTML_PARSER:
         logger.info(
             f"Running HTML parser on {len(html_tasks)} documents", extra=default_extras
         )
         run_html_parser(html_tasks, output_dir_as_path)
 
+    # TODO put in function
     if RUN_PDF_PARSER:
         logger.info(
             f"Running PDF parser on {len(pdf_tasks)} documents.", extra=default_extras

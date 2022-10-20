@@ -31,19 +31,19 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
 
     :param parser_output_dir: directory containing parser outputs
     """
-
     for path in tqdm(parser_output_dir.glob("*.json")):
+
         parser_output = ParserOutput.parse_raw(path.read_text())
 
-        # Skip already translated outputs. Note this does not prevent the CLI from translating existing parser outputs again,
-        # but instead makes sure it doesn't translate a translation.
+        # Skip already translated outputs. Note this does not prevent the CLI from translating existing parser
+        # outputs again, but instead makes sure it doesn't translate a translation.
         if parser_output.translated:
             continue
 
         _target_languages = set(TARGET_LANGUAGES)
 
-        # If there is only one language that's been detected in the parser output, we don't need to translate to this language.
-        # TODO: how do we deal with the fact that parser outputs can contain multiple languages here?
+        # If there is only one language that's been detected in the parser output, we don't need to translate to this
+        # language. TODO: how do we deal with the fact that parser outputs can contain multiple languages here?
         if parser_output.languages and len(parser_output.languages) == 1:
             _target_languages = _target_languages - set(parser_output.languages)
 
@@ -51,9 +51,21 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
             output_path = path.with_name(
                 f"{path.stem}_translated_{target_language}.json"
             )
+
             if output_path.exists():
                 logger.info(
-                    f"Skipping translating {output_path} because it already exists."
+                    f"Skipping translating {output_path} because it already exists.",
+                    extra={
+                        "props": LogProps.parse_obj(
+                            {
+                                "pipeline_run": PIPELINE_RUN,
+                                "pipeline_stage": PIPELINE_STAGE,
+                                "pipeline_stage_subsection": f"{__name__}",
+                                "document_in_process": f"{output_path}",
+                                "error": None,
+                            }
+                        ).dict()
+                    },
                 )
                 continue
 

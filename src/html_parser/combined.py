@@ -1,20 +1,32 @@
 """A combined parser which uses both readability and newsplease to parse HTML."""
 
-import logging
 import requests
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
-from datetime import datetime
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
-from src.base import HTMLParser, ParserInput, ParserOutput, StandardErrorLog
+from src.base import HTMLParser, ParserInput, ParserOutput, LogProps, ErrorLog
 from src.config import (
     HTML_MIN_NO_LINES_FOR_VALID_TEXT,
     HTML_HTTP_REQUEST_TIMEOUT,
     HTML_MAX_PARAGRAPH_LENGTH_WORDS,
 )
+from src.utils import get_logger
+from src.config import PIPELINE_STAGE  # noqa: E402
+from src.config import PIPELINE_RUN  # noqa: E402
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+default_extras = {
+    "props": LogProps.parse_obj(
+        {
+            "pipeline_run": PIPELINE_RUN,
+            "pipeline_stage": PIPELINE_STAGE,
+            "pipeline_stage_subsection": f"{__name__}",
+            "document_in_process": None,
+            "error": None,
+        }
+    ).dict()
+}
 
 
 class CombinedParser(HTMLParser):
@@ -89,16 +101,20 @@ class CombinedParser(HTMLParser):
             )
         except Exception as e:
             logger.error(
-                StandardErrorLog.parse_obj(
-                    {
-                        "timestamp": datetime.now(),
-                        "pipeline_stage": "Parser: Download HTML file.",
-                        "status_code": "None",
-                        "error_type": "RequestError",
-                        "message": f"{e}",
-                        "document_in_process": str(input.document_id),
-                    }
-                )
+                "Error downloading html file skipping...",
+                extra={
+                    "props": LogProps.parse_obj(
+                        {
+                            "pipeline_run": PIPELINE_RUN,
+                            "pipeline_stage": PIPELINE_STAGE,
+                            "pipeline_stage_subsection": f"{__name__} - requests.get",
+                            "document_in_process": f"{input.document_id}",
+                            "error": ErrorLog.parse_obj(
+                                {"status_code": None, "error_message": f"{e}"}
+                            ),
+                        }
+                    ).dict()
+                },
             )
             return self._get_empty_response(input)
 
@@ -106,16 +122,20 @@ class CombinedParser(HTMLParser):
             parsed_html = self.parse_html(requests_response.text, input)
         except Exception as e:
             logger.error(
-                StandardErrorLog.parse_obj(
-                    {
-                        "timestamp": datetime.now(),
-                        "pipeline_stage": "Parser: Parse HTML file.",
-                        "status_code": "None",
-                        "error_type": "HTMLParsingError",
-                        "message": f"{e}",
-                        "document_in_process": str(input.document_id),
-                    }
-                )
+                "Error parsing html file skipping...",
+                extra={
+                    "props": LogProps.parse_obj(
+                        {
+                            "pipeline_run": PIPELINE_RUN,
+                            "pipeline_stage": PIPELINE_STAGE,
+                            "pipeline_stage_subsection": f"{__name__} - self.parse_html(requests_response.text, input)",
+                            "document_in_process": f"{input.document_id}",
+                            "error": ErrorLog.parse_obj(
+                                {"status_code": None, "error_message": f"{e}"}
+                            ),
+                        }
+                    ).dict()
+                },
             )
             return self._get_empty_response(input)
 
@@ -124,7 +144,8 @@ class CombinedParser(HTMLParser):
             "<noscript>" in requests_response.text
         ):
             logger.info(
-                f"Falling back to JS-enabled browser for {input.document_id} ({input.document_url})"
+                f"Falling back to JS-enabled browser for {input.document_id} ({input.document_url})",
+                extra=default_extras,
             )
             try:
                 with sync_playwright() as playwright:
@@ -136,16 +157,20 @@ class CombinedParser(HTMLParser):
                 return parsed_html_playwright
             except Exception as e:
                 logger.error(
-                    StandardErrorLog.parse_obj(
-                        {
-                            "timestamp": datetime.now(),
-                            "pipeline_stage": "Parser: Get HTML with playwright.",
-                            "status_code": "None",
-                            "error_type": "HTMLParsingError",
-                            "message": f"{e}",
-                            "document_in_process": str(input.document_id),
-                        }
-                    )
+                    "Error parsing html file with playwright skipping...",
+                    extra={
+                        "props": LogProps.parse_obj(
+                            {
+                                "pipeline_run": PIPELINE_RUN,
+                                "pipeline_stage": PIPELINE_STAGE,
+                                "pipeline_stage_subsection": f"{__name__} - with sync_playwright()",
+                                "document_in_process": f"{input.document_id}",
+                                "error": ErrorLog.parse_obj(
+                                    {"status_code": None, "error_message": f"{e}"}
+                                ),
+                            }
+                        ).dict()
+                    },
                 )
                 return self._get_empty_response(input)
 
