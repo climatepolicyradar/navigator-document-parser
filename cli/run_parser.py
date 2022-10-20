@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union, Set
 import click
 import pydantic  # noqa: E402
 from cloudpathlib import S3Path
@@ -96,29 +96,171 @@ def main(
     :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
     :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
     """
-    logger.info("Starting parser...", extra=default_extras)
     logger.info(
-        f"Run configuration TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}",
+        f"Configuration: TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}",
         extra=default_extras,
     )
 
-    # TODO put in function
-    if s3:
-        input_dir_as_path = S3Path(input_dir)
-        output_dir_as_path = S3Path(output_dir)
-    else:
-        input_dir_as_path = Path(input_dir)
-        output_dir_as_path = Path(output_dir)
+    input_dir_as_path = get_path(input_dir, s3)
 
-    # TODO put in function
-    # if visual debugging is on, create a debug directory
+    output_dir_as_path = get_path(output_dir, s3)
+
+    get_debug_dir(debug, output_dir_as_path)
+
+    files_to_parse = get_files_to_parse_subset(input_dir_as_path, files)
+
+    document_ids_previously_parsed = get_documents_previously_parsed(output_dir_as_path)
+
+    tasks = get_files_to_parse(files_to_parse)
+
+    tasks = skip_already_parsed(redo, document_ids_previously_parsed, tasks)
+
+    no_document_tasks = [
+        task for task in tasks if task.document_content_type is None
+    ]  # tasks without a URL or content type
+
+    html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
+
+    pdf_tasks = [
+        task for task in tasks if task.document_content_type == "application/pdf"
+    ]
+
+    logger.info(
+        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse.",
+        extra=default_extras,
+    )
+
+    logger.info(
+        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type.",
+        extra=default_extras,
+    )
+
+    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
+
+    if RUN_HTML_PARSER:
+        logger.info(
+            f"Running HTML parser on {len(html_tasks)} documents", extra=default_extras
+        )
+        run_html_parser(html_tasks, output_dir_as_path)
+
+    if RUN_PDF_PARSER:
+        logger.info(
+            f"Running PDF parser on {len(pdf_tasks)} documents.", extra=default_extras
+        )
+        run_pdf_parser(
+            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
+        )
+
+    logger.info(
+        f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}",
+        extra=default_extras,
+    )
+    translate_parser_outputs(output_dir_as_path)
+
+
+def get_files_to_parse_subset(
+    input_dir_as_path: Union[Path, S3Path], files: Optional[List[str]]
+) -> List[str]:
+    """Get the subset of all the input files that should be parsed.
+
+    If files are specified, use those. Otherwise, use all files in the input directory.
+    I.e. files=[1.json] will only parse 1.json, while files=[] will parse all files in the input directory.
+    """
+    if FILES_TO_PARSE is not None:
+        files = FILES_TO_PARSE.split("$")[1:]
+
+    return (
+        (input_dir_as_path / f for f in files)
+        if files
+        else input_dir_as_path.glob("*.json")
+    )
+
+
+def get_files_to_parse(files_to_parse: List[str]) -> List[ParserInput]:
+    """Get the list of ParserInput objects to parse.
+
+    If TEST_RUN is True, only parse the first 100 files in the list are parsed.
+    """
+    files = []
+    counter = 0
+    for path in files_to_parse:
+        if TEST_RUN and counter > 100:
+            break
+        else:
+            try:
+                files.append(ParserInput.parse_raw(path.read_text()))
+            except pydantic.error_wrappers.ValidationError as e:
+                logger.error(
+                    "Error parsing input file skipping...",
+                    extra={
+                        "props": LogProps.parse_obj(
+                            {
+                                "pipeline_run": PIPELINE_RUN,
+                                "pipeline_stage": PIPELINE_STAGE,
+                                "pipeline_stage_subsection": f"{__name__} - ParserInput.parse_raw(path.read_text())",
+                                "document_in_process": f"{path}",
+                                "error": ErrorLog.parse_obj(
+                                    {"status_code": None, "error_message": f"{e}"}
+                                ),
+                            }
+                        ).dict()
+                    },
+                )
+        counter += 1
+    return files
+
+
+def skip_already_parsed(
+    redo: bool, document_ids_previously_parsed: Set[str], tasks: List[ParserInput]
+) -> List[ParserInput]:
+    """Skip files that have already been parsed, unless redo is True."""
+    logger.info("redo", redo)
+    logger.info("document_ids_previously_parsed", document_ids_previously_parsed)
+    logger.info("tasks", tasks)
+    if not redo and document_ids_previously_parsed.intersection(
+        {task.document_id for task in tasks}
+    ):
+        logger.warning(
+            f"Found {len(document_ids_previously_parsed.intersection({task.document_id for task in tasks}))} documents that have already parsed. Skipping.",
+            extra=default_extras,
+        )
+        tasks = [
+            task
+            for task in tasks
+            if task.document_id not in document_ids_previously_parsed
+        ]
+
+    return tasks
+
+
+def get_path(path: str, s3: bool) -> Union[Path, S3Path]:
+    """Update the type of the directory bath based on whether it is an S3 path or not.
+
+    So that the parser can be used on s3 or local paths.
+    """
+    if s3:
+        return S3Path(path)
+    else:
+        return Path(path)
+
+
+def get_debug_dir(debug: bool, output_dir_as_path: Union[Path, S3Path]) -> None:
+    """If visual debugging is on, create a debug directory.
+
+    The debug directory is used to save images of intermediate steps.
+    """
     if debug:
         debug_dir = output_dir_as_path / "debug"
         debug_dir.mkdir(exist_ok=True)
 
-    # TODO put in function
-    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
-    # objects to pathlib.Path objects.
+
+def get_documents_previously_parsed(
+    output_dir_as_path: Union[Path, S3Path]
+) -> Set[str]:
+    """Get the document ids that have already been parsed that exist in the output directory.
+
+    If a document fails to parse an error log will be created and the document skipped.
+    """
     document_ids_previously_parsed = []
     for path in output_dir_as_path.glob("*.json"):
         try:
@@ -142,103 +284,7 @@ def main(
                     ).dict()
                 },
             )
-    document_ids_previously_parsed = set(document_ids_previously_parsed)
-
-    # TODO put in function
-    if FILES_TO_PARSE is not None:
-        files = FILES_TO_PARSE.split("$")[1:]
-
-    files_to_parse = (
-        (input_dir_as_path / f for f in files)
-        if files
-        else input_dir_as_path.glob("*.json")
-    )
-
-    # TODO put in function
-    tasks = []
-    counter = 0
-    for path in files_to_parse:
-        if TEST_RUN and counter > 100:
-            break
-        else:
-            try:
-                tasks.append(ParserInput.parse_raw(path.read_text()))
-
-            except pydantic.error_wrappers.ValidationError as e:
-                logger.error(
-                    "Error parsing input file skipping...",
-                    extra={
-                        "props": LogProps.parse_obj(
-                            {
-                                "pipeline_run": PIPELINE_RUN,
-                                "pipeline_stage": PIPELINE_STAGE,
-                                "pipeline_stage_subsection": f"{__name__} - ParserInput.parse_raw(path.read_text())",
-                                "document_in_process": f"{path}",
-                                "error": ErrorLog.parse_obj(
-                                    {"status_code": None, "error_message": f"{e}"}
-                                ),
-                            }
-                        ).dict()
-                    },
-                )
-        counter += 1
-
-    # TODO put in function
-    if not redo and document_ids_previously_parsed.intersection(
-        {task.document_id for task in tasks}
-    ):
-        logger.warning(
-            f"Found {len(document_ids_previously_parsed.intersection({task.document_id for task in tasks}))} documents that have already parsed. Skipping.",
-            extra=default_extras,
-        )
-        tasks = [
-            task
-            for task in tasks
-            if task.document_id not in document_ids_previously_parsed
-        ]
-
-    # TODO put in function
-    no_document_tasks = [
-        task for task in tasks if task.document_content_type is None
-    ]  # tasks without a URL or content type
-    html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
-    pdf_tasks = [
-        task for task in tasks if task.document_content_type == "application/pdf"
-    ]
-
-    logger.info(
-        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse.",
-        extra=default_extras,
-    )
-
-    logger.info(
-        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type.",
-        extra=default_extras,
-    )
-
-    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
-
-    # TODO put in function
-    if RUN_HTML_PARSER:
-        logger.info(
-            f"Running HTML parser on {len(html_tasks)} documents", extra=default_extras
-        )
-        run_html_parser(html_tasks, output_dir_as_path)
-
-    # TODO put in function
-    if RUN_PDF_PARSER:
-        logger.info(
-            f"Running PDF parser on {len(pdf_tasks)} documents.", extra=default_extras
-        )
-        run_pdf_parser(
-            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
-        )
-
-    logger.info(
-        f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}",
-        extra=default_extras,
-    )
-    translate_parser_outputs(output_dir_as_path)
+    return set(document_ids_previously_parsed)
 
 
 if __name__ == "__main__":
