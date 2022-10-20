@@ -1,16 +1,28 @@
 from typing import List, Union
 from pathlib import Path
-import logging
 import sys
 
 from tqdm.auto import tqdm
 from cloudpathlib import CloudPath
 
+from src.config import PIPELINE_RUN, PIPELINE_STAGE
+from src.base import ParserInput, ParserOutput, LogProps  # noqa: E402
+from src.utils import get_logger
+
 sys.path.append("..")
 
-from src.base import ParserInput, ParserOutput  # noqa: E402
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+default_extras = {
+    "props": LogProps.parse_obj(
+        {
+            "pipeline_run": PIPELINE_RUN,
+            "pipeline_stage": PIPELINE_STAGE,
+            "pipeline_stage_subsection": f"{__name__}",
+            "document_in_process": None,
+            "error": None,
+        }
+    ).dict()
+}
 
 
 def process_documents_with_no_content_type(

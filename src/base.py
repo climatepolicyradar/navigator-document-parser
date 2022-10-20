@@ -390,3 +390,28 @@ class StandardErrorLog(BaseModel):
     error_type: str
     message: str
     document_in_process: Union[Path, S3Path, str]
+
+
+class ErrorLog(BaseModel):
+    """Log format for errors.
+
+    Defined to standardize the error logs such that these can be filtered effectively when the application runs in
+    production in AWS.
+    """
+
+    status_code: Union[str, None]
+    error_message: Union[str, None]
+
+
+class LogProps(BaseModel):
+    """Log format for logs.
+
+    Defined to standardize the logs such that these can be filtered effectively when the application runs in
+    production in AWS.
+    """
+
+    pipeline_run: str
+    pipeline_stage: str
+    pipeline_stage_subsection: str
+    document_in_process: Union[str, None]
+    error: Union[ErrorLog, None]

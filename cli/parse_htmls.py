@@ -1,39 +1,27 @@
 from typing import List, Union
 from pathlib import Path
-import logging
-import logging.config
-
 from tqdm import tqdm
 from cloudpathlib import CloudPath
-
 import sys
+from src.config import PIPELINE_RUN, PIPELINE_STAGE
+from src.base import ParserInput, ParserOutput, LogProps  # noqa: E402
+from src.html_parser.combined import CombinedParser  # noqa: E402
+from src.utils import get_logger
 
 sys.path.append("..")
 
-from src.base import ParserInput, ParserOutput  # noqa: E402
-from src.html_parser.combined import CombinedParser  # noqa: E402
-
-
-class TqdmLoggingHandler(logging.Handler):
-    """Handler for logging to tqdm"""
-
-    def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
-
-    def emit(self, record):
-        """Emit a log message"""
-        try:
-            msg = self.format(record)
-            tqdm.write(msg)
-            self.flush()
-        except Exception as e:
-            print(f"Error emitting tqdm logging handler: {e}")
-            self.handleError(record)
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(TqdmLoggingHandler())
+logger = get_logger(__name__)
+default_extras = {
+    "props": LogProps.parse_obj(
+        {
+            "pipeline_run": PIPELINE_RUN,
+            "pipeline_stage": PIPELINE_STAGE,
+            "pipeline_stage_subsection": f"{__name__}",
+            "document_in_process": None,
+            "error": None,
+        }
+    ).dict()
+}
 
 
 def copy_input_to_output_html(
