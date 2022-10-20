@@ -1,33 +1,34 @@
 import concurrent.futures
+import hashlib
 import logging
 import multiprocessing
 import os
+import tempfile
 import time
 import warnings
 from functools import partial
 from pathlib import Path
-import hashlib
-from typing import List, Union
-import tempfile
+from typing import List, Optional, Union
 
-import requests
 import fitz
 import layoutparser as lp
 import numpy as np
-from fitz.fitz import EmptyFileError
-from tqdm import tqdm
+import requests
 from cloudpathlib import S3Path
-import psutil
+from fitz.fitz import EmptyFileError
 from multiprocessing_logging import install_mp_handler
+from tqdm import tqdm
 
+from src import config
+from src.base import ParserInput, ParserOutput, PDFData, PDFPageMetadata
 from src.pdf_parser.pdf_utils.parsing_utils import (
-    OCRProcessor,
     LayoutDisambiguator,
+    OCRProcessor,
     PostProcessor,
 )
-from src import config
 
-from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
+CDN_DOMAIN = os.environ["CDN_DOMAIN"]
+
 
 class TqdmLoggingHandler(logging.Handler):
     """Handler for logging to tqdm"""
@@ -53,8 +54,9 @@ install_mp_handler(logger)
 
 
 def download_pdf(
-    parser_input: ParserInput, output_dir: Union[Path, str]
-) -> Path or None:
+    parser_input: ParserInput,
+    output_dir: Union[Path, str],
+) -> Optional[Path]:
     """
     Get a PDF from a URL in a ParserInput object.
 
@@ -62,16 +64,17 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-
-    response = requests.get(parser_input.document_url)
+    document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+    response = requests.get(document_url)
 
     if response.status_code != 200:
         # TODO: what exception should be raised here?
-        raise Exception(f"Could not get PDF from {parser_input.document_url}")
+        raise Exception(f"Could not get PDF from {document_url}")
 
     if response.headers["Content-Type"] != "application/pdf":
         raise Exception(
-            f"Content-Type is for {parser_input.document_id} ({parser_input.document_url}) is not PDF: {response.headers['Content-Type']}"
+            f"Content-Type is for {parser_input.document_id} ({document_url}) is "
+            f"not PDF: {response.headers['Content-Type']}"
         )
 
     output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
@@ -82,7 +85,7 @@ def download_pdf(
     return output_path
 
 
-def select_page_at_random(num_pages: int) -> int:
+def select_page_at_random(num_pages: int) -> bool:
     """Determine whether to include a page using a random number generator. Used for debugging.
 
     Args:
@@ -103,6 +106,7 @@ def select_page_at_random(num_pages: int) -> int:
     else:
         if rng <= 0.05:
             return True
+    return False
 
 
 def parse_file(
@@ -131,7 +135,7 @@ def parse_file(
         pdf_path = download_pdf(input_task, temp_output_dir)
         if pdf_path is None:
             logging.info(
-                f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
+                f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
                 f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
         else:
@@ -221,10 +225,12 @@ def parse_file(
 
         document = ParserOutput(
             document_id=input_task.document_id,
-            document_url=input_task.document_url,
             document_name=input_task.document_name,
             document_description=input_task.document_description,
+            document_source_url=input_task.document_source_url,
             document_content_type=input_task.document_content_type,
+            document_cdn_object=input_task.document_cdn_object,
+            document_md5_sum=input_task.document_md5_sum,
             document_slug=input_task.document_slug,
             document_metadata=input_task.document_metadata,
             pdf_data=PDFData(

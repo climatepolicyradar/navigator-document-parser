@@ -117,7 +117,7 @@ def main(
     # if visual debugging is on, create a debug directory
     if debug:
         debug_dir = output_dir_as_path / "debug"
-        debug_dir.mkdir(exist_ok=True)
+        debug_dir.mkdir(exist_ok=True)  # type: ignore
 
     # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
     # objects to pathlib.Path objects.
@@ -127,10 +127,8 @@ def main(
             document_ids_previously_parsed.append(
                 ParserOutput.parse_raw(path.read_text()).document_id
             )
-        except pydantic.ValidationError as e:
-            logger.error(
-                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
-            )
+        except pydantic.ValidationError:
+            logger.exception(f"Could not parse {path}")
     document_ids_previously_parsed = set(document_ids_previously_parsed)
 
     files_to_parse = (
@@ -140,7 +138,9 @@ def main(
     )
 
     logger.info(
-        f"Run configuration TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}"
+        f"Run configuration TEST_RUN:{TEST_RUN}, "
+        f"RUN_PDF_PARSER:{RUN_PDF_PARSER}, "
+        f"RUN_HTML_PARSER:{RUN_HTML_PARSER}"
     )
 
     tasks = []
@@ -150,19 +150,21 @@ def main(
             break
         else:
             try:
-                tasks.append(ParserInput.parse_raw(path.read_text()))
+                tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
 
-            except pydantic.error_wrappers.ValidationError as e:
-                logger.error(
-                    f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
-                )
+            except pydantic.error_wrappers.ValidationError:
+                logger.exception(f"Could not parse {path}")
         counter += 1
 
     if not redo and document_ids_previously_parsed.intersection(
         {task.document_id for task in tasks}
     ):
+        previously_parsed_tasks = document_ids_previously_parsed & {
+            task.document_id for task in tasks
+        }
         logger.warning(
-            f"Found {len(document_ids_previously_parsed.intersection({task.document_id for task in tasks}))} documents that have already parsed. Skipping."
+            f"Skipping {len(previously_parsed_tasks)} documents that have already "
+            "been parsed."
         )
         tasks = [
             task
@@ -170,22 +172,28 @@ def main(
             if task.document_id not in document_ids_previously_parsed
         ]
 
-    no_document_tasks = [
-        task for task in tasks if task.document_content_type is None
-    ]  # tasks without a URL or content type
-    html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
-    pdf_tasks = [
-        task for task in tasks if task.document_content_type == "application/pdf"
-    ]
+    # TODO: Update splitting to be based on ContentType enum
+    no_processing_tasks = []
+    html_tasks = []
+    pdf_tasks = []
+    for task in tasks:
+        if task.document_content_type == "text/html":
+            html_tasks.append(task)
+        elif task.document_content_type == "application/pdf":
+            pdf_tasks.append(task)
+        else:
+            no_processing_tasks.append(task)
 
     logger.info(
-        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse."
+        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and "
+        f"{len(no_processing_tasks)} tasks without a supported document to parse."
     )
 
     logger.info(
-        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type."
+        f"Generating outputs for {len(no_processing_tasks)} inputs that cannot "
+        "be processed."
     )
-    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
+    process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
     # TODO run flags don't work for HTML parsing
     if RUN_HTML_PARSER:
@@ -199,7 +207,8 @@ def main(
         )
 
     logger.info(
-        f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"
+        "Translating results to target languages specified in environment "
+        f"variables: {','.join(TARGET_LANGUAGES)}"
     )
     translate_parser_outputs(output_dir_as_path)
 

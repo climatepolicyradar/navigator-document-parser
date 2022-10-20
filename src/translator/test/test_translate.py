@@ -64,7 +64,9 @@ def test_translate_parser_output() -> None:
     # Check attributes that should not have changed
     for attr in (
         "document_id",
-        "document_url",
+        "document_source_url",
+        "document_cdn_object",
+        "document_md5_sum",
         "document_slug",
         "document_content_type",
     ):
