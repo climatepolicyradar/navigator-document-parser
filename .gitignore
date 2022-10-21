@@ -158,5 +158,5 @@ dmypy.json
 # Pycharm idea
 .idea/*
 
-# Dockerfile that would contain creds
-Dockerfile
+# Ignore json files in the credentials folder
+credentials/*.json

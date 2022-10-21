@@ -8,14 +8,16 @@ import sys
 import click
 from cloudpathlib import S3Path
 import pydantic  # noqa: E402
+from datetime import datetime
 
 sys.path.append("..")
 
-from src.base import ParserInput, ParserOutput  # noqa: E402
+from src.base import ParserInput, ParserOutput, StandardErrorLog  # noqa: E402
 from src.config import TARGET_LANGUAGES  # noqa: E402
 from src.config import TEST_RUN  # noqa: E402
 from src.config import RUN_PDF_PARSER  # noqa: E402
 from src.config import RUN_HTML_PARSER  # noqa: E402
+from src.config import FILES_TO_PARSE  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.parse_no_content_type import (  # noqa: E402
@@ -127,9 +129,30 @@ def main(
             document_ids_previously_parsed.append(
                 ParserOutput.parse_raw(path.read_text()).document_id
             )
-        except pydantic.ValidationError:
-            logger.exception(f"Could not parse {path}")
+        except pydantic.ValidationError as e:
+            logger.error(
+                StandardErrorLog.parse_obj(
+                    {
+                        "timestamp": datetime.now(),
+                        "pipeline_stage": "Parser: Parse output files in the output directory to find already parsed.",
+                        "status_code": "None",
+                        "error_type": "ParserOutputValidationError",
+                        "message": f"{e}",
+                        "document_in_process": path,
+                    }
+                )
+            )
     document_ids_previously_parsed = set(document_ids_previously_parsed)
+
+    # If no file list is provided, run over all inputs in the input prefix
+    if files:
+        logger.info(f"Only parsing files: {files}")
+    else:
+        logger.info("Parsing all files")
+
+    if FILES_TO_PARSE is not None:
+        logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
+        files = FILES_TO_PARSE.split("$")[1:]
 
     files_to_parse = (
         (input_dir_as_path / f for f in files)
@@ -152,8 +175,19 @@ def main(
             try:
                 tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
 
-            except pydantic.error_wrappers.ValidationError:
-                logger.exception(f"Could not parse {path}")
+            except pydantic.error_wrappers.ValidationError as e:
+                logger.error(
+                    StandardErrorLog.parse_obj(
+                        {
+                            "timestamp": datetime.now(),
+                            "pipeline_stage": "Parser: Parse the input files in the input directory.",
+                            "status_code": "None",
+                            "error_type": "ParserInputValidationError",
+                            "message": f"{e}",
+                            "document_in_process": path,
+                        }
+                    )
+                )
         counter += 1
 
     if not redo and document_ids_previously_parsed.intersection(
@@ -195,7 +229,6 @@ def main(
     )
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
-    # TODO run flags don't work for HTML parsing
     if RUN_HTML_PARSER:
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
         run_html_parser(html_tasks, output_dir_as_path)

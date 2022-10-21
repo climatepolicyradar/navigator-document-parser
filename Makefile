@@ -14,24 +14,24 @@ test_local:
 	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
 
 build:
-	cp Dockerfile.local.example Dockerfile
 	docker build -t navigator-document-parser .
-	docker tag navigator-document-parser:latest navigator-document-parser-staging:latest
 
 test:
+	docker build -t navigator-document-parser .
 	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
 
 run_docker:
+	docker build -t html-parser .
 	docker run --network host -v ${PWD}/data:/app/data html-parser python -m cli.run_parser ./data/raw ./data/processed
 
-run_local_against_s3:
-	cp Dockerfile.aws.example Dockerfile
-	docker build -t html-parser_s3 .
-	docker run --cpus 1 -m 2048m -e s3_in=s3://data-pipeline-a64047a/test_loader_output/ -e s3_out=s3://data-pipeline-a64047a/runs/09-21-2022_13:19___2447bac7-2d8a-4b77-bbc9-481ec5ee135d/test_parser_output/ -it html-parser_s3
+run_on_specific_files_flag:
+	docker build -t html-parser .
+	docker run -it html-parser python -m cli.run_parser s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ s3://cpr-dev-data-pipeline-cache/marks/parser_output/ --s3 --files "1331.0.json"
 
-build_and_push_ecr:
-	cp Dockerfile.aws.example Dockerfile
-	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 281621126254.dkr.ecr.us-east-1.amazonaws.com
-	docker build -t parser-2263e83 .
-	docker tag parser-2263e83:latest 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest
-	docker push 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest	
+run_on_specific_files_env:
+	docker build -t html-parser .
+	docker run -it -e files_to_parse="$1331.0.json" html-parser python -m cli.run_parser s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ s3://cpr-dev-data-pipeline-cache/marks/parser_output/ --s3
+
+run_local_against_s3:
+	docker build -t html-parser .
+	docker run -e PARSER_INPUT_PREFIX=s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ -e EMBEDDINGS_INPUT_PREFIX=s3://cpr-dev-data-pipeline-cache/marks/parser_output/ -it html-parser

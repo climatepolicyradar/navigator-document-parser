@@ -28,7 +28,6 @@ RUN playwright install-deps
 COPY ./src ./src
 COPY ./cli ./cli
 COPY ./data ./data
-COPY ./credentials/google-creds.json ./credentials/google-creds.json
 
 # Set environment variables
 ARG GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json
@@ -58,20 +57,20 @@ ENV LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE=$LAYOUTPARSER_MODEL_THRESHOLD_RESTR
 ARG LAYOUTPARSER_MODEL=mask_rcnn_X_101_32x8d_FPN_3x
 ENV LAYOUTPARSER_MODEL=$LAYOUTPARSER_MODEL
 
-ARG PDF_OCR_AGENT=gcv
+ARG PDF_OCR_AGENT=tesseract
 ENV PDF_OCR_AGENT=$PDF_OCR_AGENT
 
 ARG CDN_DOMAIN=cdn.climatepolicyradar.org
 ENV CDN_DOMAIN=$CDN_DOMAIN
 
 # Run configuration 
-ARG TEST_RUN=true
+ARG TEST_RUN=false
 ENV TEST_RUN=$TEST_RUN
 
 ARG RUN_PDF_PARSER=true
 ENV RUN_PDF_PARSER=$RUN_PDF_PARSER
 
-ARG RUN_HTML_PARSER=false
+ARG RUN_HTML_PARSER=true
 ENV RUN_HTML_PARSER=$RUN_HTML_PARSER
 
 

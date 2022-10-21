@@ -6,6 +6,7 @@ import os
 import tempfile
 import time
 import warnings
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import List, Optional, Union
@@ -14,13 +15,19 @@ import fitz
 import layoutparser as lp
 import numpy as np
 import requests
-from cloudpathlib import S3Path
+from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
 from multiprocessing_logging import install_mp_handler
 from tqdm import tqdm
 
 from src import config
-from src.base import ParserInput, ParserOutput, PDFData, PDFPageMetadata
+from src.base import (
+    ParserInput,
+    ParserOutput,
+    PDFData,
+    PDFPageMetadata,
+    StandardErrorLog,
+)
 from src.pdf_parser.pdf_utils.parsing_utils import (
     LayoutDisambiguator,
     OCRProcessor,
@@ -53,6 +60,50 @@ logger.addHandler(TqdmLoggingHandler())
 install_mp_handler(logger)
 
 
+def copy_input_to_output_pdf(
+    task: ParserInput, output_path: Union[Path, CloudPath]
+) -> None:
+    """Necessary to copy the input file to the output to ensure that we don't drop documents.
+
+    The file is copied at the time of processing rather than syncing the entire input directory so that if that
+    parser fails and retries it will not think that all files have already been parsed. :param task: input task
+    specifying the document to copy :param output_path: path to save the copied file
+    """
+    try:
+        blank_output = ParserOutput(
+            document_id=task.document_id,
+            document_metadata=task.document_metadata,
+            document_name=task.document_name,
+            document_description=task.document_description,
+            document_source_url=task.document_source_url,
+            document_cdn_object=task.document_cdn_object,
+            document_md5_sum=task.document_md5_sum,
+            document_slug=task.document_slug,
+            document_content_type=task.document_content_type,
+            languages=None,
+            translated=False,
+            html_data=None,
+            pdf_data=PDFData(page_metadata=[], md5sum="", text_blocks=[]),
+        )
+
+        output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+        logging.info(f"Blank output for {task.document_id} saved to {output_path}.")
+
+    except Exception as e:
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Copy pdf input to output.",
+                    "status_code": "None",
+                    "error_type": "ParsingError",
+                    "message": f"{e}",
+                    "document_in_process": output_path,
+                }
+            )
+        )
+
+
 def download_pdf(
     parser_input: ParserInput,
     output_dir: Union[Path, str],
@@ -64,25 +115,65 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-    document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
-    response = requests.get(document_url)
+    try:
+        document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+        logger.info(f"Downloading {document_url} to {output_dir}")
+        response = requests.get(document_url)
+    except Exception as e:
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download pdf",
+                    "status_code": "None",
+                    "error_type": "RequestError",
+                    "message": f"{e}",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
+        )
+        return None
 
     if response.status_code != 200:
-        # TODO: what exception should be raised here?
-        raise Exception(f"Could not get PDF from {document_url}")
-
-    if response.headers["Content-Type"] != "application/pdf":
-        raise Exception(
-            f"Content-Type is for {parser_input.document_id} ({document_url}) is "
-            f"not PDF: {response.headers['Content-Type']}"
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download of pdf.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "RequestError",
+                    "message": "Invalid response code from request.",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
         )
 
-    output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
+        return None
 
-    with open(output_path, "wb") as f:
-        f.write(response.content)
+    elif response.headers["Content-Type"] != "application/pdf":
+        logger.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "ContentTypeError",
+                    "message": "Content-Type is not application/pdf.",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
+        )
 
-    return output_path
+        return None
+
+    else:
+        logger.info(f"Saving {parser_input.document_source_url} to {output_dir}")
+        output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
+
+        with open(output_path, "wb") as f:
+            f.write(response.content)
+
+        return output_path
 
 
 def select_page_at_random(num_pages: int) -> bool:
@@ -130,20 +221,24 @@ def parse_file(
         device (str): Device to use for parsing.
     """
 
-    # TODO: do we want to handle exceptions raised by get_pdf here?
+    logging.info(f"Processing {input_task.document_id}")
+    copy_input_to_output_pdf(input_task, output_dir / f"{input_task.document_id}.json")
+
     with tempfile.TemporaryDirectory() as temp_output_dir:
+        logging.info(f"Downloading pdf: {input_task.document_id}")
         pdf_path = download_pdf(input_task, temp_output_dir)
+        logging.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             logging.info(
                 f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
                 f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
+            return None
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
         # FIXME: handle EmptyFileError here using _pdf_num_pages
-
         model = _get_detectron_model(model, device)
         if ocr_agent == "tesseract":
             ocr_agent = lp.TesseractAgent()
@@ -154,6 +249,8 @@ def parse_file(
 
         all_pages_metadata = []
         all_text_blocks = []
+
+        logging.info(f"Iterating through pages for -  {input_task.document_id}")
 
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
@@ -222,6 +319,8 @@ def parse_file(
             all_text_blocks += page_text_blocks
 
             all_pages_metadata.append(page_metadata)
+
+        logging.info(f"Processing {input_task.document_id}, setting parser_output...")
 
         document = ParserOutput(
             document_id=input_task.document_id,
@@ -302,9 +401,6 @@ def run_pdf_parser(
         )
 
     logging.info("Iterating through files and parsing pdf content from pages.")
-    # Sort pages smallest to largest. Having files of a similar size will help with parallelization.
-    # FIXME: have had to disable this for now because we're using tasks, which don't have direct access to the PDF.
-    # files = sorted(list(input_dir_path.glob("*.pdf")), key=_pdf_num_pages)
 
     file_parser = partial(
         parse_file,
@@ -317,11 +413,13 @@ def run_pdf_parser(
     )
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
+        logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
             executor.map(file_parser, input_tasks)
 
     else:
         for task in input_tasks:
+            logging.info("Running in series.")
             file_parser(task)
 
     logging.info("Finished parsing pdf content from pages.")
