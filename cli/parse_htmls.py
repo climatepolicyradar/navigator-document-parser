@@ -56,7 +56,10 @@ def copy_input_to_output_html(
 
     output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
 
-    logger.info(f"Blank output for {task.document_id} saved to {output_path}.")
+    logger.info(
+        f"Blank output for {task.document_id} saved to {output_path}.",
+        extra=default_extras,
+    )
 
 
 def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath]):
@@ -67,7 +70,7 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
     :param output_dir: directory of output JSON files (results)
     """
 
-    logger.info("Running HTML parser")
+    logger.info("Running HTML parser", extra=default_extras)
     html_parser = CombinedParser()
 
     for task in tqdm(input_tasks):
@@ -80,4 +83,7 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
 
         output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
 
-        logger.info(f"Output for {task.document_id} saved to {output_path}")
+        logger.info(
+            f"Output for {task.document_id} saved to {output_path}",
+            extra=default_extras,
+        )

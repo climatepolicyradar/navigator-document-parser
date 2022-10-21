@@ -5,7 +5,11 @@ import click
 import pydantic  # noqa: E402
 from cloudpathlib import S3Path
 from src.base import ParserInput, ParserOutput, LogProps, ErrorLog  # noqa: E402
-from src.config import TARGET_LANGUAGES  # noqa: E402
+from src.config import (
+    TARGET_LANGUAGES,
+    RUN_NO_CONTENT_TYPE_PARSER,
+    TRANSLATE,
+)  # noqa: E402
 from src.config import TEST_RUN  # noqa: E402
 from src.config import RUN_PDF_PARSER  # noqa: E402
 from src.config import RUN_HTML_PARSER  # noqa: E402
@@ -97,45 +101,37 @@ def main(
     :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
     """
     logger.info(
-        f"Configuration: TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}",
+        f"Configuration: TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}, "
+        f"RUN_NO_CONTENT_TYPE_PARSER:{RUN_NO_CONTENT_TYPE_PARSER}, TRANSLATE:{TRANSLATE}, TARGET_LANGUAGES:{TARGET_LANGUAGES}",
         extra=default_extras,
     )
 
     input_dir_as_path = get_path(input_dir, s3)
-
     output_dir_as_path = get_path(output_dir, s3)
 
-    get_debug_dir(debug, output_dir_as_path)
+    if debug:
+        make_debug_dir(output_dir_as_path)
 
-    files_to_parse = get_files_to_parse_subset(input_dir_as_path, files)
+    tasks = get_tasks(input_dir_as_path, output_dir_as_path, files, redo)
 
-    document_ids_previously_parsed = get_documents_previously_parsed(output_dir_as_path)
-
-    tasks = get_files_to_parse(files_to_parse)
-
-    tasks = skip_already_parsed(redo, document_ids_previously_parsed, tasks)
-
-    no_document_tasks = [
-        task for task in tasks if task.document_content_type is None
-    ]  # tasks without a URL or content type
-
+    no_document_tasks = [task for task in tasks if task.document_content_type is None]
     html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
-
     pdf_tasks = [
         task for task in tasks if task.document_content_type == "application/pdf"
     ]
 
     logger.info(
-        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse.",
+        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} no Content"
+        f"-Type tasks to parse.",
         extra=default_extras,
     )
 
-    logger.info(
-        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type.",
-        extra=default_extras,
-    )
-
-    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
+    if RUN_NO_CONTENT_TYPE_PARSER:
+        logger.info(
+            f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type.",
+            extra=default_extras,
+        )
+        process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
 
     if RUN_HTML_PARSER:
         logger.info(
@@ -151,14 +147,59 @@ def main(
             pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
         )
 
-    logger.info(
-        f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}",
-        extra=default_extras,
-    )
-    translate_parser_outputs(output_dir_as_path)
+    if TRANSLATE:
+        logger.info(
+            f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}",
+            extra=default_extras,
+        )
+        translate_parser_outputs(output_dir_as_path)
 
 
-def get_files_to_parse_subset(
+def get_path(path: str, s3: bool) -> Union[Path, S3Path]:
+    """Update the type of the directory bath based on whether it is an S3 path or not.
+
+    So that the parser can be used on s3 or local paths.
+    """
+    if s3:
+        return S3Path(path)
+    else:
+        return Path(path)
+
+
+def make_debug_dir(output_dir_as_path: Union[Path, S3Path]) -> None:
+    """If visual debugging is on, create a debug directory.
+
+    The debug directory is used to save images of intermediate steps.
+    """
+    debug_dir = output_dir_as_path / "debug"
+    debug_dir.mkdir(exist_ok=True)
+
+
+def get_tasks(
+    input_dir_as_path: Union[Path, S3Path],
+    output_dir_as_path: Union[Path, S3Path],
+    files: Optional[List[str]],
+    redo: bool,
+) -> List[ParserInput]:
+    """Get the tasks to run.
+
+    Identifies all files within the input and output directory, filters if a subset of the input files has been
+    specified and also filters the input files that have already been parsed. Thus returning a list of tasks to run
+    through the parser.
+    """
+
+    selected_input_files = get_selected_input_files(input_dir_as_path, files)
+
+    document_ids_previously_parsed = get_documents_previously_parsed(output_dir_as_path)
+
+    tasks = get_files_to_parse(selected_input_files)
+
+    tasks = skip_already_parsed(redo, document_ids_previously_parsed, tasks)
+
+    return tasks
+
+
+def get_selected_input_files(
     input_dir_as_path: Union[Path, S3Path], files: Optional[List[str]]
 ) -> List[str]:
     """Get the subset of all the input files that should be parsed.
@@ -214,9 +255,6 @@ def skip_already_parsed(
     redo: bool, document_ids_previously_parsed: Set[str], tasks: List[ParserInput]
 ) -> List[ParserInput]:
     """Skip files that have already been parsed, unless redo is True."""
-    logger.info("redo", redo)
-    logger.info("document_ids_previously_parsed", document_ids_previously_parsed)
-    logger.info("tasks", tasks)
     if not redo and document_ids_previously_parsed.intersection(
         {task.document_id for task in tasks}
     ):
@@ -231,27 +269,6 @@ def skip_already_parsed(
         ]
 
     return tasks
-
-
-def get_path(path: str, s3: bool) -> Union[Path, S3Path]:
-    """Update the type of the directory bath based on whether it is an S3 path or not.
-
-    So that the parser can be used on s3 or local paths.
-    """
-    if s3:
-        return S3Path(path)
-    else:
-        return Path(path)
-
-
-def get_debug_dir(debug: bool, output_dir_as_path: Union[Path, S3Path]) -> None:
-    """If visual debugging is on, create a debug directory.
-
-    The debug directory is used to save images of intermediate steps.
-    """
-    if debug:
-        debug_dir = output_dir_as_path / "debug"
-        debug_dir.mkdir(exist_ok=True)
 
 
 def get_documents_previously_parsed(

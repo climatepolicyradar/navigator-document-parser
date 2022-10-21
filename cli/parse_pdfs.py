@@ -23,7 +23,6 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
     PostProcessor,
 )
 from src import config
-
 from src.base import (
     ParserOutput,
     PDFPageMetadata,
@@ -75,6 +74,7 @@ def copy_input_to_output_pdf(
         )
 
         output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+
         logger.info(
             f"Blank output for {task.document_id} saved to {output_path}.",
             extra=default_extras,
@@ -179,13 +179,13 @@ def download_pdf(
                 ).dict()
             },
         )
-
         return None
 
     else:
         logger.info(
             f"Saving {parser_input.document_url} to {output_dir}", extra=default_extras
         )
+
         output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
         with open(output_path, "wb") as f:
@@ -239,6 +239,7 @@ def parse_file(
     """
 
     logger.info(f"Processing {input_task.document_id}", extra=default_extras)
+
     copy_input_to_output_pdf(input_task, output_dir / f"{input_task.document_id}.json")
 
     with tempfile.TemporaryDirectory() as temp_output_dir:
@@ -281,8 +282,8 @@ def parse_file(
                 page_number=page_idx,
             )
 
-            # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
-            # and processing time
+            # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid
+            # excessive redundancy and processing time
             if debug:
                 select_page = select_page_at_random(num_pages)
                 if not select_page:

@@ -51,6 +51,10 @@ def process_documents_with_no_content_type(
         )
 
         output_path = output_dir / f"{task.document_id}.json"
+
         output_path.write_text(output.json(indent=4, ensure_ascii=False))
 
-        logger.info(f"Output for {task.document_id} saved to {output_path}")
+        logger.info(
+            f"Output for {task.document_id} saved to {output_path}",
+            extra=default_extras,
+        )

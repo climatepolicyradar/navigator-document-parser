@@ -1,23 +1,21 @@
 """Base classes for parsing."""
 
-import logging
-import logging.config
 from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import date
-from datetime import datetime
 from enum import Enum
-from pathlib import Path
 from typing import Optional, Sequence, Tuple, List
 from typing import Union
 
 import layoutparser.elements as lp_elements
-from cloudpathlib import S3Path
 from langdetect import DetectorFactory
 from langdetect import detect
 from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
-logger = logging.getLogger(__name__)
+from src.config import PIPELINE_RUN, PIPELINE_STAGE
+from src.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class BlockType(str, Enum):
@@ -297,7 +295,19 @@ class ParserOutput(BaseModel):
 
         if self.document_content_type != ContentType.HTML:
             logger.warning(
-                "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
+                "Language detection should not be required for non-HTML documents, but it has been run on one. This "
+                "will overwrite any document languages detected via other means, e.g. OCR. ",
+                extra={
+                    "props": LogProps.parse_obj(
+                        {
+                            "pipeline_run": PIPELINE_RUN,
+                            "pipeline_stage": PIPELINE_STAGE,
+                            "pipeline_stage_subsection": f"{__name__}",
+                            "document_in_process": None,
+                            "error": None,
+                        }
+                    ).dict()
+                },
             )
 
         # language detection is not deterministic, so we need to set a seed
@@ -376,20 +386,6 @@ class HTMLParser(ABC):
                 has_valid_text=False,
             ),
         )
-
-
-class StandardErrorLog(BaseModel):
-    """Standardized log format for errors.
-
-    This is used to ensure that we can effectively filter the logs when the application runs in production in AWS.
-    """
-
-    timestamp: datetime
-    pipeline_stage: str
-    status_code: str
-    error_type: str
-    message: str
-    document_in_process: Union[Path, S3Path, str]
 
 
 class ErrorLog(BaseModel):
