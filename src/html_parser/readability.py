@@ -34,22 +34,22 @@ class ReadabilityParser(HTMLParser):
         :return ParsedHTML: parsed HTML
         :raise ValueError: input contains a null value for URL
         """
-
-        if input.document_url is None:
+        if input.document_source_url is None:
             raise ValueError(
-                "A URL is required, and it seems like a document without a URL was provided."
+                "HTML processing was supplied an empty source URL for "
+                f"{input.document_id}"
             )
 
         try:
             response = requests.get(
-                input.document_url,
+                input.document_source_url,
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
-            logger.error(
-                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+            logger.exception(
+                f"Could not fetch {input.document_source_url} for {input.document_id}"
             )
             return self._get_empty_response(input)
 
@@ -94,7 +94,9 @@ class ReadabilityParser(HTMLParser):
             document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,
-            document_url=input.document_url,
+            document_cdn_object=input.document_cdn_object,
+            document_source_url=input.document_source_url,
+            document_md5_sum=input.document_md5_sum,
             document_slug=input.document_slug,
             html_data=HTMLData(
                 detected_title=title,

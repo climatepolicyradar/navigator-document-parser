@@ -1,9 +1,11 @@
 {
     "document_id": "test_html",
     "document_metadata": {},
-    "document_url": "https://www.gov.uk/feed-in-tariffs", 
+    "document_source_url": "https://www.gov.uk/feed-in-tariffs",
+    "document_cdn_object": null,
+    "document_md5_sum": null,
     "document_name": "test_html",
-    "document_description": "test_html_description", 
+    "document_description": "test_html_description",
     "document_content_type": "text/html",
     "document_slug": "YYY"
 }

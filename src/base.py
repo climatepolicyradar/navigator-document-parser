@@ -157,22 +157,25 @@ class ParserInput(BaseModel):
     document_metadata: dict
     document_name: str
     document_description: str
-    document_url: Optional[AnyHttpUrl]
+    document_source_url: Optional[AnyHttpUrl]
+    document_cdn_object: Optional[str]
     document_content_type: Optional[ContentType]
+    document_md5_sum: Optional[str]
     document_slug: str
 
     @root_validator
-    def check_content_type_and_url(cls, values) -> None:
-        """Either both or neither of content type and url should be null."""
+    def check_content_type_and_source(cls, values) -> None:
+        """Either both or neither of content type and source should be null."""
         if (
-            values["document_content_type"] is None
-            and values["document_url"] is not None
+            values["document_content_type"] == ContentType.PDF
+            and values["document_cdn_object"] is None
         ) or (
-            values["document_content_type"] is not None
-            and values["document_url"] is None
+            values["document_content_type"] == ContentType.HTML
+            and values["document_source_url"] is None
         ):
             raise ValueError(
-                "Both document_content_type and document_url must be null or not null."
+                "Both document_content_type and source to be processed must be "
+                "null or not null."
             )
 
         return values
@@ -220,11 +223,14 @@ class ParserOutput(BaseModel):
     document_metadata: dict
     document_name: str
     document_description: str
-    document_url: Optional[AnyHttpUrl]
+    document_source_url: Optional[AnyHttpUrl]
+    document_cdn_object: Optional[str]
+    document_content_type: Optional[ContentType]
+    document_md5_sum: Optional[str]
+    document_slug: str
+
     languages: Optional[Sequence[str]] = None
     translated: bool = False
-    document_slug: str  # for better links to the frontend hopefully soon
-    document_content_type: Optional[ContentType]
     html_data: Optional[HTMLData] = None
     pdf_data: Optional[PDFData] = None
 
@@ -257,10 +263,10 @@ class ParserOutput(BaseModel):
         """Either both or neither of content type and url should be null."""
         if (
             values["document_content_type"] is None
-            and values["document_url"] is not None
+            and values["document_source_url"] is not None
         ) or (
             values["document_content_type"] is not None
-            and values["document_url"] is None
+            and values["document_source_url"] is None
         ):
             raise ValueError(
                 "Both document_content_type and document_url must be null or not null."
@@ -367,7 +373,9 @@ class HTMLParser(ABC):
             document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,
-            document_url=input.document_url,
+            document_source_url=input.document_source_url,
+            document_cdn_object=input.document_cdn_object,
+            document_md5_sum=input.document_md5_sum,
             document_slug=input.document_slug,
             html_data=HTMLData(
                 text_blocks=[],

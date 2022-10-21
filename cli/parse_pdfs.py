@@ -1,38 +1,40 @@
 import concurrent.futures
+import hashlib
 import logging
 import multiprocessing
 import os
+import tempfile
 import time
 import warnings
+from datetime import datetime
 from functools import partial
 from pathlib import Path
-import hashlib
-from typing import List, Union
-import tempfile
-from datetime import datetime
-import requests
+from typing import List, Optional, Union
+
 import fitz
 import layoutparser as lp
 import numpy as np
+import requests
+from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
-from tqdm import tqdm
-from cloudpathlib import S3Path, CloudPath
 from multiprocessing_logging import install_mp_handler
+from tqdm import tqdm
 
-from src.pdf_parser.pdf_utils.parsing_utils import (
-    OCRProcessor,
-    LayoutDisambiguator,
-    PostProcessor,
-)
 from src import config
-
 from src.base import (
-    ParserOutput,
-    PDFPageMetadata,
-    PDFData,
     ParserInput,
+    ParserOutput,
+    PDFData,
+    PDFPageMetadata,
     StandardErrorLog,
 )
+from src.pdf_parser.pdf_utils.parsing_utils import (
+    LayoutDisambiguator,
+    OCRProcessor,
+    PostProcessor,
+)
+
+CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
 
 class TqdmLoggingHandler(logging.Handler):
@@ -74,7 +76,9 @@ def copy_input_to_output_pdf(
                 "document_metadata": task.document_metadata,
                 "document_name": task.document_name,
                 "document_description": task.document_description,
-                "document_url": task.document_url,
+                "document_source_url": task.document_source_url,
+                "document_cdn_object": task.document_cdn_object,
+                "document_md5_sum": task.document_md5_sum,
                 "document_slug": task.document_slug,
                 "document_content_type": task.document_content_type,
                 "languages": None,
@@ -103,8 +107,9 @@ def copy_input_to_output_pdf(
 
 
 def download_pdf(
-    parser_input: ParserInput, output_dir: Union[Path, str]
-) -> Path or None:
+    parser_input: ParserInput,
+    output_dir: Union[Path, str],
+) -> Optional[Path]:
     """
     Get a PDF from a URL in a ParserInput object.
 
@@ -112,10 +117,10 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-    logger.info(f"Downloading {parser_input.document_url} to {output_dir}")
     try:
-        response = requests.get(parser_input.document_url)
-        logger.info(f"Downloaded {parser_input.document_url} to {output_dir}")
+        document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+        logger.info(f"Downloading {document_url} to {output_dir}")
+        response = requests.get(document_url)
     except Exception as e:
         logger.error(
             StandardErrorLog.parse_obj(
@@ -173,7 +178,7 @@ def download_pdf(
         return output_path
 
 
-def select_page_at_random(num_pages: int) -> int:
+def select_page_at_random(num_pages: int) -> bool:
     """Determine whether to include a page using a random number generator. Used for debugging.
 
     Args:
@@ -194,6 +199,7 @@ def select_page_at_random(num_pages: int) -> int:
     else:
         if rng <= 0.05:
             return True
+    return False
 
 
 def parse_file(
@@ -226,7 +232,7 @@ def parse_file(
         logging.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             logging.info(
-                f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
+                f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
                 f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
         else:
@@ -319,10 +325,12 @@ def parse_file(
 
         document = ParserOutput(
             document_id=input_task.document_id,
-            document_url=input_task.document_url,
             document_name=input_task.document_name,
             document_description=input_task.document_description,
+            document_source_url=input_task.document_source_url,
             document_content_type=input_task.document_content_type,
+            document_cdn_object=input_task.document_cdn_object,
+            document_md5_sum=input_task.document_md5_sum,
             document_slug=input_task.document_slug,
             document_metadata=input_task.document_metadata,
             pdf_data=PDFData(

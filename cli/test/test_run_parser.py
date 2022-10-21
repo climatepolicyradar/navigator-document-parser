@@ -100,7 +100,9 @@ def test_run_parser_skip_already_done(caplog) -> None:
                     {
                         "document_id": "test_pdf",
                         "document_metadata": {},
-                        "document_url": "https://www.pdfs.org",
+                        "document_source_url": "https://www.pdfs.org",
+                        "document_cdn_object": "test_pdf.pdf",
+                        "document_md5_sum": "abcdefghijk",
                         "document_name": "test_pdf",
                         "document_description": "test_pdf_description",
                         "document_content_type": "application/pdf",
@@ -121,7 +123,9 @@ def test_run_parser_skip_already_done(caplog) -> None:
                     {
                         "document_id": "test_html",
                         "document_metadata": {},
-                        "document_url": "https://www.google.org",
+                        "document_source_url": "https://www.google.org",
+                        "document_cdn_object": None,
+                        "document_md5_sum": None,
                         "document_name": "test_html",
                         "document_description": "test_html_description",
                         "document_content_type": "text/html",
@@ -150,5 +154,5 @@ def test_run_parser_skip_already_done(caplog) -> None:
         assert result.exit_code == 0
 
         assert (
-            "Found 2 documents that have already parsed. Skipping." in caplog.messages
+            "Skipping 2 documents that have already been parsed." in caplog.messages
         )

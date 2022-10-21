@@ -1,11 +1,24 @@
-.PHONY: build test run_docker
+.PHONY: run_local run_docker install test_local build test
+
+install:
+	poetry install
+	poetry run pre-commit install
+	poetry run playwright install 
+	poetry run pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
+	cp .env.example .env
+
+run_local:
+	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed
+
+test_local:
+	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
 
 build:
-	docker build -t html-parser .
+	docker build -t navigator-document-parser .
 
 test:
-	docker build -t html-parser .
-	docker run html-parser python -m pytest -vvv
+	docker build -t navigator-document-parser .
+	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
 
 run_docker:
 	docker build -t html-parser .

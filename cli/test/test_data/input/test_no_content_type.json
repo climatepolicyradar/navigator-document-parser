@@ -1,9 +1,11 @@
 {
     "document_id": "test_no_content_type",
     "document_metadata": {},
-    "document_url": null, 
+    "document_source_url": null,
+    "document_cdn_object": null,
+    "document_md5_sum": null,
     "document_name": "test_no_content_type",
-    "document_description": "test_description", 
+    "document_description": "test_description",
     "document_content_type": null,
     "document_slug": "YYY"
 }
