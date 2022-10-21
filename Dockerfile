@@ -28,7 +28,6 @@ RUN playwright install-deps
 COPY ./src ./src
 COPY ./cli ./cli
 COPY ./data ./data
-COPY ./credentials/google-creds.json ./credentials/google-creds.json
 
 # Set environment variables
 ARG GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json
