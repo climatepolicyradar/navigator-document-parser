@@ -157,3 +157,6 @@ dmypy.json
 
 # Pycharm idea
 .idea/*
+
+# Ignore json files in the credentials folder
+credentials/*.json
