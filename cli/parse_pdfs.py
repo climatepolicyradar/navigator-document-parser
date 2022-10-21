@@ -70,22 +70,20 @@ def copy_input_to_output_pdf(
     specifying the document to copy :param output_path: path to save the copied file
     """
     try:
-        blank_output = ParserOutput.parse_obj(
-            {
-                "document_id": task.document_id,
-                "document_metadata": task.document_metadata,
-                "document_name": task.document_name,
-                "document_description": task.document_description,
-                "document_source_url": task.document_source_url,
-                "document_cdn_object": task.document_cdn_object,
-                "document_md5_sum": task.document_md5_sum,
-                "document_slug": task.document_slug,
-                "document_content_type": task.document_content_type,
-                "languages": None,
-                "translated": "false",
-                "html_data": None,
-                "pdf_data": {"page_metadata": [], "md5sum": "", "text_blocks": []},
-            }
+        blank_output = ParserOutput(
+            document_id=task.document_id,
+            document_metadata=task.document_metadata,
+            document_name=task.document_name,
+            document_description=task.document_description,
+            document_source_url=task.document_source_url,
+            document_cdn_object=task.document_cdn_object,
+            document_md5_sum=task.document_md5_sum,
+            document_slug=task.document_slug,
+            document_content_type=task.document_content_type,
+            languages=None,
+            translated=False,
+            html_data=None,
+            pdf_data=PDFData(page_metadata=[], md5sum="", text_blocks=[]),
         )
 
         output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
@@ -169,7 +167,7 @@ def download_pdf(
         return None
 
     else:
-        logger.info(f"Saving {parser_input.document_url} to {output_dir}")
+        logger.info(f"Saving {parser_input.document_source_url} to {output_dir}")
         output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
         with open(output_path, "wb") as f:
@@ -235,6 +233,7 @@ def parse_file(
                 f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
                 f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
+            return None
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
