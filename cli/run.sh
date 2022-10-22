@@ -1,3 +1,4 @@
+python -m pytest -vvv
 TYPE=$GOOGLE_ACCOUNT_TYPE
 PROJECT_ID=$GOOGLE_PROJECT_ID
 PRIVATE_KEY_ID=$GOOGLE_PRIVATE_KEY_ID
@@ -8,18 +9,7 @@ AUTH_URI=$GOOGLE_AUTH_URI
 TOKEN_URI=$GOOGLE_TOKEN_URI
 AUTH_PROVIDER_X509_CERT_URL=$GOOGLE_AUTH_PROVIDER_X509_CERT_URL
 CLIENT_X509_CERT_URL=$GOOGLE_CLIENT_X509_CERT_URL
-JSON_STRING='{
-"type":"'"$GOOGLE_ACCOUNT_TYPE"'",
-"project_id":"'"$GOOGLE_PROJECT_ID"'",
-"private_key_id":"'"$GOOGLE_PRIVATE_KEY_ID"'",
-"private_key":"'"$GOOGLE_PRIVATE_KEY"'",
-"client_email":"'"$GOOGLE_CLIENT_EMAIL"'",
-"client_id":"'"$GOOGLE_CLIENT_ID"'",
-"auth_uri":"'"$GOOGLE_AUTH_URI"'",
-"token_uri":"'"$GOOGLE_TOKEN_URI"'",
-"auth_provider_x509_cert_url":"'"$GOOGLE_AUTH_PROVIDER_X509_CERT_URL"'",
-"client_x509_cert_url":"'"$GOOGLE_CLIENT_X509_CERT_URL"'",
-}'
+JSON_STRING='{"type":"'"$GOOGLE_ACCOUNT_TYPE"'", "project_id":"'"$GOOGLE_PROJECT_ID"'", "private_key_id":"'"$GOOGLE_PRIVATE_KEY_ID"'", "private_key":"'"$GOOGLE_PRIVATE_KEY"'", "client_email":"'"$GOOGLE_CLIENT_EMAIL"'", "client_id":"'"$GOOGLE_CLIENT_ID"'", "auth_uri":"'"$GOOGLE_AUTH_URI"'", "token_uri":"'"$GOOGLE_TOKEN_URI"'", "auth_provider_x509_cert_url":"'"$GOOGLE_AUTH_PROVIDER_X509_CERT_URL"'", "client_x509_cert_url":"'"$GOOGLE_CLIENT_X509_CERT_URL"'"}'
 mkdir /app/credentials/
-echo $JSON_STRING > /app/credentials/google-creds.json
+echo "$JSON_STRING" > /app/credentials/google-creds.json
 python -m cli.run_parser --s3 $PARSER_INPUT_PREFIX $EMBEDDINGS_INPUT_PREFIX --parallel
