@@ -60,9 +60,6 @@ ENV LAYOUTPARSER_MODEL=$LAYOUTPARSER_MODEL
 ARG PDF_OCR_AGENT=tesseract
 ENV PDF_OCR_AGENT=$PDF_OCR_AGENT
 
-ARG CDN_DOMAIN=cdn.climatepolicyradar.org
-ENV CDN_DOMAIN=$CDN_DOMAIN
-
 # Run configuration 
 ARG TEST_RUN=false
 ENV TEST_RUN=$TEST_RUN
@@ -72,7 +69,6 @@ ENV RUN_PDF_PARSER=$RUN_PDF_PARSER
 
 ARG RUN_HTML_PARSER=true
 ENV RUN_HTML_PARSER=$RUN_HTML_PARSER
-
 
 # Run the parser on the input s3 directory
 CMD [ "sh", "./cli/run.sh" ]
