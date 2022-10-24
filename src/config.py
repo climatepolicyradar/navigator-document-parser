@@ -18,9 +18,10 @@ LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE = float(
 )
 PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "gcv")
 
-TEST_RUN = os.getenv("TEST_RUN", False)
-RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", True)
-RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", True)
+TEST_RUN = os.getenv("TEST_RUN", "false").lower() == "true"
+RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", "true").lower() == "true"
+RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", "true").lower() == "true"
+RUN_TRANSLATION = os.getenv("RUN_TRANSLATION", "true").lower() == "true"
 
 # Default set by trial and error based on behaviour of the parsing model
 PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() / 2))

@@ -258,21 +258,22 @@ class ParserOutput(BaseModel):
 
         return values
 
-    @root_validator
-    def check_content_type_and_url(cls, values) -> None:
-        """Either both or neither of content type and url should be null."""
-        if (
-            values["document_content_type"] is None
-            and values["document_source_url"] is not None
-        ) or (
-            values["document_content_type"] is not None
-            and values["document_source_url"] is None
-        ):
-            raise ValueError(
-                "Both document_content_type and document_url must be null or not null."
-            )
-
-        return values
+    # TODO: Suspending as this is not enforced by the output from the ingester.
+    # @root_validator
+    # def check_content_type_and_url(cls, values) -> None:
+    #     """Either both or neither of content type and url should be null."""
+    #     if (
+    #         values["document_content_type"] is None
+    #         and values["document_source_url"] is not None
+    #     ) or (
+    #         values["document_content_type"] is not None
+    #         and values["document_source_url"] is None
+    #     ):
+    #         raise ValueError(
+    #             "Both document_content_type and document_url must be null or not null."
+    #         )
+    #
+    #     return values
 
     @property
     def text_blocks(self) -> Sequence[TextBlock]:  # type: ignore
