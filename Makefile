@@ -15,6 +15,7 @@ test_local:
 
 build:
 	docker build -t navigator-document-parser .
+	docker tag navigator-document-parser navigator-document-parser-staging
 
 test:
 	docker build -t navigator-document-parser .

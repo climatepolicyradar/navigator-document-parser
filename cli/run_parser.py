@@ -1,29 +1,32 @@
-from pathlib import Path
 import os
 import logging
 import logging.config
-from typing import List, Optional
 import sys
+from pathlib import Path
+from typing import List, Optional
 
 import click
+import pydantic
 from cloudpathlib import S3Path
-import pydantic  # noqa: E402
 from datetime import datetime
 
 sys.path.append("..")
 
-from src.base import ParserInput, ParserOutput, StandardErrorLog  # noqa: E402
-from src.config import TARGET_LANGUAGES  # noqa: E402
-from src.config import TEST_RUN  # noqa: E402
-from src.config import RUN_PDF_PARSER  # noqa: E402
-from src.config import RUN_HTML_PARSER  # noqa: E402
-from src.config import FILES_TO_PARSE  # noqa: E402
-from cli.parse_htmls import run_html_parser  # noqa: E402
-from cli.parse_pdfs import run_pdf_parser  # noqa: E402
-from cli.parse_no_content_type import (  # noqa: E402
+from src.base import ParserInput, ParserOutput, StandardErrorLog
+from src.config import (
+    FILES_TO_PARSE,
+    RUN_HTML_PARSER,
+    RUN_PDF_PARSER,
+    RUN_TRANSLATION,
+    TARGET_LANGUAGES,
+    TEST_RUN,
+)
+from cli.parse_htmls import run_html_parser
+from cli.parse_pdfs import run_pdf_parser
+from cli.parse_no_content_type import (
     process_documents_with_no_content_type,
 )
-from cli.translate_outputs import translate_parser_outputs  # noqa: E402
+from cli.translate_outputs import translate_parser_outputs
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {
@@ -239,11 +242,12 @@ def main(
             pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
         )
 
-    logger.info(
-        "Translating results to target languages specified in environment "
-        f"variables: {','.join(TARGET_LANGUAGES)}"
-    )
-    translate_parser_outputs(output_dir_as_path)
+    if RUN_TRANSLATION:
+        logger.info(
+            "Translating results to target languages specified in environment "
+            f"variables: {','.join(TARGET_LANGUAGES)}"
+        )
+        translate_parser_outputs(output_dir_as_path)
 
 
 if __name__ == "__main__":
