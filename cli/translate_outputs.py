@@ -24,11 +24,11 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
         logger.debug(f"Translating {path}.")
 
         parser_output = ParserOutput.parse_raw(path.read_text())
-        logger.debug(f"Successfuly parsed {path} for translation.")
+        logger.debug(f"Successfully parsed {path} for translation.")
 
         # Skip already translated outputs. Note this does not prevent the CLI from translating existing parser outputs again,
         # but instead makes sure it doesn't translate a translation.
-        if parser_output.translated:
+        if parser_output.translated or parser_output.document_source_url is None:
             logger.debug(f"parser.translated true for - {path}.")
             continue
 
@@ -37,6 +37,8 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
         # If there is only one language that's been detected in the parser output, we don't need to translate to this language.
         # TODO: how do we deal with the fact that parser outputs can contain multiple languages here?
         if parser_output.languages and len(parser_output.languages) == 1:
+            minus = set(parser_output.languages)
+            logger.debug(f"Removing {minus if minus is not None else None} from {_target_languages}.")
             _target_languages = _target_languages - set(parser_output.languages)
 
         logger.debug(f"Target languages for {path}: {_target_languages}.")

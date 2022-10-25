@@ -1,9 +1,10 @@
 .PHONY: run_local run_docker install test_local build test
+include .env
 
 install:
 	poetry install
 	poetry run pre-commit install
-	poetry run playwright install 
+	poetry run playwright install
 	poetry run pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 	cp .env.example .env
 
@@ -27,12 +28,12 @@ run_docker:
 
 run_on_specific_files_flag:
 	docker build -t html-parser .
-	docker run -it html-parser python -m cli.run_parser s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ s3://cpr-dev-data-pipeline-cache/marks/parser_output/ --s3 --files "1331.0.json"
+	docker run -it -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3 --files "${FILES_TO_PARSE_FLAG}"
 
 run_on_specific_files_env:
 	docker build -t html-parser .
-	docker run -it -e files_to_parse="$1331.0.json" html-parser python -m cli.run_parser s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ s3://cpr-dev-data-pipeline-cache/marks/parser_output/ --s3
+	docker run -it -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e files_to_parse="${FILES_TO_PARSE}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3
 
 run_local_against_s3:
 	docker build -t html-parser .
-	docker run -e PARSER_INPUT_PREFIX=s3://cpr-dev-data-pipeline-cache/marks/ingest_output/ -e EMBEDDINGS_INPUT_PREFIX=s3://cpr-dev-data-pipeline-cache/marks/parser_output/ -it html-parser
+	docker run -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -e PARSER_INPUT_PREFIX="${PARSER_INPUT_PREFIX}" -e EMBEDDINGS_INPUT_PREFIX="${EMBEDDINGS_INPUT_PREFIX}" -it html-parser

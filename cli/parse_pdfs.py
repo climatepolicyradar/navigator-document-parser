@@ -415,13 +415,15 @@ def run_pdf_parser(
         cpu_count = multiprocessing.cpu_count() - 1
         logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            executor.map(file_parser, input_tasks)
+            result_it = executor.map(file_parser, input_tasks)
+            for result in result_it:
+                pass
 
     else:
         for task in input_tasks:
             logging.info("Running in series.")
             file_parser(task)
 
-    logging.info("Finished parsing pdf content from pages.")
+    logging.info("Finished parsing pdf content from all files.")
     time_end = time.time()
     logging.info(f"Time taken: {time_end - time_start} seconds.")
