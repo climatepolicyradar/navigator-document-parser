@@ -2,10 +2,12 @@ from typing import List
 import six
 import logging
 from google.cloud import translate_v2
-
+from src.config import LOGGING_LEVEL
 from src.base import ParserOutput
 
 logger = logging.getLogger(__name__)
+level=logging.getLevelName(LOGGING_LEVEL)
+logger.setLevel(level)
 
 def translate_text(text: List[str], target_language: str) -> List[str]:
     """

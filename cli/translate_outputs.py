@@ -5,12 +5,13 @@ import logging
 from cloudpathlib import CloudPath
 from tqdm.auto import tqdm
 
-from src.config import TARGET_LANGUAGES  # noqa: E402
+from src.config import TARGET_LANGUAGES, LOGGING_LEVEL  # noqa: E402
 from src.base import ParserOutput  # noqa: E402
 from src.translator.translate import translate_parser_output  # noqa: E402
 
 logger = logging.getLogger(__name__)
-
+level=logging.getLevelName(LOGGING_LEVEL)
+logger.setLevel(level)
 
 def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
     """
