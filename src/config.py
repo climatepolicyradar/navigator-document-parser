@@ -26,4 +26,4 @@ RUN_TRANSLATION = os.getenv("RUN_TRANSLATION", "true").lower() == "true"
 # Default set by trial and error based on behaviour of the parsing model
 PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() / 2))
 FILES_TO_PARSE = os.getenv("files_to_parse")
-LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
+LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO").upper()
