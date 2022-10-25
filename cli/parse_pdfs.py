@@ -416,6 +416,7 @@ def run_pdf_parser(
         logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
             result_it = executor.map(file_parser, input_tasks)
+            # TODO need to consume this iterator and do it within a try and except to catch errors and not crash out.
             for result in result_it:
                 pass
 
