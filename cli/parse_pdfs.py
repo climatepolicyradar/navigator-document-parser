@@ -17,7 +17,6 @@ import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
-from multiprocessing_logging import install_mp_handler
 from tqdm import tqdm
 
 from src import config
@@ -37,27 +36,8 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
 
-class TqdmLoggingHandler(logging.Handler):
-    """Handler for logging to tqdm"""
-
-    def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
-
-    def emit(self, record):
-        """Emit a log message"""
-        try:
-            msg = self.format(record)
-            tqdm.write(msg)
-            self.flush()
-        except Exception as e:
-            print(f"Error emitting tqdm logging handler: {e}")
-            self.handleError(record)
-
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(TqdmLoggingHandler())
-install_mp_handler(logger)
 
 
 def copy_input_to_output_pdf(
@@ -206,8 +186,7 @@ def parse_file(
     model_threshold_restrictive: float,
     ocr_agent: str,
     debug: bool,
-    output_dir: Union[Path, S3Path],
-    device: str,
+    output_dir: Union[Path, S3Path]
 ):
     """Parse an individual pdf file.
 
@@ -237,13 +216,6 @@ def parse_file(
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
-
-        # FIXME: handle EmptyFileError here using _pdf_num_pages
-        model = _get_detectron_model(model, device)
-        if ocr_agent == "tesseract":
-            ocr_agent = lp.TesseractAgent()
-        elif ocr_agent == "gcv":
-            ocr_agent = lp.GCVAgent()
 
         num_pages = len(pdf_images)
 
@@ -368,6 +340,28 @@ def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
     )
 
 
+def get_model(
+    model: str,
+    ocr_agent: str,
+    device: str,
+):
+    """Get the model for the parser."""
+    logging.info(f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model.")
+    if config.PDF_OCR_AGENT == "gcv":
+        logging.warning(
+            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
+        )
+
+    # FIXME: handle EmptyFileError here using _pdf_num_pages
+    model = _get_detectron_model(model, device)
+    if ocr_agent == "tesseract":
+        ocr_agent = lp.TesseractAgent()
+    elif ocr_agent == "gcv":
+        ocr_agent = lp.GCVAgent()
+
+    return model, ocr_agent
+
+
 def run_pdf_parser(
     input_tasks: List[ParserInput],
     output_dir: Union[Path, S3Path],
@@ -392,24 +386,21 @@ def run_pdf_parser(
     # Create logger that prints to stdout.
     logging.basicConfig(level=logging.DEBUG)
 
-    logging.info(
-        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    model, ocr_agent = get_model(
+        model=config.LAYOUTPARSER_MODEL,
+        ocr_agent=config.PDF_OCR_AGENT,
+        device=device,
     )
-    if config.PDF_OCR_AGENT == "gcv":
-        logging.warning(
-            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
-        )
 
     logging.info("Iterating through files and parsing pdf content from pages.")
 
     file_parser = partial(
         parse_file,
-        model=config.LAYOUTPARSER_MODEL,
-        ocr_agent=config.PDF_OCR_AGENT,
+        model=model,
+        ocr_agent=ocr_agent,
         output_dir=output_dir,
         debug=debug,
-        model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
-        device=device,
+        model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE
     )
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
@@ -421,9 +412,9 @@ def run_pdf_parser(
                 try:
                     data = future.result()
                 except Exception as exc:
-                    logging.exception('%r generated an exception: %s' % (task, exc))
+                    logging.exception('%r generated an exception: %s' % (task.document_id, exc))
                 else:
-                    logging.info(f'Result for {task} is {data}')
+                    logging.info(f'Successful parsing result for {task.document_id}.')
 
     else:
         for task in input_tasks:
