@@ -13,31 +13,12 @@ sys.path.append("..")
 from src.base import HTMLData, ParserInput, ParserOutput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
-
-class TqdmLoggingHandler(logging.Handler):
-    """Handler for logging to tqdm"""
-
-    def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
-
-    def emit(self, record):
-        """Emit a log message"""
-        try:
-            msg = self.format(record)
-            tqdm.write(msg)
-            self.flush()
-        except Exception as e:
-            print(f"Error emitting tqdm logging handler: {e}")
-            self.handleError(record)
-
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(TqdmLoggingHandler())
 
 
 def copy_input_to_output_html(
-    task: ParserInput, output_path: Union[Path, CloudPath]
+        task: ParserInput, output_path: Union[Path, CloudPath]
 ) -> None:
     """Necessary to copy the input file to the output to ensure that we don't drop documents.
 
@@ -58,10 +39,10 @@ def copy_input_to_output_html(
         languages=None,
         translated=False,
         html_data=HTMLData(
-            text_blocks= [],
-            detected_date= None,
-            detected_title= "",
-            has_valid_text= False,
+            text_blocks=[],
+            detected_date=None,
+            detected_title="",
+            has_valid_text=False,
         ),
         pdf_data=None,
     )
@@ -93,3 +74,5 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
         output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
 
         logger.info(f"Output for {task.document_id} saved to {output_path}")
+
+

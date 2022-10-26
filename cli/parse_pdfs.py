@@ -17,7 +17,6 @@ import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
-from multiprocessing_logging import install_mp_handler
 from tqdm import tqdm
 
 from src import config
@@ -37,27 +36,8 @@ from src.pdf_parser.pdf_utils.parsing_utils import (
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
 
-class TqdmLoggingHandler(logging.Handler):
-    """Handler for logging to tqdm"""
-
-    def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
-
-    def emit(self, record):
-        """Emit a log message"""
-        try:
-            msg = self.format(record)
-            tqdm.write(msg)
-            self.flush()
-        except Exception as e:
-            print(f"Error emitting tqdm logging handler: {e}")
-            self.handleError(record)
-
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(TqdmLoggingHandler())
-install_mp_handler(logger)
 
 
 def copy_input_to_output_pdf(
