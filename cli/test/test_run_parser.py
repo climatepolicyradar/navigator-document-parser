@@ -40,7 +40,6 @@ def test_run_parser_local(test_input_dir) -> None:
             Path(output_dir) / "test_html.json",
             Path(output_dir) / "test_pdf.json",
             Path(output_dir) / "test_no_content_type.json",
-            Path(output_dir) / "test_no_content_type_translated_en.json",
             Path(output_dir) / "test_pdf_translated_en.json",
         }
 

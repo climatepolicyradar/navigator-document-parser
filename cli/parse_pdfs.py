@@ -414,14 +414,22 @@ def run_pdf_parser(
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
         logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            executor.map(file_parser, input_tasks)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
+            future_to_task = {executor.submit(file_parser, task): task for task in input_tasks}
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    logging.exception('%r generated an exception: %s' % (task, exc))
+                else:
+                    logging.info(f'Result for {task} is {data}')
 
     else:
         for task in input_tasks:
             logging.info("Running in series.")
             file_parser(task)
 
-    logging.info("Finished parsing pdf content from pages.")
+    logging.info("Finished parsing pdf content from all files.")
     time_end = time.time()
     logging.info(f"Time taken: {time_end - time_start} seconds.")
