@@ -412,9 +412,9 @@ def run_pdf_parser(
                 try:
                     data = future.result()
                 except Exception as exc:
-                    logging.exception('%r generated an exception: %s' % (task, exc))
+                    logging.exception('%r generated an exception: %s' % (task.document_id, exc))
                 else:
-                    logging.info(f'Result for {task} is {data}')
+                    logging.info(f'Successful parsing result for {task.document_id}.')
 
     else:
         for task in input_tasks:
