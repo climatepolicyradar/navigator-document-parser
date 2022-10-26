@@ -186,8 +186,7 @@ def parse_file(
     model_threshold_restrictive: float,
     ocr_agent: str,
     debug: bool,
-    output_dir: Union[Path, S3Path],
-    device: str,
+    output_dir: Union[Path, S3Path]
 ):
     """Parse an individual pdf file.
 
@@ -217,13 +216,6 @@ def parse_file(
         else:
             page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
-
-        # FIXME: handle EmptyFileError here using _pdf_num_pages
-        model = _get_detectron_model(model, device)
-        if ocr_agent == "tesseract":
-            ocr_agent = lp.TesseractAgent()
-        elif ocr_agent == "gcv":
-            ocr_agent = lp.GCVAgent()
 
         num_pages = len(pdf_images)
 
@@ -348,6 +340,28 @@ def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
     )
 
 
+def get_model(
+    model: str,
+    ocr_agent: str,
+    device: str,
+):
+    """Get the model for the parser."""
+    logging.info(f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model.")
+    if config.PDF_OCR_AGENT == "gcv":
+        logging.warning(
+            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
+        )
+
+    # FIXME: handle EmptyFileError here using _pdf_num_pages
+    model = _get_detectron_model(model, device)
+    if ocr_agent == "tesseract":
+        ocr_agent = lp.TesseractAgent()
+    elif ocr_agent == "gcv":
+        ocr_agent = lp.GCVAgent()
+
+    return model, ocr_agent
+
+
 def run_pdf_parser(
     input_tasks: List[ParserInput],
     output_dir: Union[Path, S3Path],
@@ -372,24 +386,21 @@ def run_pdf_parser(
     # Create logger that prints to stdout.
     logging.basicConfig(level=logging.DEBUG)
 
-    logging.info(
-        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    model, ocr_agent = get_model(
+        model=config.LAYOUTPARSER_MODEL,
+        ocr_agent=config.PDF_OCR_AGENT,
+        device=device,
     )
-    if config.PDF_OCR_AGENT == "gcv":
-        logging.warning(
-            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
-        )
 
     logging.info("Iterating through files and parsing pdf content from pages.")
 
     file_parser = partial(
         parse_file,
-        model=config.LAYOUTPARSER_MODEL,
-        ocr_agent=config.PDF_OCR_AGENT,
+        model=model,
+        ocr_agent=ocr_agent,
         output_dir=output_dir,
         debug=debug,
-        model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
-        device=device,
+        model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE
     )
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
