@@ -414,11 +414,16 @@ def run_pdf_parser(
     if parallel:
         cpu_count = multiprocessing.cpu_count() - 1
         logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            result_it = executor.map(file_parser, input_tasks)
-            # TODO need to consume this iterator and do it within a try and except to catch errors and not crash out.
-            for result in result_it:
-                pass
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
+            future_to_task = {executor.submit(file_parser, task): task for task in input_tasks}
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    logging.exception('%r generated an exception: %s' % (task, exc))
+                else:
+                    logging.info(f'Result for {task} is {data}')
 
     else:
         for task in input_tasks:
