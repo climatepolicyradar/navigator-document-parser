@@ -316,7 +316,7 @@ def parse_file(
         try:
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
         except cloudpathlib.exceptions.OverwriteNewerCloudError:
-            pass
+            logger.info(f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping.")
 
         logging.info(f"Saved {output_path.name} to {output_dir}.")
 

@@ -64,6 +64,7 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
                     translated_parser_output.json(indent=4, ensure_ascii=False)
                 )
             except cloudpathlib.exceptions.OverwriteNewerCloudError:
-                pass
+                logger.info(
+                    f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping.")
 
             logger.debug(f"Saved translated output to {output_path}.")
