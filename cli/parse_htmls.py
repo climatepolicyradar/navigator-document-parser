@@ -71,7 +71,10 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
 
         parsed_html = html_parser.parse(task).detect_and_set_languages()
 
-        output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
+        try:
+            output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
+        except cloudpathlib.exceptions.OverwriteNewerCloudError:
+            pass
 
         logger.info(f"Output for {task.document_id} saved to {output_path}")
 

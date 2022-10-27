@@ -59,7 +59,11 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
             )
             logger.debug(f"Translated {path} to {target_language}.")
 
-            output_path.write_text(
-                translated_parser_output.json(indent=4, ensure_ascii=False)
-            )
+            try:
+                output_path.write_text(
+                    translated_parser_output.json(indent=4, ensure_ascii=False)
+                )
+            except cloudpathlib.exceptions.OverwriteNewerCloudError:
+                pass
+
             logger.debug(f"Saved translated output to {output_path}.")

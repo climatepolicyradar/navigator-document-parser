@@ -177,8 +177,7 @@ def main(
         else:
             try:
                 tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
-
-            except pydantic.error_wrappers.ValidationError as e:
+            except (pydantic.error_wrappers.ValidationError, KeyError) as e:
                 logger.error(
                     StandardErrorLog.parse_obj(
                         {
