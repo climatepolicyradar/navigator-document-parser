@@ -19,6 +19,9 @@ from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
 logger = logging.getLogger(__name__)
 
+HTML_CONTENT_TYPE = "text/html"
+PDF_CONTENT_TYPE = "application/pdf"
+
 
 class BlockType(str, Enum):
     """
@@ -34,13 +37,6 @@ class BlockType(str, Enum):
     FIGURE = "Figure"
     INFERRED = "Inferred from gaps"
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
-
-
-class ContentType(str, Enum):
-    """List of document content types that can be handled by the parser."""
-
-    HTML = "text/html"
-    PDF = "application/pdf"
 
 
 class TextBlock(BaseModel):
@@ -159,18 +155,20 @@ class ParserInput(BaseModel):
     document_description: str
     document_source_url: Optional[AnyHttpUrl]
     document_cdn_object: Optional[str]
-    document_content_type: Optional[ContentType]
+    document_content_type: Optional[str]
     document_md5_sum: Optional[str]
     document_slug: str
 
     @root_validator
     def check_content_type_and_source(cls, values) -> None:
         """Either both or neither of content type and source should be null."""
+
+
         if (
-            values["document_content_type"] == ContentType.PDF
+            values["document_content_type"] == PDF_CONTENT_TYPE
             and values["document_cdn_object"] is None
         ) or (
-            values["document_content_type"] == ContentType.HTML
+            values["document_content_type"] == HTML_CONTENT_TYPE
             and values["document_source_url"] is None
         ):
             raise ValueError(
@@ -225,7 +223,7 @@ class ParserOutput(BaseModel):
     document_description: str
     document_source_url: Optional[AnyHttpUrl]
     document_cdn_object: Optional[str]
-    document_content_type: Optional[ContentType]
+    document_content_type: Optional[str]
     document_md5_sum: Optional[str]
     document_slug: str
 
@@ -238,13 +236,13 @@ class ParserOutput(BaseModel):
     def check_html_pdf_metadata(cls, values):
         """Check that html_data is set if content_type is HTML, or pdf_data is set if content_type is PDF."""
         if (
-            values["document_content_type"] == ContentType.HTML
+            values["document_content_type"] == HTML_CONTENT_TYPE
             and values["html_data"] is None
         ):
             raise ValueError("html_metadata must be set for HTML documents")
 
         if (
-            values["document_content_type"] == ContentType.PDF
+            values["document_content_type"] == PDF_CONTENT_TYPE
             and values["pdf_data"] is None
         ):
             raise ValueError("pdf_metadata must be null for HTML documents")
@@ -258,23 +256,6 @@ class ParserOutput(BaseModel):
 
         return values
 
-    # TODO: Suspending as this is not enforced by the output from the ingester.
-    # @root_validator
-    # def check_content_type_and_url(cls, values) -> None:
-    #     """Either both or neither of content type and url should be null."""
-    #     if (
-    #         values["document_content_type"] is None
-    #         and values["document_source_url"] is not None
-    #     ) or (
-    #         values["document_content_type"] is not None
-    #         and values["document_source_url"] is None
-    #     ):
-    #         raise ValueError(
-    #             "Both document_content_type and document_url must be null or not null."
-    #         )
-    #
-    #     return values
-
     @property
     def text_blocks(self) -> Sequence[TextBlock]:  # type: ignore
         """
@@ -283,9 +264,9 @@ class ParserOutput(BaseModel):
         :return: Sequence[TextBlock]
         """
 
-        if self.document_content_type == ContentType.HTML:
+        if self.document_content_type == HTML_CONTENT_TYPE:
             return self.html_data.text_blocks  # type: ignore
-        elif self.document_content_type == ContentType.PDF:
+        elif self.document_content_type == PDF_CONTENT_TYPE:
             return self.pdf_data.text_blocks  # type: ignore
 
     def to_string(self) -> str:  # type: ignore
@@ -302,7 +283,7 @@ class ParserOutput(BaseModel):
         Assumes that a document only has one language.
         """
 
-        if self.document_content_type != ContentType.HTML:
+        if self.document_content_type != HTML_CONTENT_TYPE:
             logger.warning(
                 "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
             )
