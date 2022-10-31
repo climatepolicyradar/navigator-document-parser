@@ -13,8 +13,8 @@ from datetime import datetime
 sys.path.append("..")
 
 from src.base import (
-    HTML_CONTENT_TYPE,
-    PDF_CONTENT_TYPE,
+    CONTENT_TYPE_HTML,
+    CONTENT_TYPE_PDF,
     ParserInput,
     ParserOutput,
     StandardErrorLog,
@@ -219,9 +219,9 @@ def main(
     html_tasks = []
     pdf_tasks = []
     for task in tasks:
-        if task.document_content_type == HTML_CONTENT_TYPE:
+        if task.document_content_type == CONTENT_TYPE_HTML:
             html_tasks.append(task)
-        elif task.document_content_type == PDF_CONTENT_TYPE:
+        elif task.document_content_type == CONTENT_TYPE_PDF:
             pdf_tasks.append(task)
         else:
             no_processing_tasks.append(task)
