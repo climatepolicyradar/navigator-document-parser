@@ -1,17 +1,44 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, Set
 import logging
 
 from cloudpathlib import CloudPath
 from tqdm.auto import tqdm
 
-from src.config import TARGET_LANGUAGES, LOGGING_LEVEL  # noqa: E402
-from src.base import ParserOutput  # noqa: E402
-from src.translator.translate import translate_parser_output  # noqa: E402
+from src.config import TARGET_LANGUAGES, LOGGING_LEVEL
+from src.base import ParserOutput
+from src.translator.translate import translate_parser_output
 
 logger = logging.getLogger(__name__)
-level=logging.getLevelName(LOGGING_LEVEL)
+level = logging.getLevelName(LOGGING_LEVEL)
 logger.setLevel(level)
+
+
+def should_be_translated(document: ParserOutput) -> bool:
+    """Determine if a document should be translated.
+
+    If the document has not already been translated and has not null source url, then it should be translated."""
+    if document.translated or document.document_source_url is None:
+        return False
+    return True
+
+
+def identify_translation_languages(document: ParserOutput, target_languages: Set) -> Set:
+    """Determine the languages to translate a document to.
+
+    We subtract the current document languages from the target languages to determine the languages to translate to.
+    E.g. doc.languages=['fr'] and target_languages=['en'] -> ['en'] - ['fr'] -> ['en'] (translate to English)
+    E.g. doc.languages=['en'] and target_languages=['en'] -> ['en'] - ['en'] -> [] (no languages to translate to)
+
+    If there are no detected document languages then we translate to all target languages.
+    """
+    # TODO: how do we deal with the fact that parser outputs can contain multiple languages here?
+    if document.languages and len(document.languages) == 1:
+        minus = set(document.languages)
+        logger.debug(f"Removing {minus if minus is not None else None} from {target_languages}.")
+        target_languages = target_languages - set(document.languages)
+    return target_languages
+
 
 def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
     """
@@ -19,52 +46,46 @@ def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
 
     :param parser_output_dir: directory containing parser outputs
     """
+    _target_languages = set(TARGET_LANGUAGES)
 
     for path in tqdm(parser_output_dir.glob("*.json")):
-        logger.debug(f"Translating {path}.")
+        logger.debug(f"Translator processing - {path}.")
 
         parser_output = ParserOutput.parse_raw(path.read_text())
-        logger.debug(f"Successfully parsed {path} for translation.")
+        logger.debug(f"Successfully parsed {path} from output dir during translation processing.")
 
-        # Skip already translated outputs. Note this does not prevent the CLI from translating existing parser outputs again,
-        # but instead makes sure it doesn't translate a translation.
-        if parser_output.translated or parser_output.document_source_url is None:
-            logger.debug(f"parser.translated true for - {path}.")
-            continue
+        if should_be_translated(parser_output):
+            logger.debug(f"Document should be translated: {path}")
 
-        _target_languages = set(TARGET_LANGUAGES)
+            target_languages = identify_translation_languages(parser_output, _target_languages)
+            logger.debug(f"Target languages: {target_languages} for {path}")
 
-        # If there is only one language that's been detected in the parser output, we don't need to translate to this language.
-        # TODO: how do we deal with the fact that parser outputs can contain multiple languages here?
-        if parser_output.languages and len(parser_output.languages) == 1:
-            minus = set(parser_output.languages)
-            logger.debug(f"Removing {minus if minus is not None else None} from {_target_languages}.")
-            _target_languages = _target_languages - set(parser_output.languages)
+            for target_language in target_languages:
+                logger.debug(f"Translating {path} to {target_language}.")
 
-        logger.debug(f"Target languages for {path}: {_target_languages}.")
+                output_path = path.with_name(f"{path.stem}_translated_{target_language}.json")
+                if output_path.exists():
+                    logger.info(f"Skipping translating {output_path} because it already exists.")
+                    continue
 
-        for target_language in _target_languages:
-            logger.debug(f"Translating {path} to {target_language}.")
-            output_path = path.with_name(
-                f"{path.stem}_translated_{target_language}.json"
-            )
-            if output_path.exists():
-                logger.info(
-                    f"Skipping translating {output_path} because it already exists."
+                translated_parser_output = translate_parser_output(
+                    parser_output, target_language
                 )
-                continue
+                logger.debug(f"Translated {path} to {target_language}.")
 
-            translated_parser_output = translate_parser_output(
-                parser_output, target_language
-            )
-            logger.debug(f"Translated {path} to {target_language}.")
+                try:
+                    output_path.write_text(
+                        translated_parser_output.json(indent=4, ensure_ascii=False)
+                    )
+                    logger.info(f"Saved translated output to {output_path}.")
 
-            try:
-                output_path.write_text(
-                    translated_parser_output.json(indent=4, ensure_ascii=False)
-                )
-            except cloudpathlib.exceptions.OverwriteNewerCloudError:
-                logger.info(
-                    f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping.")
+                except cloudpathlib.exceptions.OverwriteNewerCloudError:
+                    logger.info(
+                        f"Tried to write to {output_path}, received OverwriteNewerCloudError, assuming a newer task "
+                        f"definition is the one we want, continuing to process.")
 
-            logger.debug(f"Saved translated output to {output_path}.")
+    logger.info('Finished translation stage for ALL input tasks.')
+
+
+
+
