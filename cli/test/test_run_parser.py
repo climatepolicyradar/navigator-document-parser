@@ -188,7 +188,7 @@ def get_parser_output(translated: bool, source_url: Union[str, None], languages:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_should_be_translated() -> None:
-    """Tests that the output from the function is correct for known input documents."""
+    """Tests whether we can successfully determine whether to translate a known input documents."""
     doc_1 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['fr'])
     assert should_be_translated(doc_1) is True
 
@@ -204,7 +204,7 @@ def test_should_be_translated() -> None:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_identify_target_languages() -> None:
-    """Tests that the output from the function is correct for known input documents."""
+    """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
     doc_1 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['fr'])
     assert identify_translation_languages(doc_1, _target_languages) == {'en'}
 
