@@ -218,7 +218,9 @@ def main(
     no_processing_tasks = []
     html_tasks = []
     pdf_tasks = []
+    output_tasks_paths = []
     for task in tasks:
+        output_tasks_paths.append(output_dir_as_path / f"{task.document_id}.json")
         if task.document_content_type == CONTENT_TYPE_HTML:
             html_tasks.append(task)
         elif task.document_content_type == CONTENT_TYPE_PDF:
@@ -252,7 +254,7 @@ def main(
             "Translating results to target languages specified in environment "
             f"variables: {','.join(TARGET_LANGUAGES)}"
         )
-        translate_parser_outputs(output_dir_as_path)
+        translate_parser_outputs(output_tasks_paths)
 
 
 if __name__ == "__main__":

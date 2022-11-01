@@ -1,12 +1,14 @@
-from pathlib import Path
-from typing import Union, Set
+from typing import Set, Sequence
 import logging
 
-from cloudpathlib import CloudPath
+import logging
+from typing import Set, Sequence
+
+from cloudpathlib import S3Path
 from tqdm.auto import tqdm
 
-from src.config import TARGET_LANGUAGES, LOGGING_LEVEL
 from src.base import ParserOutput
+from src.config import TARGET_LANGUAGES, LOGGING_LEVEL
 from src.translator.translate import translate_parser_output
 
 logger = logging.getLogger(__name__)
@@ -40,15 +42,15 @@ def identify_translation_languages(document: ParserOutput, target_languages: Set
     return target_languages
 
 
-def translate_parser_outputs(parser_output_dir: Union[Path, CloudPath]) -> None:
+def translate_parser_outputs(task_output_paths: Sequence[str]) -> None:
     """
     Translate parser outputs saved in the output directory, and save the translated outputs to the output directory.
 
-    :param parser_output_dir: directory containing parser outputs
+    :param task_output_paths: A list of the paths to the parser outputs for this current instance to translate.
     """
     _target_languages = set(TARGET_LANGUAGES)
 
-    for path in tqdm(parser_output_dir.glob("*.json")):
+    for path in tqdm(task_output_paths):
         logger.debug(f"Translator processing - {path}.")
 
         parser_output = ParserOutput.parse_raw(path.read_text())
