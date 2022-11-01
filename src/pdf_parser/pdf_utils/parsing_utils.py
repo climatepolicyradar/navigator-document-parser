@@ -580,7 +580,8 @@ class PostProcessor:
         """
         column_groups = self._infer_column_groups(blocks, threshold)
         df_text_blocks = blocks.to_dataframe()
-        df_text_blocks["group"] = column_groups
+        max_cols = min(df_text_blocks.columns, len(column_groups))
+        df_text_blocks["group"] = pd.Series(column_groups[:max_cols])
         df_text_blocks["x_1_min"] = df_text_blocks.groupby("group")["x_1"].transform(
             min
         )
