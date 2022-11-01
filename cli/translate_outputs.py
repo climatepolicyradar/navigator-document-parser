@@ -53,8 +53,12 @@ def translate_parser_outputs(task_output_paths: Sequence[str]) -> None:
     for path in tqdm(task_output_paths):
         logger.debug(f"Translator processing - {path}.")
 
-        parser_output = ParserOutput.parse_raw(path.read_text())
-        logger.debug(f"Successfully parsed {path} from output dir during translation processing.")
+        try:
+            parser_output = ParserOutput.parse_raw(path.read_text())
+            logger.debug(f"Successfully parsed {path} from output dir during translation processing.")
+        except FileNotFoundError:
+            logger.error(f"Could not find {path} in output dir during translation processing.")
+            continue
 
         if should_be_translated(parser_output):
             logger.debug(f"Document should be translated: {path}")
