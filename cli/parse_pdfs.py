@@ -406,7 +406,7 @@ def run_pdf_parser(
         model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE
     )
     if parallel:
-        cpu_count = multiprocessing.cpu_count() - 1
+        cpu_count = min(3, multiprocessing.cpu_count() - 1)
         logging.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
             future_to_task = {executor.submit(file_parser, task): task for task in input_tasks}
