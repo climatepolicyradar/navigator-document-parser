@@ -438,7 +438,13 @@ def run_pdf_parser(
     else:
         for task in input_tasks:
             _LOGGER.info("Running in series.")
-            file_parser(task)
+            try:
+                file_parser(task)
+            except Exception:
+                _LOGGER.error(
+                    "Failed to successfully parse PDF due to a raised exception",
+                    extra={"props": {"document_id": task.document_id}},
+                )
 
     _LOGGER.info("Finished parsing pdf content from all files.")
     time_end = time.time()
