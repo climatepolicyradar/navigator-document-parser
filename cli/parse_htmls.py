@@ -13,8 +13,8 @@ sys.path.append("..")
 from src.base import HTMLData, ParserInput, ParserOutput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+_LOGGER = logging.getLogger(__name__)
+_LOGGER.setLevel(logging.INFO)
 
 
 def copy_input_to_output_html(
@@ -49,7 +49,7 @@ def copy_input_to_output_html(
 
     output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
 
-    logger.info(f"Blank output for {task.document_id} saved to {output_path}.")
+    _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
 
 
 def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath], redo: bool = False):
@@ -60,33 +60,39 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
     :param output_dir: directory of output JSON files (results)
     """
 
-    logger.info("Running HTML parser")
+    _LOGGER.info("Running HTML parser")
     html_parser = CombinedParser()
 
     for task in tqdm(input_tasks):
         # TODO: validate the language detection probability threshold
-        output_path = output_dir / f"{task.document_id}.json"
-
-        if not output_path.exists():  # type: ignore
-            copy_input_to_output_html(task, output_path)  # type: ignore
-
-        existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
-        # If no parsed html dta exists, assume we've not run before
-        existing_html_data_exists = (
-            existing_parser_output.html_data is not None and
-            existing_parser_output.html_data.text_blocks
-        )
-        should_run_parser = not existing_html_data_exists or redo
-        if not should_run_parser:
-            logger.info(f"Skipping already parsed html with output - {output_path}.")
-            continue
-
-        parsed_html = html_parser.parse(task).detect_and_set_languages()
-
         try:
-            output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))  # type: ignore
-        except cloudpathlib.exceptions.OverwriteNewerCloudError:
-            logger.info(f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
-                        f"therefore skipping.")
+            output_path = output_dir / f"{task.document_id}.json"
 
-        logger.info(f"Output for {task.document_id} saved to {output_path}")
+            if not output_path.exists():  # type: ignore
+                copy_input_to_output_html(task, output_path)  # type: ignore
+
+            existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
+            # If no parsed html dta exists, assume we've not run before
+            existing_html_data_exists = (
+                existing_parser_output.html_data is not None and
+                existing_parser_output.html_data.text_blocks
+            )
+            should_run_parser = not existing_html_data_exists or redo
+            if not should_run_parser:
+                _LOGGER.info(f"Skipping already parsed html with output - {output_path}.")
+                continue
+
+            parsed_html = html_parser.parse(task).detect_and_set_languages()
+
+            try:
+                output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))  # type: ignore
+            except cloudpathlib.exceptions.OverwriteNewerCloudError:
+                _LOGGER.info(f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
+                            f"therefore skipping.")
+
+            _LOGGER.info(f"Output for {task.document_id} saved to {output_path}")
+        except Exception:
+            _LOGGER.error(
+                "Failed to successfully parse HTML due to a raised exception",
+                extra={"props": {"document_id": task.document_id}},
+            )
