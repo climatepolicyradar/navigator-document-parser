@@ -441,7 +441,7 @@ def run_pdf_parser(
             try:
                 file_parser(task)
             except Exception:
-                _LOGGER.error(
+                _LOGGER.exception(
                     "Failed to successfully parse PDF due to a raised exception",
                     extra={"props": {"document_id": task.document_id}},
                 )

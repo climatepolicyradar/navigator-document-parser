@@ -92,7 +92,7 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
 
             _LOGGER.info(f"Output for {task.document_id} saved to {output_path}")
         except Exception:
-            _LOGGER.error(
+            _LOGGER.exception(
                 "Failed to successfully parse HTML due to a raised exception",
                 extra={"props": {"document_id": task.document_id}},
             )

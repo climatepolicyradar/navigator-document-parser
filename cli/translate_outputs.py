@@ -106,7 +106,7 @@ def _translate_to_target_languages(
                     "process."
                 )
         except Exception:
-            _LOGGER.error(
+            _LOGGER.exception(
                 "Failed to successfully translate due to a raised exception",
                 extra={"props": {"input_path": f"{path}", "target_language": target_language}},
             )
