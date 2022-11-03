@@ -159,25 +159,6 @@ class ParserInput(BaseModel):
     document_md5_sum: Optional[str]
     document_slug: str
 
-    @root_validator
-    def check_content_type_and_source(cls, values) -> None:
-        """Either both or neither of content type and source should be null."""
-
-
-        if (
-            values["document_content_type"] == CONTENT_TYPE_PDF
-            and values["document_cdn_object"] is None
-        ) or (
-            values["document_content_type"] == CONTENT_TYPE_HTML
-            and values["document_source_url"] is None
-        ):
-            raise ValueError(
-                "Both document_content_type and source to be processed must be "
-                "null or not null."
-            )
-
-        return values
-
 
 class HTMLData(BaseModel):
     """Set of metadata specific to HTML documents."""
