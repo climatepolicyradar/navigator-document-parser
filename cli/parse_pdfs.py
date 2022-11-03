@@ -41,7 +41,7 @@ CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
+_LOGGER.setLevel(logging.DEBUG)
 
 
 def copy_input_to_output_pdf(
@@ -403,9 +403,6 @@ def run_pdf_parser(
     time_start = time.time()
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
-
-    # Create logger that prints to stdout.
-    _LOGGER.basicConfig(level=_LOGGER.DEBUG)
 
     model, ocr_agent = get_model(
         model=config.LAYOUTPARSER_MODEL,

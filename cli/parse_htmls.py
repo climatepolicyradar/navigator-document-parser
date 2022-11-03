@@ -78,6 +78,7 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
         )
         should_run_parser = not existing_html_data_exists or redo
         if not should_run_parser:
+            logger.info(f"Skipping already parsed html with output - {output_path}.")
             continue
 
         parsed_html = html_parser.parse(task).detect_and_set_languages()

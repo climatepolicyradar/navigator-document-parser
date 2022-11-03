@@ -9,7 +9,7 @@ RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtes
 
 # Install pip and poetry
 RUN pip install --upgrade pip
-RUN pip install "poetry==1.1.12"
+RUN pip install "poetry==1.2.2"
 
 # Create layer for dependencies
 COPY ./poetry.lock ./pyproject.toml ./

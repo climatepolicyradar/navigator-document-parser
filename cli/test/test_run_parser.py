@@ -110,13 +110,25 @@ def test_run_parser_skip_already_done(caplog) -> None:
                         "languages": ["en"],
                         "document_slug": "slug",
                         "pdf_data": {
-                            "text_blocks": [],
+                            "text_blocks": [
+                                {
+                                    "text": ["hello"],
+                                    "text_block_id": "world",
+                                    "type": "Text",
+                                    "type_confidence": 0.78,
+                                    "coords": [],
+                                    "page_number": 1,
+                                }
+                            ],
                             "page_metadata": [],
                             "md5sum": "abcdefg",
                         },
+                        "html_data": None,
                     }
                 ).json()
             )
+
+
 
         with open(Path(output_dir) / "test_html.json", "w") as f:
             f.write(
@@ -134,10 +146,19 @@ def test_run_parser_skip_already_done(caplog) -> None:
                         "document_slug": "slug",
                         "html_data": {
                             "text_blocks": [],
+                            "text_blocks": [
+                                {
+                                    "text": ["hello"],
+                                    "text_block_id": "world",
+                                    "type": "Text",
+                                    "type_confidence": 0.78,
+                                }
+                            ],
                             "detected_title": "",
                             "detected_date": None,
                             "has_valid_text": False,
                         },
+                        "pdf_data": None,
                     }
                 ).json()
             )
@@ -154,9 +175,8 @@ def test_run_parser_skip_already_done(caplog) -> None:
 
         assert result.exit_code == 0
 
-        assert (
-                "Skipping 2 documents that have already been parsed." in caplog.messages
-        )
+        assert "Skipping already parsed html with output" in caplog.text
+        assert "Skipping already parsed pdf with output" in caplog.text
 
 
 _target_languages = set(TARGET_LANGUAGES)

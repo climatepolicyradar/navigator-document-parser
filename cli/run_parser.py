@@ -3,11 +3,11 @@ import logging
 import logging.config
 import sys
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import List, Optional, Union
 
 import click
 import pydantic
-from cloudpathlib import S3Path
+from cloudpathlib import S3Path, CloudPath
 from datetime import datetime
 
 sys.path.append("..")
@@ -58,26 +58,29 @@ logging.config.dictConfig(DEFAULT_LOGGING)
 
 
 
-def _get_files_to_parse(files: Optional[list[str]], input_dir_as_path: Path) -> list[Path]:
+def _get_files_to_parse(
+    files: Optional[tuple[str]],
+    input_dir_as_path: Union[CloudPath, Path],
+) -> list[Path]:
     # If no file list is provided, run over all inputs in the input prefix
     env_files = []
     if FILES_TO_PARSE is not None:
         logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
         env_files = FILES_TO_PARSE.split("$")[1:]
 
-    files = files or []
-    files.extend(env_files)
+    files_to_parse: list[str] = list(files or [])
+    files_to_parse.extend(env_files)
 
-    if files:
-        logger.info(f"Only parsing files: {files}")
+    if files_to_parse:
+        logger.info(f"Only parsing files: {files_to_parse}")
     else:
         logger.info("Parsing all files")
 
     return list(
-        (input_dir_as_path / f for f in files)
-        if files
+        (input_dir_as_path / f for f in files_to_parse)
+        if files_to_parse
         else input_dir_as_path.glob("*.json")
-    )
+    )  # type: ignore
 
 
 
@@ -124,7 +127,7 @@ def main(
     output_dir: str,
     parallel: bool,
     device: str,
-    files: Optional[List[str]],
+    files: Optional[tuple[str]],
     redo: bool,
     s3: bool,
     debug: bool,
@@ -154,7 +157,7 @@ def main(
         debug_dir = output_dir_as_path / "debug"
         debug_dir.mkdir(exist_ok=True)  # type: ignore
 
-    files_to_parse = _get_files_to_parse(files, cast(Path, input_dir_as_path))
+    files_to_parse = _get_files_to_parse(files, input_dir_as_path)
 
     logger.info(
         f"Run configuration TEST_RUN:{TEST_RUN}, "
