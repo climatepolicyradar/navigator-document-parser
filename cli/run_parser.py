@@ -3,11 +3,11 @@ import logging
 import logging.config
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import click
 import pydantic
-from cloudpathlib import S3Path
+from cloudpathlib import S3Path, CloudPath
 from datetime import datetime
 
 sys.path.append("..")
@@ -57,6 +57,33 @@ logger = logging.getLogger(__name__)
 logging.config.dictConfig(DEFAULT_LOGGING)
 
 
+
+def _get_files_to_parse(
+    files: Optional[tuple[str]],
+    input_dir_as_path: Union[CloudPath, Path],
+) -> list[Path]:
+    # If no file list is provided, run over all inputs in the input prefix
+    env_files = []
+    if FILES_TO_PARSE is not None:
+        logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
+        env_files = FILES_TO_PARSE.split("$")[1:]
+
+    files_to_parse: list[str] = list(files or [])
+    files_to_parse.extend(env_files)
+
+    if files_to_parse:
+        logger.info(f"Only parsing files: {files_to_parse}")
+    else:
+        logger.info("Parsing all files")
+
+    return list(
+        (input_dir_as_path / f for f in files_to_parse)
+        if files_to_parse
+        else input_dir_as_path.glob("*.json")
+    )  # type: ignore
+
+
+
 @click.command()
 @click.argument("input_dir", type=str)
 @click.argument("output_dir", type=str)
@@ -100,7 +127,7 @@ def main(
     output_dir: str,
     parallel: bool,
     device: str,
-    files: Optional[List[str]],
+    files: Optional[tuple[str]],
     redo: bool,
     s3: bool,
     debug: bool,
@@ -130,44 +157,7 @@ def main(
         debug_dir = output_dir_as_path / "debug"
         debug_dir.mkdir(exist_ok=True)  # type: ignore
 
-    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
-    # objects to pathlib.Path objects.
-    document_ids_previously_parsed = []
-    for path in output_dir_as_path.glob("*.json"):
-        try:
-            document_ids_previously_parsed.append(
-                ParserOutput.parse_raw(path.read_text()).document_id
-            )
-        except pydantic.ValidationError as e:
-            logger.error(
-                StandardErrorLog.parse_obj(
-                    {
-                        "timestamp": datetime.now(),
-                        "pipeline_stage": "Parser: Parse output files in the output directory to find already parsed.",
-                        "status_code": "None",
-                        "error_type": "ParserOutputValidationError",
-                        "message": f"{e}",
-                        "document_in_process": path,
-                    }
-                )
-            )
-    document_ids_previously_parsed = set(document_ids_previously_parsed)
-
-    # If no file list is provided, run over all inputs in the input prefix
-    if files:
-        logger.info(f"Only parsing files: {files}")
-    else:
-        logger.info("Parsing all files")
-
-    if FILES_TO_PARSE is not None:
-        logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
-        files = FILES_TO_PARSE.split("$")[1:]
-
-    files_to_parse = (
-        (input_dir_as_path / f for f in files)
-        if files
-        else input_dir_as_path.glob("*.json")
-    )
+    files_to_parse = _get_files_to_parse(files, input_dir_as_path)
 
     logger.info(
         f"Run configuration TEST_RUN:{TEST_RUN}, "
@@ -198,22 +188,6 @@ def main(
                 )
         counter += 1
 
-    if not redo and document_ids_previously_parsed.intersection(
-        {task.document_id for task in tasks}
-    ):
-        previously_parsed_tasks = document_ids_previously_parsed & {
-            task.document_id for task in tasks
-        }
-        logger.warning(
-            f"Skipping {len(previously_parsed_tasks)} documents that have already "
-            "been parsed."
-        )
-        tasks = [
-            task
-            for task in tasks
-            if task.document_id not in document_ids_previously_parsed
-        ]
-
     # TODO: Update splitting to be based on ContentType enum
     no_processing_tasks = []
     html_tasks = []
@@ -241,12 +215,12 @@ def main(
 
     if RUN_HTML_PARSER:
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
-        run_html_parser(html_tasks, output_dir_as_path)
+        run_html_parser(html_tasks, output_dir_as_path, redo=redo,)
 
     if RUN_PDF_PARSER:
         logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
         run_pdf_parser(
-            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
+            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug, redo=redo,
         )
 
     if RUN_TRANSLATION:
@@ -254,7 +228,7 @@ def main(
             "Translating results to target languages specified in environment "
             f"variables: {','.join(TARGET_LANGUAGES)}"
         )
-        translate_parser_outputs(output_tasks_paths)
+        translate_parser_outputs(output_tasks_paths, redo=redo)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
-from typing import Set, Sequence
 import logging
-
-import logging
+from pathlib import Path
 from typing import Set, Sequence
 
-from cloudpathlib import S3Path
+import logging
+from typing import Set, Sequence, Union
+
+import cloudpathlib.exceptions
+from cloudpathlib import S3Path, CloudPath
 from tqdm.auto import tqdm
 
 from src.base import ParserOutput
@@ -42,7 +44,7 @@ def identify_translation_languages(document: ParserOutput, target_languages: Set
     return target_languages
 
 
-def translate_parser_outputs(task_output_paths: Sequence[str]) -> None:
+def translate_parser_outputs(task_output_paths: Sequence[Union[Path, CloudPath]], redo: bool = False) -> None:
     """
     Translate parser outputs saved in the output directory, and save the translated outputs to the output directory.
 
@@ -61,37 +63,44 @@ def translate_parser_outputs(task_output_paths: Sequence[str]) -> None:
             continue
 
         if should_be_translated(parser_output):
-            logger.debug(f"Document should be translated: {path}")
+            logger.info(f"Document should be translated: {path}")
 
             target_languages = identify_translation_languages(parser_output, _target_languages)
             logger.debug(f"Target languages: {target_languages} for {path}")
 
-            for target_language in target_languages:
-                logger.debug(f"Translating {path} to {target_language}.")
-
-                output_path = path.with_name(f"{path.stem}_translated_{target_language}.json")
-                if output_path.exists():
-                    logger.info(f"Skipping translating {output_path} because it already exists.")
-                    continue
-
-                translated_parser_output = translate_parser_output(
-                    parser_output, target_language
-                )
-                logger.debug(f"Translated {path} to {target_language}.")
-
-                try:
-                    output_path.write_text(
-                        translated_parser_output.json(indent=4, ensure_ascii=False)
-                    )
-                    logger.info(f"Saved translated output to {output_path}.")
-
-                except cloudpathlib.exceptions.OverwriteNewerCloudError:
-                    logger.info(
-                        f"Tried to write to {output_path}, received OverwriteNewerCloudError, assuming a newer task "
-                        f"definition is the one we want, continuing to process.")
+            _translate_to_target_languages(path, parser_output, target_languages, redo=redo)
 
     logger.info('Finished translation stage for ALL input tasks.')
 
 
+def _translate_to_target_languages(
+    path: Union[Path, CloudPath],
+    parser_output: ParserOutput,
+    target_languages: set[str],
+    redo: bool = False
+) -> None:
+    for target_language in target_languages:
+        logger.info(f"Translating {path} to {target_language}.")
 
+        output_path = path.with_name(f"{path.stem}_translated_{target_language}.json")
+        if output_path.exists() and not redo:  # type: ignore
+            logger.info(f"Skipping translating {output_path} because it already exists.")
+            continue
 
+        translated_parser_output = translate_parser_output(
+            parser_output, target_language
+        )
+        logger.info(f"Translated {path} to {target_language}.")
+
+        try:
+            output_path.write_text(  # type: ignore
+                        translated_parser_output.json(indent=4, ensure_ascii=False)
+                    )
+            logger.info(f"Saved translated output to {output_path}.")
+
+        except cloudpathlib.exceptions.OverwriteNewerCloudError:
+            logger.info(
+                f"Tried to write to {output_path}, received OverwriteNewerCloudError, "
+                "assuming a newer task definition is the one we want, continuing to "
+                "process."
+            )
