@@ -151,7 +151,7 @@ def download_pdf(
         return None
 
     else:
-        _LOGGER.info(f"Saving {parser_input.document_source_url} to {output_dir}")
+        _LOGGER.info(f"Saving {document_url} to {output_dir}")
         output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
         with open(output_path, "wb") as f:
@@ -213,7 +213,7 @@ def parse_file(
         copy_input_to_output_pdf(input_task, output_path)  # type: ignore
 
     existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
-    # If no parsed html dta exists, assume we've not run before
+    # If no parsed pdf data exists, assume we've not run before
     existing_pdf_data_exists = (
         existing_parser_output.pdf_data is not None
         and existing_parser_output.pdf_data.text_blocks
@@ -234,7 +234,7 @@ def parse_file(
             )
             return None
         else:
-            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
+            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)  # type: ignore
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
         num_pages = len(pdf_images)
