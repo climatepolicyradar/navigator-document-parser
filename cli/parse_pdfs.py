@@ -23,15 +23,15 @@ from tqdm import tqdm
 
 sys.path.append("..")
 
-from src import config
-from src.base import (
+from src import config  # noqa: E402
+from src.base import (  # noqa: E402
     ParserInput,
     ParserOutput,
     PDFData,
     PDFPageMetadata,
     StandardErrorLog,
 )
-from src.pdf_parser.pdf_utils.parsing_utils import (
+from src.pdf_parser.pdf_utils.parsing_utils import (  # noqa: E402
     LayoutDisambiguator,
     OCRProcessor,
     PostProcessor,
@@ -203,6 +203,7 @@ def parse_file(
         ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
+        redo (bool): Whether to redo the parsing even if the output file already exists.
     """
 
     _LOGGER.info(f"Processing {input_task.document_id}")
@@ -214,8 +215,8 @@ def parse_file(
     existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
     # If no parsed html dta exists, assume we've not run before
     existing_pdf_data_exists = (
-        existing_parser_output.pdf_data is not None and
-        existing_parser_output.pdf_data.text_blocks
+        existing_parser_output.pdf_data is not None
+        and existing_parser_output.pdf_data.text_blocks
     )
     should_run_parser = not existing_pdf_data_exists or redo
     if not should_run_parser:
@@ -246,6 +247,7 @@ def parse_file(
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
         ):
+            _LOGGER.info(f"Processing page {page_idx}")
             page_dimensions = (
                 page_layouts[page_idx].page_data["width"],
                 page_layouts[page_idx].page_data["height"],
@@ -262,6 +264,7 @@ def parse_file(
                 if not select_page:
                     continue
             # Maybe we should always pass a layout object into the PageParser class.
+            _LOGGER.info(f"Running layout_disambiguator for page {page_idx}")
             layout_disambiguator = LayoutDisambiguator(
                 image, model, model_threshold_restrictive
             )
@@ -271,6 +274,8 @@ def parse_file(
                 all_pages_metadata.append(page_metadata)
                 continue
             disambiguated_layout = layout_disambiguator.disambiguate_layout()
+
+            _LOGGER.info(f"Running postprocessor for page {page_idx}")
             postprocessor = PostProcessor(disambiguated_layout)
             postprocessor.postprocess()
             ocr_blocks = postprocessor.ocr_blocks
@@ -278,6 +283,8 @@ def parse_file(
                 _LOGGER.info(f"No text found for page {page_idx}.")
                 all_pages_metadata.append(page_metadata)
                 continue
+
+            _LOGGER.info(f"Running ocr_processor for page {page_idx}")
             ocr_processor = OCRProcessor(
                 image=np.array(image),
                 page_number=page_idx,
@@ -333,7 +340,9 @@ def parse_file(
         try:
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
         except cloudpathlib.exceptions.OverwriteNewerCloudError:
-            _LOGGER.info(f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping.")
+            _LOGGER.info(
+                f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping."
+            )
 
         _LOGGER.info(f"Saved {output_path.name} to {output_dir}.")
 
@@ -366,7 +375,9 @@ def get_model(
     device: str,
 ):
     """Get the model for the parser."""
-    _LOGGER.info(f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model.")
+    _LOGGER.info(
+        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    )
     if config.PDF_OCR_AGENT == "gcv":
         _LOGGER.warning(
             "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
@@ -399,6 +410,7 @@ def run_pdf_parser(
         parallel: Whether to run parsing over multiple processes.
         debug: Whether to run in debug mode (puts images of resulting layouts in output_dir).
         device: The device to use for the document AI model.
+        redo: Whether to redo the parsing even if the output file already exists.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
@@ -425,15 +437,19 @@ def run_pdf_parser(
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
         _LOGGER.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
-            future_to_task = {executor.submit(file_parser, task): task for task in input_tasks}
+            future_to_task = {
+                executor.submit(file_parser, task): task for task in input_tasks
+            }
             for future in concurrent.futures.as_completed(future_to_task):
                 task = future_to_task[future]
                 try:
-                    data = future.result()
+                    data = future.result()  # noqa: F841
                 except Exception as exc:
-                    _LOGGER.exception('%r generated an exception: %s' % (task.document_id, exc))
+                    _LOGGER.exception(
+                        "%r generated an exception: %s" % (task.document_id, exc)
+                    )
                 else:
-                    _LOGGER.info(f'Successful parsing result for {task.document_id}.')
+                    _LOGGER.info(f"Successful parsing result for {task.document_id}.")
 
     else:
         for task in input_tasks:
