@@ -301,12 +301,14 @@ class LayoutDisambiguator(LayoutParserExtractor):
         # otherwise, the parent is removed. The process continues until there are no contained blocks.
         # There are potentially nestings within nestings, hence the rather complicated loop.
         # A recursion might be more elegant, leaving it as a TODO.
-        stop_cond = True
         counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
         # condition.
         disambiguated_layout = self.layout
+        layout_length = len(disambiguated_layout)
         ixs_to_remove = []
-        while stop_cond:
+        # TODO: this function runs the nested loops a number of times proportional to the number of blocks rather than checking for an end state. We should improve this.
+        while counter < layout_length:
+            counter += 1
             for ix, box_1 in enumerate(disambiguated_layout):
                 for ix2, box_2 in enumerate(disambiguated_layout):
                     if box_1 == box_2:
@@ -320,17 +322,13 @@ class LayoutDisambiguator(LayoutParserExtractor):
                             "right": pixel_margin,
                         }
                         if box_1.is_in(box_2, soft_margin):
-                            counter += 1
                             # Remove the box the model is less confident about.
                             if box_1.score > box_2.score:
                                 remove_ix = ix2
                             else:
                                 remove_ix = ix
                             ixs_to_remove.append(remove_ix)
-                # stop condition: no contained blocks
-                if counter == 0:
-                    stop_cond = False
-                counter = 0
+
         disambiguated_layout = lp.Layout(
             [
                 box
