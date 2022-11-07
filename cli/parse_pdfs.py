@@ -270,7 +270,9 @@ def parse_file(
             )
             initial_layout = layout_disambiguator.layout
             if len(initial_layout) == 0:
-                _LOGGER.info(f"No layout found for page {page_idx}.")
+                _LOGGER.info(
+                    f"The layoutparser model has found no layout elements of any type for page {page_idx}. Continuing to next page."
+                )
                 all_pages_metadata.append(page_metadata)
                 continue
             disambiguated_layout = layout_disambiguator.disambiguate_layout()
@@ -278,9 +280,11 @@ def parse_file(
             _LOGGER.info(f"Running postprocessor for page {page_idx}")
             postprocessor = PostProcessor(disambiguated_layout)
             postprocessor.postprocess()
-            ocr_blocks = postprocessor.ocr_blocks
-            if len(ocr_blocks) == 0:
-                _LOGGER.info(f"No text found for page {page_idx}.")
+            blocks_to_ocr = postprocessor.ocr_blocks
+            if len(blocks_to_ocr) == 0:
+                _LOGGER.info(
+                    f"There are no text blocks to OCR on page {page_idx}. Continuing to next page."
+                )
                 all_pages_metadata.append(page_metadata)
                 continue
 
@@ -288,7 +292,7 @@ def parse_file(
             ocr_processor = OCRProcessor(
                 image=np.array(image),
                 page_number=page_idx,
-                layout=ocr_blocks,
+                layout=blocks_to_ocr,
                 ocr_agent=ocr_agent,
             )
             page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
