@@ -54,8 +54,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
         image: The image of the page.
         model: The layoutparser model to use.
         layout_unfiltered: The layoutparser layout object of text blocks.
-        layout: The layoutparser layout object of text blocks with a confidence score above the
-        restrictive_theshold: The minimum confidence score for a box to be considered part of the layour in a strict model.
+        restrictive_theshold: The minimum confidence score for a box to be considered part of the layout in a strict model.
+        layout: The layoutparser layout object of text blocks with a confidence score above the restrictive threshold.
     """
 
     def __init__(
@@ -149,6 +149,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
             unexplained_fractions.append(frac_unexplained)
         return unexplained_fractions
 
+    # TODO: Remove this function. Not used.
     def _combine_layouts(self, threshold: float) -> lp.Layout:
         """Add unexplained text boxes to the strict layouts to get a combined layout.
 
@@ -177,6 +178,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         box_1: lp.TextBlock,
         box_2: lp.TextBlock,
         direction: str = "vertical",
+        pixel_threshold: int = 5,
     ) -> Tuple[lp.TextBlock, lp.TextBlock]:
         """Reduce the size of overlapping boxes to elimate overlaps.
 
@@ -187,6 +189,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
             box_1: The first box to compare. This box should be the upper/left box.
             box_2: The second box to compare. This box should be the lower/right box.
             direction: The direction to reduce the boxes in.
+            pixel_threshold: The number of pixels overlap required to perform the reduction.
 
         Returns:
             The boxes with overlaps eliminated.
@@ -200,46 +203,57 @@ class LayoutDisambiguator(LayoutParserExtractor):
                 box_1.block_1.coordinates[1] < box_2.block_1.coordinates[1]
             ), "box_1 should be the upper box."
             intersection_height = box_1.intersect(box_2).height
-            rect_1 = lp.Rectangle(
-                x_1=box_1.coordinates[0],
-                y_1=box_1.coordinates[1],
-                x_2=box_1.coordinates[2],
-                y_2=box_1.coordinates[3] - intersection_height,
-            )
-            rect_2 = lp.Rectangle(
-                x_1=box_2.coordinates[0],
-                y_1=box_2.coordinates[1] + intersection_height,
-                x_2=box_2.coordinates[2],
-                y_2=box_2.coordinates[3],
-            )
+            if intersection_height > pixel_threshold:
+                rect_1 = lp.Rectangle(
+                    x_1=box_1.coordinates[0],
+                    y_1=box_1.coordinates[1],
+                    x_2=box_1.coordinates[2],
+                    y_2=box_1.coordinates[3] - intersection_height,
+                )
+                rect_2 = lp.Rectangle(
+                    x_1=box_2.coordinates[0],
+                    y_1=box_2.coordinates[1] + intersection_height,
+                    x_2=box_2.coordinates[2],
+                    y_2=box_2.coordinates[3],
+                )
+            else:
+                rect_1 = box_1
+                rect_2 = box_2
         elif direction == "horizontal":
             assert (
                 box_1.block_1.coordinates[0] < box_2.block_1.coordinates[0]
             ), "box_1 should be the left box."
             intersection_width = box_1.intersect(box_2).width
-            rect_1 = lp.Rectangle(
-                x_1=box_1.coordinates[0],
-                y_1=box_1.coordinates[1],
-                x_2=box_1.coordinates[2] - intersection_width,
-                y_2=box_1.coordinates[3],
-            )
-            rect_2 = lp.Rectangle(
-                x_1=box_2.coordinates[0] + intersection_width,
-                y_1=box_2.coordinates[1],
-                x_2=box_2.coordinates[2],
-                y_2=box_2.coordinates[3],
-            )
+            if intersection_width > pixel_threshold:
+                rect_1 = lp.Rectangle(
+                    x_1=box_1.coordinates[0],
+                    y_1=box_1.coordinates[1],
+                    x_2=box_1.coordinates[2] - intersection_width,
+                    y_2=box_1.coordinates[3],
+                )
+                rect_2 = lp.Rectangle(
+                    x_1=box_2.coordinates[0] + intersection_width,
+                    y_1=box_2.coordinates[1],
+                    x_2=box_2.coordinates[2],
+                    y_2=box_2.coordinates[3],
+                )
+            else:
+                rect_1 = box_1
+                rect_2 = box_2
         return rect_1, rect_2
 
+    # TODO: Remove this function. It's not used.
     def _reduce_all_overlapping_boxes(
-        self, blocks: lp.Layout, reduction_direction: str = "vertical"
+        self,
+        blocks: lp.Layout,
+        reduction_direction: str = "vertical",
     ) -> lp.Layout:
         """Eliminate all overlapping boxes by reducing their size by the minimal amount necessary.
 
         In general, for every pair of rectangular boxes with coordinates of
         the form (x_top_left, y_top_left, x_bottom_right, y_bottom_right),
-        we want to reshape them to elimate the intersecting regions in the
-        alighnment direction. For example, if we want to elimate overlaps of
+        we want to reshape them to eliminate the intersecting regions in the
+        alignment direction. For example, if we want to eliminate overlaps of
         the following two rectangles with a prior that vertical overlaps should
         be removed, the transformation should be
 
@@ -252,38 +266,38 @@ class LayoutDisambiguator(LayoutParserExtractor):
         Returns:
             The new layout with blocks having no overlapping coordinates.
         """
-
-        for box_1, box_2 in zip(blocks, blocks):
-            if box_1 == box_2:
-                continue
-            else:
-                if box_1.intersect(box_2).area > 0:
-                    if reduction_direction == "vertical":
-                        # check which box is upper and which is lower
-                        if box_1.coordinates[3] < box_2.coordinates[3]:
-                            rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                box_1, box_2, direction=reduction_direction
-                            )
-                        else:
-                            rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                box_2, box_1, direction=reduction_direction
-                            )
-                    elif reduction_direction == "horizontal":
-                        # check which box is left and which is right
-                        if box_1.coordinates[2] < box_2.coordinates[2]:
-                            rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                box_1, box_2, direction=reduction_direction
-                            )
-                        else:
-                            rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                box_2, box_1, direction=reduction_direction
-                            )
-                    else:
-                        raise ValueError(
-                            "reduction_direction must be either 'vertical' or 'horizontal'"
-                        )
-                    box_1.block_1 = rect_1
-                    box_2.block_1 = rect_2
+        assert reduction_direction in ("vertical", "horizontal"), (
+            "Invalid direction. Must be 'vertical' or " "'horizontal'. "
+        )
+        for box_1 in blocks:
+            for box_2 in blocks:
+                if box_1 == box_2:
+                    continue
+                else:
+                    intersection_area = box_1.intersect(box_2).area
+                    if intersection_area > 0:
+                        if reduction_direction == "vertical":
+                            # check which box is upper and which is lower
+                            if box_1.coordinates[3] < box_2.coordinates[3]:
+                                rect_1, rect_2 = self._reduce_overlapping_boxes(
+                                    box_1, box_2, direction=reduction_direction
+                                )
+                            else:
+                                rect_1, rect_2 = self._reduce_overlapping_boxes(
+                                    box_2, box_1, direction=reduction_direction
+                                )
+                        elif reduction_direction == "horizontal":
+                            # check which box is left and which is right
+                            if box_1.coordinates[2] < box_2.coordinates[2]:
+                                rect_1, rect_2 = self._reduce_overlapping_boxes(
+                                    box_1, box_2, direction=reduction_direction
+                                )
+                            else:
+                                rect_1, rect_2 = self._reduce_overlapping_boxes(
+                                    box_2, box_1, direction=reduction_direction
+                                )
+                        box_1.block_1 = rect_1
+                        box_2.block_1 = rect_2
         return blocks
 
     def _unnest_boxes(self, pixel_margin: int = 15) -> lp.Layout:
@@ -299,10 +313,10 @@ class LayoutDisambiguator(LayoutParserExtractor):
         # The loop checks each block for containment within other blocks.
         # Contained blocks are removed if they have lower confidence scores than their parents;
         # otherwise, the parent is removed. The process continues until there are no contained blocks.
-        # There are potentially nestings within nestings, hence the rather complicated loop.
+        # There are potentially nestings within nestings, hence the complicated loop.
         # A recursion might be more elegant, leaving it as a TODO.
         stop_cond = True
-        counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
+        counter = 0  # num contained blocks in every run through of all pairs to calculate stop
         # condition.
         disambiguated_layout = self.layout
         ixs_to_remove = []
@@ -340,6 +354,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
         )
         return disambiguated_layout
 
+    # TODO: Move this function to testing.
     def _calculate_coverage(self):
         """Calculate the percentage of the page that is covered by text blocks."""
         image_array = np.array(self.image)
