@@ -178,7 +178,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
         box_1: lp.TextBlock,
         box_2: lp.TextBlock,
         direction: str = "vertical",
-        pixel_threshold: int = 5,
+        pixel_threshold_vertical: int = 5,
+        pixel_threshold_horizontal: int = 5,
     ) -> Tuple[lp.TextBlock, lp.TextBlock]:
         """Reduce the size of overlapping boxes to elimate overlaps.
 
@@ -189,7 +190,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
             box_1: The first box to compare. This box should be the upper/left box.
             box_2: The second box to compare. This box should be the lower/right box.
             direction: The direction to reduce the boxes in.
-            pixel_threshold: The number of pixels overlap required to perform the reduction.
+            pixel_threshold_vertical: The minimal pixel overlap to reduce boxes in vertical direction.
+            pixel_threshold_horizontal: The minimal pixel overlap to reduce boxes in horizontal direction.
 
         Returns:
             The boxes with overlaps eliminated.
@@ -203,7 +205,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
                 box_1.block_1.coordinates[1] < box_2.block_1.coordinates[1]
             ), "box_1 should be the upper box."
             intersection_height = box_1.intersect(box_2).height
-            if intersection_height > pixel_threshold:
+            if intersection_height > pixel_threshold_vertical:
                 rect_1 = lp.Rectangle(
                     x_1=box_1.coordinates[0],
                     y_1=box_1.coordinates[1],
@@ -224,7 +226,7 @@ class LayoutDisambiguator(LayoutParserExtractor):
                 box_1.block_1.coordinates[0] < box_2.block_1.coordinates[0]
             ), "box_1 should be the left box."
             intersection_width = box_1.intersect(box_2).width
-            if intersection_width > pixel_threshold:
+            if intersection_width > pixel_threshold_horizontal:
                 rect_1 = lp.Rectangle(
                     x_1=box_1.coordinates[0],
                     y_1=box_1.coordinates[1],
@@ -246,6 +248,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
     def _reduce_all_overlapping_boxes(
         self,
         blocks: lp.Layout,
+        pixel_threshold_vertical: int = 5,
+        pixel_threshold_horizontal: int = 5,
         reduction_direction: str = "vertical",
     ) -> lp.Layout:
         """Eliminate all overlapping boxes by reducing their size by the minimal amount necessary.
@@ -280,21 +284,33 @@ class LayoutDisambiguator(LayoutParserExtractor):
                             # check which box is upper and which is lower
                             if box_1.coordinates[3] < box_2.coordinates[3]:
                                 rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                    box_1, box_2, direction=reduction_direction
+                                    box_1,
+                                    box_2,
+                                    direction=reduction_direction,
+                                    pixel_threshold_vertical=pixel_threshold_vertical,
                                 )
                             else:
                                 rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                    box_2, box_1, direction=reduction_direction
+                                    box_2,
+                                    box_1,
+                                    direction=reduction_direction,
+                                    pixel_threshold_vertical=pixel_threshold_vertical,
                                 )
                         elif reduction_direction == "horizontal":
                             # check which box is left and which is right
                             if box_1.coordinates[2] < box_2.coordinates[2]:
                                 rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                    box_1, box_2, direction=reduction_direction
+                                    box_1,
+                                    box_2,
+                                    direction=reduction_direction,
+                                    pixel_threshold_horizontal=pixel_threshold_horizontal,
                                 )
                             else:
                                 rect_1, rect_2 = self._reduce_overlapping_boxes(
-                                    box_2, box_1, direction=reduction_direction
+                                    box_2,
+                                    box_1,
+                                    direction=reduction_direction,
+                                    pixel_threshold_horizontal=pixel_threshold_horizontal,
                                 )
                         box_1.block_1 = rect_1
                         box_2.block_1 = rect_2
@@ -366,7 +382,10 @@ class LayoutDisambiguator(LayoutParserExtractor):
         return coverage
 
     def disambiguate_layout(
-        self, pixel_margin: int = 15, threshold: float = 0.35
+        self,
+        pixel_margin: int = 15,
+        pixel_threshold_vertical: int = 5,
+        pixel_threshold_horizontal: int = 5,
     ) -> lp.Layout:
         """Disambiguate the layout by unnesting nested boxes using heuristics and removing overlaps for OCR.
 
@@ -376,7 +395,8 @@ class LayoutDisambiguator(LayoutParserExtractor):
 
         Args:
             pixel_margin: The number of pixels by which to inflate the bounding boxes when checking for containment (soft margin).
-            threshold: The confidence threshold to use for adding unknown text blocks.
+            pixel_threshold_vertical: The number of pixels by which to reduce the height of overlapping boxes in the vertical direction.
+            pixel_threshold_horizontal: The number of pixels by which to reduce the width of overlapping boxes in the horizontal direction.
 
         Returns:
             The disambiguated layout.
@@ -385,13 +405,17 @@ class LayoutDisambiguator(LayoutParserExtractor):
         disambiguated_layout = self._unnest_boxes(pixel_margin=pixel_margin)
         # TODO: These functions are buggy/not working as anticipated.
         #  Fix them and then uncomment.
-        # # Ensure the remaining rectangles have no overlap for OCR.
-        # disambiguated_layout = self._reduce_all_overlapping_boxes(
-        #     disambiguated_layout, reduction_direction="vertical"
-        # )
-        # disambiguated_layout = self._reduce_all_overlapping_boxes(
-        #     disambiguated_layout, reduction_direction="horizontal"
-        # )
+        # Ensure the remaining rectangles have no overlap for OCR.
+        disambiguated_layout = self._reduce_all_overlapping_boxes(
+            disambiguated_layout,
+            reduction_direction="vertical",
+            pixel_threshold_vertical=pixel_threshold_vertical,
+        )
+        disambiguated_layout = self._reduce_all_overlapping_boxes(
+            disambiguated_layout,
+            reduction_direction="horizontal",
+            pixel_threshold_horizontal=pixel_threshold_horizontal,
+        )
         return disambiguated_layout
 
     def disambiguate_layout_advanced(self) -> lp.Layout:
