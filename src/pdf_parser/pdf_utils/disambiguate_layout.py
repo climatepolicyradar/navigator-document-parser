@@ -276,7 +276,7 @@ def reduce_all_overlapping_boxes(
 
 def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
     """
-    Recursively Unnest boxes.
+    Loop through boxes, unnest them until there are no nested boxes left..
 
     Args: layout: The layout to unnest.
     unnest_soft_margin: The number of pixels to inflate each box by in each direction
