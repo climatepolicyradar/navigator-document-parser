@@ -4,7 +4,7 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from typing import List, Tuple, Optional
 
-from pydantic import BaseModel as PydanticBaseModel
+from pydantic import BaseModel as PydanticBaseModel, Field
 
 
 class BaseModel(PydanticBaseModel):
@@ -23,7 +23,8 @@ class LayoutWithFractions(BaseModel):
     """Layout with unexplained fractions added."""
 
     layout: Layout
-    unexplained_fractions: List[float]
+    # unexplained fractions must be a list of floats between 0 and 1
+    unexplained_fractions: List[float] = Field(..., ge=0, le=1)
 
 
 def split_layout(
