@@ -2,11 +2,11 @@
 
 import logging
 
-from newsplease import NewsPlease
 import requests
+from newsplease import NewsPlease
 
-from src.base import HTMLParser, ParserInput, ParserOutput, HTMLTextBlock, HTMLData
-from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
+from src.base import HTMLData, HTMLParser, HTMLTextBlock, ParserInput, ParserOutput
+from src.config import HTML_HTTP_REQUEST_TIMEOUT, HTML_MIN_NO_LINES_FOR_VALID_TEXT
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +33,18 @@ class NewsPleaseParser(HTMLParser):
         """
 
         try:
+            if input.document_source_url is None:
+                raise ValueError(
+                    "HTML processing was supplied an empty source URL for "
+                    f"{input.document_id}"
+                )
+
             article = NewsPlease.from_html(
-                html=html, url=input.document_url, fetch_images=False
+                html=html, url=input.document_source_url, fetch_images=False
             )
-        except Exception as e:
-            logger.error(
-                f"Failed to parse {input.document_url} for {input.document_id}: {e}"
+        except Exception:
+            logger.exception(
+                f"Failed to parse {input.document_source_url} for {input.document_id}"
             )
             return self._get_empty_response(input)
 
@@ -54,22 +60,23 @@ class NewsPleaseParser(HTMLParser):
         :raise ValueError: input contains a null value for URL
         """
 
-        if input.document_url is None:
+        if input.document_source_url is None:
             raise ValueError(
-                "A URL is required, and it seems like a document without a URL was provided."
+                "HTML processing was supplied an empty source URL for "
+                f"{input.document_id}"
             )
 
         try:
             response = requests.get(
-                input.document_url,
+                input.document_source_url,
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
 
-        except Exception as e:
-            logger.error(
-                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+        except Exception:
+            logger.exception(
+                f"Could not fetch {input.document_source_url} for {input.document_id}"
             )
             return self._get_empty_response(input)
 
@@ -79,9 +86,12 @@ class NewsPleaseParser(HTMLParser):
         self, newsplease_article, input: ParserInput
     ) -> ParserOutput:
         """
-        Convert a newsplease article to parsed HTML. Returns an empty response if the article contains no text.
+        Convert a newsplease article to parsed HTML.
 
-        :param newsplease_article: article returned by `NewsPlease.from_url` or `NewsPlease.from_html`
+        Returns an empty response if the article contains no text.
+
+        :param newsplease_article: article returned by `NewsPlease.from_url`
+            or `NewsPlease.from_html`
         :param url: URL of web page
 
         :return ParsedHTML: parsed HTML
@@ -108,9 +118,11 @@ class NewsPleaseParser(HTMLParser):
         return ParserOutput(
             document_id=input.document_id,
             document_metadata=input.document_metadata,
-            document_url=input.document_url,
+            document_cdn_object=input.document_cdn_object,
+            document_source_url=input.document_source_url,
             document_name=input.document_name,
             document_description=input.document_description,
+            document_md5_sum=input.document_md5_sum,
             document_content_type=input.document_content_type,
             document_slug=input.document_slug,
             html_data=HTMLData(

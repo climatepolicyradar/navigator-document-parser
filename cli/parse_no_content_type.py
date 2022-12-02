@@ -1,10 +1,11 @@
-from typing import List, Union
-from pathlib import Path
 import logging
 import sys
+from pathlib import Path
+from typing import List, Union
 
-from tqdm.auto import tqdm
+import cloudpathlib.exceptions
 from cloudpathlib import CloudPath
+from tqdm.auto import tqdm
 
 sys.path.append("..")
 
@@ -29,7 +30,9 @@ def process_documents_with_no_content_type(
             document_metadata=task.document_metadata,
             document_name=task.document_name,
             document_description=task.document_description,
-            document_url=task.document_url,
+            document_source_url=task.document_source_url,
+            document_cdn_object=task.document_cdn_object,
+            document_md5_sum=task.document_md5_sum,
             languages=None,
             translated=False,
             document_slug=task.document_slug,
@@ -39,6 +42,10 @@ def process_documents_with_no_content_type(
         )
 
         output_path = output_dir / f"{task.document_id}.json"
-        output_path.write_text(output.json(indent=4, ensure_ascii=False))
+        try:
+            output_path.write_text(output.json(indent=4, ensure_ascii=False))
+        except cloudpathlib.exceptions.OverwriteNewerCloudError:
+            logger.info(f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
+                        f"therefore skipping.")
 
         logger.info(f"Output for {task.document_id} saved to {output_path}")

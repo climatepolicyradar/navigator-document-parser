@@ -1,27 +1,38 @@
-from pathlib import Path
 import os
 import logging
 import logging.config
-from typing import List, Optional
 import sys
+from pathlib import Path
+from typing import List, Optional, Union
 
 import click
-from cloudpathlib import S3Path
-import pydantic  # noqa: E402
+import pydantic
+from cloudpathlib import S3Path, CloudPath
+from datetime import datetime
 
 sys.path.append("..")
 
-from src.base import ParserInput, ParserOutput  # noqa: E402
-from src.config import TARGET_LANGUAGES  # noqa: E402
-from src.config import TEST_RUN  # noqa: E402
-from src.config import RUN_PDF_PARSER  # noqa: E402
-from src.config import RUN_HTML_PARSER  # noqa: E402
-from cli.parse_htmls import run_html_parser  # noqa: E402
-from cli.parse_pdfs import run_pdf_parser  # noqa: E402
-from cli.parse_no_content_type import (  # noqa: E402
+from src.base import (
+    CONTENT_TYPE_HTML,
+    CONTENT_TYPE_PDF,
+    ParserInput,
+    ParserOutput,
+    StandardErrorLog,
+)
+from src.config import (
+    FILES_TO_PARSE,
+    RUN_HTML_PARSER,
+    RUN_PDF_PARSER,
+    RUN_TRANSLATION,
+    TARGET_LANGUAGES,
+    TEST_RUN,
+)
+from cli.parse_htmls import run_html_parser
+from cli.parse_pdfs import run_pdf_parser
+from cli.parse_no_content_type import (
     process_documents_with_no_content_type,
 )
-from cli.translate_outputs import translate_parser_outputs  # noqa: E402
+from cli.translate_outputs import translate_parser_outputs
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {
@@ -44,6 +55,33 @@ DEFAULT_LOGGING = {
 
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(DEFAULT_LOGGING)
+
+
+
+def _get_files_to_parse(
+    files: Optional[tuple[str]],
+    input_dir_as_path: Union[CloudPath, Path],
+) -> list[Path]:
+    # If no file list is provided, run over all inputs in the input prefix
+    env_files = []
+    if FILES_TO_PARSE is not None:
+        logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
+        env_files = FILES_TO_PARSE.split("$")[1:]
+
+    files_to_parse: list[str] = list(files or [])
+    files_to_parse.extend(env_files)
+
+    if files_to_parse:
+        logger.info(f"Only parsing files: {files_to_parse}")
+    else:
+        logger.info("Parsing all files")
+
+    return list(
+        (input_dir_as_path / f for f in files_to_parse)
+        if files_to_parse
+        else input_dir_as_path.glob("*.json")
+    )  # type: ignore
+
 
 
 @click.command()
@@ -89,7 +127,7 @@ def main(
     output_dir: str,
     parallel: bool,
     device: str,
-    files: Optional[List[str]],
+    files: Optional[tuple[str]],
     redo: bool,
     s3: bool,
     debug: bool,
@@ -117,30 +155,14 @@ def main(
     # if visual debugging is on, create a debug directory
     if debug:
         debug_dir = output_dir_as_path / "debug"
-        debug_dir.mkdir(exist_ok=True)
+        debug_dir.mkdir(exist_ok=True)  # type: ignore
 
-    # We use `parse_raw(path.read_text())` instead of `parse_file(path)` because the latter tries to coerce CloudPath
-    # objects to pathlib.Path objects.
-    document_ids_previously_parsed = []
-    for path in output_dir_as_path.glob("*.json"):
-        try:
-            document_ids_previously_parsed.append(
-                ParserOutput.parse_raw(path.read_text()).document_id
-            )
-        except pydantic.ValidationError as e:
-            logger.error(
-                f"Could not parse {path}: {e} - ParserOutput.parse_raw(path.read_text()).document_id"
-            )
-    document_ids_previously_parsed = set(document_ids_previously_parsed)
-
-    files_to_parse = (
-        (input_dir_as_path / f for f in files)
-        if files
-        else input_dir_as_path.glob("*.json")
-    )
+    files_to_parse = _get_files_to_parse(files, input_dir_as_path)
 
     logger.info(
-        f"Run configuration TEST_RUN:{TEST_RUN}, RUN_PDF_PARSER:{RUN_PDF_PARSER}, RUN_HTML_PARSER:{RUN_HTML_PARSER}"
+        f"Run configuration TEST_RUN:{TEST_RUN}, "
+        f"RUN_PDF_PARSER:{RUN_PDF_PARSER}, "
+        f"RUN_HTML_PARSER:{RUN_HTML_PARSER}"
     )
 
     tasks = []
@@ -150,58 +172,63 @@ def main(
             break
         else:
             try:
-                tasks.append(ParserInput.parse_raw(path.read_text()))
-
-            except pydantic.error_wrappers.ValidationError as e:
+                tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
+            except (pydantic.error_wrappers.ValidationError, KeyError) as e:
                 logger.error(
-                    f"Could not parse {path}: {e} - ParserInput.parse_raw(path.read_text())"
+                    StandardErrorLog.parse_obj(
+                        {
+                            "timestamp": datetime.now(),
+                            "pipeline_stage": "Parser: Parse the input files in the input directory.",
+                            "status_code": "None",
+                            "error_type": "ParserInputValidationError",
+                            "message": f"{e}",
+                            "document_in_process": path,
+                        }
+                    )
                 )
         counter += 1
 
-    if not redo and document_ids_previously_parsed.intersection(
-        {task.document_id for task in tasks}
-    ):
-        logger.warning(
-            f"Found {len(document_ids_previously_parsed.intersection({task.document_id for task in tasks}))} documents that have already parsed. Skipping."
-        )
-        tasks = [
-            task
-            for task in tasks
-            if task.document_id not in document_ids_previously_parsed
-        ]
-
-    no_document_tasks = [
-        task for task in tasks if task.document_content_type is None
-    ]  # tasks without a URL or content type
-    html_tasks = [task for task in tasks if task.document_content_type == "text/html"]
-    pdf_tasks = [
-        task for task in tasks if task.document_content_type == "application/pdf"
-    ]
+    # TODO: Update splitting to be based on ContentType enum
+    no_processing_tasks = []
+    html_tasks = []
+    pdf_tasks = []
+    output_tasks_paths = []
+    for task in tasks:
+        output_tasks_paths.append(output_dir_as_path / f"{task.document_id}.json")
+        if task.document_content_type == CONTENT_TYPE_HTML:
+            html_tasks.append(task)
+        elif task.document_content_type == CONTENT_TYPE_PDF:
+            pdf_tasks.append(task)
+        else:
+            no_processing_tasks.append(task)
 
     logger.info(
-        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and {len(no_document_tasks)} tasks without a document to parse."
+        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and "
+        f"{len(no_processing_tasks)} tasks without a supported document to parse."
     )
 
     logger.info(
-        f"Generating outputs for {len(no_document_tasks)} inputs with URL or content type."
+        f"Generating outputs for {len(no_processing_tasks)} inputs that cannot "
+        "be processed."
     )
-    process_documents_with_no_content_type(no_document_tasks, output_dir_as_path)
+    process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
-    # TODO run flags don't work for HTML parsing
     if RUN_HTML_PARSER:
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
-        run_html_parser(html_tasks, output_dir_as_path)
+        run_html_parser(html_tasks, output_dir_as_path, redo=redo,)
 
     if RUN_PDF_PARSER:
         logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
         run_pdf_parser(
-            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug
+            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug, redo=redo,
         )
 
-    logger.info(
-        f"Translating results to target languages specified in environment variables: {','.join(TARGET_LANGUAGES)}"
-    )
-    translate_parser_outputs(output_dir_as_path)
+    if RUN_TRANSLATION:
+        logger.info(
+            "Translating results to target languages specified in environment "
+            f"variables: {','.join(TARGET_LANGUAGES)}"
+        )
+        translate_parser_outputs(output_tasks_paths, redo=redo)
 
 
 if __name__ == "__main__":
