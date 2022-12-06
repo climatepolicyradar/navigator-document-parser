@@ -11,7 +11,6 @@ from src.pdf_parser.pdf_utils.disambiguate_layout import (
     LayoutWithFractions,
 )
 
-
 @pytest.fixture
 def base_model():
     return Detectron2LayoutModel(
@@ -22,7 +21,7 @@ def base_model():
 
 
 @pytest.fixture
-def test_layout(base_model):
+def test_image(base_model):
     """Load a page with useful test properties."""
     pdf_path = (
         Path(__file__).parent
@@ -31,9 +30,12 @@ def test_layout(base_model):
     )
     _, pdf_images = load_pdf(pdf_path, load_images=True)
     pdf_image = pdf_images[47]
-    test_layout = base_model.detect(pdf_image)
-    return test_layout
+    return pdf_image
 
+
+@pytest.fixture
+def test_layout(test_image, base_model):
+    return base_model.detect(test_image)
 
 @pytest.fixture
 def layout_permissive():

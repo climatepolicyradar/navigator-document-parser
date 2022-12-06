@@ -4,6 +4,34 @@ from typing import List
 from layoutparser import Layout, TextBlock, Rectangle
 import pandas as pd
 
+from enum import Enum
+import io
+
+from google.cloud import vision
+from google.cloud.vision import types
+from PIL import Image, ImageDraw
+from shapely.geometry import Polygon
+
+from pydantic import BaseModel as PydanticBaseModel, Field
+from google.cloud.vision_v1.types import BoundingPoly
+
+class BaseModel(PydanticBaseModel):
+    """Base class for all models."""
+
+    class Config:
+        """Pydantic config."""
+
+        arbitrary_types_allowed = True
+
+# Hierarchical data structure for representing document text.
+class GoogleTextSegment(BaseModel):
+    text: str
+    coordinates: BoundingPoly
+
+class GoogleBlock(BaseModel):
+    coordinates: BoundingPoly
+    text_blocks: List[GoogleTextSegment]
+
 
 def ocr_blocks(layout: Layout) -> Layout:
     """Return the text blocks for OCR from the layout.
@@ -155,6 +183,9 @@ def infer_missing_blocks_from_gaps(
             )
     return new_blocks
 
+def infer_gaps_google():
+    raise NotImplementedError
+
 
 def infer_column_groups(blocks: Layout, column_overlap_threshold: float = 0.20):
     """Group text blocks into columns depending on an x-overlap threshold.
@@ -219,6 +250,10 @@ def infer_column_groups(blocks: Layout, column_overlap_threshold: float = 0.20):
 def filter_inferred_blocks(blocks: Layout, remove_threshold: float = 0.20) -> Layout:
     """Remove inferred blocks if they are covered by other blocks. Heuristic.
 
+    This attempts to correct for the fact that the inference of missing blocks is not perfect.
+    In particular, the column inference heuristic can results in noisily defined column coordinates,
+    which in rare cases can result in inferred blocks that are covered by other blocks.
+
     Args:
         blocks: The text blocks to filter.
         remove_threshold: The threshold of area overlap above which to remove the inferred block.
@@ -250,75 +285,274 @@ def filter_inferred_blocks(blocks: Layout, remove_threshold: float = 0.20) -> La
 
     return Layout([b for ix, b in enumerate(blocks) if ix not in ixs_to_remove])
 
+def infer_gaps_google():
+    raise NotImplementedError
 
-# def postprocess(
-#     inference_method: str = "gaps",
-# ) -> Layout:
-#     """Infer probable text blocks that haven't been detected and infer reading order.
+class FeatureType(Enum):
+    PAGE = 1
+    BLOCK = 2
+    PARA = 3
+    WORD = 4
+    SYMBOL = 5
+
+
+def draw_boxes(image, bounds, color):
+    """Draw a border around the image using the hints in the vector list.
+    """
+    draw = ImageDraw.Draw(image)
+
+    for bound in bounds:
+        draw.polygon(
+            [
+                bound.vertices[0].x,
+                bound.vertices[0].y,
+                bound.vertices[1].x,
+                bound.vertices[1].y,
+                bound.vertices[2].x,
+                bound.vertices[2].y,
+                bound.vertices[3].x,
+                bound.vertices[3].y,
+            ],
+            None,
+            color,
+        )
+    return image
+
+def google_vertex_to_shapely(bound):
+    return Polygon(
+        [
+            (bound.vertices[0].x, bound.vertices[0].y),
+            (bound.vertices[1].x, bound.vertices[1].y),
+            (bound.vertices[2].x, bound.vertices[2].y),
+            (bound.vertices[3].x, bound.vertices[3].y),
+        ]
+    )
 #
-#     This has utility beyond the _combine_layouts method because it extracts text even in cases where
-#     there are huge text blocks with high emounts of explained area so they aren't caught by the
-#     _combine_layouts method.
+# class BaseModel(PydanticBaseModel):
+#     """Base class for all models."""
 #
-#     Note the default inference method is "gaps". This method fills in gaps in previously inferred columns
-#     if the gaps are too big to be white space. The risk is false positives (i.e. genuine whitespace that is
-#     larger than the threshold) or the capture of figures/tables that the parser missed. This is rare, but can
-#     be corrected for downstream using heuristics from the text returned by OCR if need be. The alternative method,
-#     perspectives, tried to fill gaps in areas covered by detectron2 text blocks with low confidence scores. Empirically,
-#     this method was less effective than the gaps method because detectron2 sometimes fails to detect text blocks at all,
-#     even with low confidence.
+#     class Config:
+#         """Pydantic config."""
 #
-#     Args:
-#         inference_method: The method to use for inferring the missing blocks. Options are "gaps" and "threshold". See docstrings for details.
+#         arbitrary_types_allowed = True
 #
-#     Returns:
-#         The layout with unidentified (but probable) text blocks added.
-#     """
-#     text_blocks = ocr_blocks
-#     if len(text_blocks) == 0:
-#         return Layout([])
-#     # group blocks into columns and return the layout of each column in a list.
-#     column_layouts = split_layout_into_cols(text_blocks)
 #
-#     if inference_method == "gaps":  # infer blocks based on gaps in each column.
-#         new_text_blocks = []
-#         for layout in column_layouts:
-#             new_text_blocks.append(infer_missing_blocks_from_gaps(layout))
-#         # flatten the list of lists
-#         new_text_blocks = [item for sublist in new_text_blocks for item in sublist]
-#     elif (
-#         inference_method == "perspective"
-#     ):  # infer blocks based on coverage of gaps by boxes from a more permissive perspective.
-#         assert layout_unfiltered is not None
-#         text_blocks_permissive = Layout(
-#             [b for b in layout_unfiltered if b.score >= threshold]
-#         )
+# class GoogleLayout(BaseModel):
+#     """Layout with unexplained fractions added."""
 #
-#         # Assign the unfiltered blocks to different layouts depending on which column they're in (if any).
-#         unfiltered_column_layouts = assign_new_blocks_to_columns(
-#             text_blocks, text_blocks_permissive
-#         )
-#         # Get the layout of all columns with all perspectives.
-#         additional_layouts_all = [
-#             column_layouts[i] + unfiltered_column_layouts[i]
-#             for i in range(len(column_layouts))
-#         ]
-#
-#         new_text_blocks = infer_missing_blocks_from_perspectives(
-#             column_layouts, additional_layouts_all
-#         )
-#     else:
-#         raise ValueError("Inference method must be either 'gaps' or 'perspective'.")
-#
-#     # reorder the new inferred text blocks and create a final layout object.
-#     unordered_layout = Layout([*[b for b in layout], *new_text_blocks])
-#     if len(unordered_layout) == 0:
-#         return Layout([])
-#     df_text_blocks = group_blocks_into_columns(unordered_layout)
-#     df_natural_reading_order = df_text_blocks.sort_values(
-#         ["x_1_min", "y_1"], ascending=[True, True]
-#     )
-#     reading_order = df_natural_reading_order.index.tolist()
-#     layout = Layout([unordered_layout[i] for i in reading_order])
-#     layout = filter_inferred_blocks(layout)
-#     return layout
+#     block_text: Layout
+#     block_coords: List[Vertex]
+
+def get_document_bounds(image, feature):
+    """Returns document bounds given an image."""
+    # Convert image to bytes
+    image.save("test.png")
+    with io.open("test.png", "rb") as image_file:
+        content = image_file.read()
+
+    client = vision.ImageAnnotatorClient()
+
+    bounds = []
+
+
+    image_bytes = types.Image(content=content)
+
+    response = client.document_text_detection(image=image_bytes)
+    document = response.full_text_annotation
+
+    # # Collect specified feature bounds by enumerating all document features
+    # blocks_text = []
+    # for page in document.pages:
+    #     block_text=""
+    #     for block in page.blocks:
+    #         symbol_count = 0
+    #         for paragraph in block.paragraphs:
+    #             for word in paragraph.words:
+    #                 for symbol in word.symbols:
+    #                     symbol_count += 1
+    #                     if feature == FeatureType.SYMBOL:
+    #                         bounds.append(symbol.bounding_box)
+    #
+    #                 if feature == FeatureType.WORD:
+    #                     bounds.append(word.bounding_box)
+    #
+    #             if feature == FeatureType.PARA:
+    #                 bounds.append(paragraph.bounding_box)
+    #
+    #         blocks_text = document.text[0:symbol_count]
+    #         if feature == FeatureType.BLOCK:
+    #             bounds.append(block.bounding_box)
+    #         blocks_text.append(block_text)
+    breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
+    paragraphs = []
+    lines = []
+    blocks = []
+    paragraph_text_segments = []
+    block_text_segments = []
+    for page in document.pages:
+        for block in page.blocks:
+            block_paras = []
+            block_para_coords = []
+            for paragraph in block.paragraphs:
+                para = ""
+                line = ""
+                for word in paragraph.words:
+                    for symbol in word.symbols:
+                        line += symbol.text
+                        if symbol.property.detected_break.type == breaks.SPACE:
+                            line += ' '
+                        if symbol.property.detected_break.type == breaks.EOL_SURE_SPACE:
+                            line += ' '
+                            lines.append(line)
+                            para += line
+                            line = ''
+                        if symbol.property.detected_break.type == breaks.LINE_BREAK:
+                            lines.append(line)
+                            para += line
+                            line = ''
+                # for every paragraph, create a text block.
+                paragraph_text_segments.append(GoogleTextSegment(text=para, coordinates=paragraph.bounding_box))
+                paragraphs.append(para)
+                block_paras.append(para)
+                block_para_coords.append(paragraph.bounding_box)
+
+            # for every block, create a text block
+            block_all_text = "\n".join(block_paras)
+            block_text_segments.append(GoogleTextSegment(coordinates=block.bounding_box, text=block_all_text))
+
+            # For every block, create a block object (contains paragraph metadata).
+            block_list = [GoogleTextSegment(coordinates=b2, text=b) for b, b2 in zip(block_paras, block_para_coords)]
+            google_block = GoogleBlock(coordinates=block.bounding_box, text_blocks=block_list)
+            blocks.append(google_block)
+
+    # # https://stackoverflow.com/questions/51972479/get-lines-and-paragraphs-not-symbols-from-google-vision-api-ocr-on-pdf
+    # breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
+    # paragraphs = []
+    # paragraph_coords = []
+    # lines = []
+    # blocks = []
+    # blocks_coords=[]
+    # for page in document.pages:
+    #     for block in page.blocks:
+    #         block_paras = []
+    #         block_paras_coords = []
+    #         for paragraph in block.paragraphs:
+    #             para = ""
+    #             line = ""
+    #             for word in paragraph.words:
+    #                 for symbol in word.symbols:
+    #                     line += symbol.text
+    #                     if symbol.property.detected_break.type == breaks.SPACE:
+    #                         line += ' '
+    #                     if symbol.property.detected_break.type == breaks.EOL_SURE_SPACE:
+    #                         line += ' '
+    #                         lines.append(line)
+    #                         para += line
+    #                         line = ''
+    #                     if symbol.property.detected_break.type == breaks.LINE_BREAK:
+    #                         lines.append(line)
+    #                         para += line
+    #                         line = ''
+    #
+    #             paragraphs.append(para)
+    #
+    #
+    #
+    #             block_paras.append(para)
+    #             block_paras_coords.append(paragraph.bounding_box)
+    #         blocks.append(block_paras)
+    #         blocks_coords.append(block_paras_coords)
+    # # some of these will be lists.
+    # final_blocks = ["\n".join(b) for b in blocks]
+    # final_block_coords = [google_vertex_to_shapely(b.bounding_box) for b in page.blocks]
+    #
+    # # check within status
+    # page.blocks[5].bounding_box
+    # blocks_coords[5] # are any of these within the block? If so, they are not blocks.
+    # print(paragraphs)
+    # print(lines)
+
+    # texts = response.text_annotations
+    # # get the text within the bounds.
+    #
+    # # Basic strategy here should be to use shapely to determine if a block is within the bounds of a text annotation.
+    # # If it is, then we can use the text annotation to get the text.
+    # for text in texts:
+    #     text_polygon = google_vertex_to_shapely(text.bounding_poly)
+    #     for ix, block in enumerate(blocks):
+    #         block_polygon = google_vertex_to_shapely(block.bounding_box)
+    #         if text_polygon.contains(block_polygon):
+    #             blocks[ix].text = text.description
+
+    # The list `bounds` contains the coordinates of the bounding boxes.
+    return bounds
+
+
+def render_doc_text(image, fileout):
+    # image = Image.open(filein)
+    bounds_block = get_document_bounds(image, FeatureType.BLOCK)
+    draw_boxes(image, bounds_block, "blue")
+    bounds_para = get_document_bounds(image, FeatureType.PARA)
+    draw_boxes(image, bounds_para, "red")
+    bounds_word = get_document_bounds(image, FeatureType.WORD)
+    draw_boxes(image, bounds_word, "yellow")
+    image.save(fileout)
+
+
+
+    # if fileout != 0:
+    #     image.save(fileout)
+    # else:
+    #     image.show()
+    return bounds_word, bounds_para, bounds_block
+
+def google_coord_convert(coord):
+    return coord.x, coord.y
+
+def postprocessing_pipline(
+    text_blocks: Layout,
+    page_height: int,
+    inference_method: str = "gaps",
+) -> Layout:
+    """Infer probable text blocks that haven't been detected by layoutparser and infer reading order.
+
+    This is needed because layoutparser often misses clear text blocks (their probability is too low).
+
+    By default, we fill gaps in inferred columns if the gaps are deemed too big to be white space. The risk is false
+    positives (i.e. genuine whitespace that is larger than the threshold) or the capture of figures/tables that the
+    parser missed. This is rare, but can to some extent be corrected for downstream using heuristics from the text
+    returned by OCR if need be (removing blocks with no text).
+
+    Args:
+        inference_method: The method to use for inferring the missing blocks. Options are "gaps" and "threshold". See docstrings for details.
+
+    Returns:
+        The layout with unidentified (but probable) text blocks added.
+    """
+    if len(text_blocks) == 0:
+        return Layout([])
+    # group blocks into columns and return the layout of each column in a list.
+    column_layouts = split_layout_into_cols(text_blocks)
+
+    if inference_method == "gaps":  # infer blocks based on gaps in each column.
+        new_text_blocks = []
+        for layout in column_layouts:
+            new_text_blocks.append(infer_missing_blocks_from_gaps(layout, page_height))
+        # flatten the list of lists
+        new_text_blocks = [item for sublist in new_text_blocks for item in sublist]
+    elif inference_method == "google ocr":
+        raise NotImplementedError
+    else:
+        raise ValueError("Inference method must be either 'gaps' or 'perspective'.")
+
+    # reorder the new inferred text blocks and create a final layout object.
+    unordered_layout = Layout([*[b for b in text_blocks], *new_text_blocks])
+    # Put back into columns and reorder to natural reading order.
+    df_text_blocks = group_blocks_into_columns(unordered_layout)
+    df_natural_reading_order = df_text_blocks.sort_values(
+        ["x_1_min", "y_1"], ascending=[True, True]
+    )
+    reading_order = df_natural_reading_order.index.tolist()
+    layout = Layout([unordered_layout[i] for i in reading_order])
+    layout = filter_inferred_blocks(layout)
+    return layout
