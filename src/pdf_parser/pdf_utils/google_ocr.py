@@ -31,6 +31,8 @@ class BaseModel(PydanticBaseModel):
 class GoogleTextSegment(BaseModel):
     text: str
     coordinates: BoundingPoly
+    confidence: float
+    language: Optional[str]
 
 
 class GoogleBlock(BaseModel):
@@ -97,6 +99,13 @@ def extract_google_layout(
     Returns:
         List of GoogleBlocks, List of GoogleTextSegments, List of GoogleTextSegments, List of GoogleTextSegments
     """
+
+    def _get_modal_string(string_list: List[str]) -> Optional[str]:
+        if len(string_list) > 0:
+            return max(set(block_languages), key=block_languages.count)
+        else:
+            return None
+
     content = image_bytes(image)
     client = vision.ImageAnnotatorClient()
     image = types.Image(content=content)
@@ -104,6 +113,7 @@ def extract_google_layout(
     # TODO: Handle errors. Hit a 503.
     response = client.document_text_detection(image=image)
     document = response.full_text_annotation
+    # TODO: Language? Score?
 
     breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
     paragraphs = []
@@ -115,10 +125,17 @@ def extract_google_layout(
         for block in page.blocks:
             block_paras = []
             block_para_coords = []
+            block_languages = []
             for paragraph in block.paragraphs:
                 para = ""
                 line = ""
+                para_languages = (
+                    []
+                )  # languages stored at word level. Detect then take mode.
                 for word in paragraph.words:
+                    lang = word.property.detected_languages[0].language_code
+                    para_languages.append(lang)
+                    block_languages.append(lang)
                     for symbol in word.symbols:
                         line += symbol.text
                         if symbol.property.detected_break.type == breaks.SPACE:
@@ -132,18 +149,31 @@ def extract_google_layout(
                             lines.append(line)
                             para += line
                             line = ""
-                # for every paragraph, create a text block.
+                # Detect language by selecting the modal language of the words in the paragraph.
+                para_lang = _get_modal_string(para_languages)
                 paragraph_text_segments.append(
-                    GoogleTextSegment(text=para, coordinates=paragraph.bounding_box)
+                    GoogleTextSegment(
+                        text=para,
+                        coordinates=paragraph.bounding_box,
+                        confidence=paragraph.confidence,
+                        language=para_lang,
+                    )
                 )
                 paragraphs.append(para)
                 block_paras.append(para)
                 block_para_coords.append(paragraph.bounding_box)
 
+            # Detect language by selecting the modal language of the words in the block.
+            block_lang = _get_modal_string(block_languages)
             # for every block, create a text block
             block_all_text = "\n".join(block_paras)
             block_text_segments.append(
-                GoogleTextSegment(coordinates=block.bounding_box, text=block_all_text)
+                GoogleTextSegment(
+                    coordinates=block.bounding_box,
+                    text=block_all_text,
+                    confidence=block.confidence,
+                    language=block_lang,
+                )
             )
 
             # For every block, create a block object (contains paragraph metadata).
@@ -173,6 +203,7 @@ def extract_google_layout(
         paragraph_text_segments,
     )
 
+
 def combine_google_lp(
     image,
     google_layout: List[GoogleTextSegment],
@@ -201,9 +232,7 @@ def combine_google_lp(
     Returns:
         Layout object with google objects replacing layoutparser objects if they overlap sufficiently.
     """
-    shapely_google = [
-        google_vertex_to_shapely(b.coordinates) for b in google_layout
-    ]
+    shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
     shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
     # for every block in the google layout, find the fraction of the block that is covered by the layoutparser layout
     dd_intersection_over_union = defaultdict(list)
