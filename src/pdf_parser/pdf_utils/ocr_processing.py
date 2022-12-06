@@ -1,4 +1,4 @@
-import concurrent
+import concurrent.futures
 from ctypes import Union
 from typing import Optional, Tuple, List
 
@@ -135,6 +135,9 @@ class OCRProcessor:
         text_blocks, text_layout = [], []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for block_idx, block in enumerate(self.layout):
+                # Skip blocks that already have text
+                if block.text is not None:
+                    continue
                 future = executor.submit(self._perform_ocr, self.image, block)
                 block_with_text, block_language = future.result()
                 if block_with_text is None:
