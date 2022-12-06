@@ -1,31 +1,30 @@
 import concurrent.futures
+import hashlib
 import logging
 import multiprocessing
 import os
+import tempfile
 import time
 import warnings
 from functools import partial
 from pathlib import Path
-import hashlib
 from typing import List, Union
-import tempfile
 
-import requests
 import fitz
 import layoutparser as lp
 import numpy as np
+import requests
+from cloudpathlib import S3Path
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
-from cloudpathlib import S3Path
 
+from src import config
+from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
+from src.pdf_parser.pdf_utils.disambiguate_layout import disambiguation_pipeline
+from src.pdf_parser.pdf_utils.ocr import extract_google_layout, combine_google_lp
 from src.pdf_parser.pdf_utils.parsing_utils import (
     OCRProcessor,
-    LayoutDisambiguator,
-    PostProcessor,
 )
-from src import config
-
-from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 
 
 def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
@@ -143,30 +142,31 @@ def parse_file(
                 select_page = select_page_at_random(num_pages)
                 if not select_page:
                     continue
-            # Maybe we should always pass a layout object into the PageParser class.
-            layout_disambiguator = LayoutDisambiguator(
-                image, model, model_threshold_restrictive
+
+            layout_disambiguated = disambiguation_pipeline(
+                image,
+                model,
+                restrictive_model_threshold=0.4,
+                unnest_soft_margin=15,
+                max_overlapping_pixels_horizontal=5,
+                max_overlapping_pixels_vertical=5,
             )
-            initial_layout = layout_disambiguator.layout
-            if len(initial_layout) == 0:
+            if len(layout_disambiguated) == 0:
                 logging.info(f"No layout found for page {page_idx}.")
                 all_pages_metadata.append(page_metadata)
                 continue
-            disambiguated_layout = layout_disambiguator.disambiguate_layout()
-            postprocessor = PostProcessor(disambiguated_layout)
-            postprocessor.postprocess()
-            ocr_blocks = postprocessor.ocr_blocks
-            if len(ocr_blocks) == 0:
-                logging.info(f"No text found for page {page_idx}.")
-                all_pages_metadata.append(page_metadata)
-                continue
-            ocr_processor = OCRProcessor(
-                image=np.array(image),
-                page_number=page_idx,
-                layout=ocr_blocks,
-                ocr_agent=ocr_agent,
+            # Grab the inferred text blocks from google.
+            google_layout = extract_google_layout(image)[1]
+            # Combine the Google text blocks with the layoutparser layout.
+            combined_layout = combine_google_lp(
+                image, google_layout, layout_disambiguated
             )
-            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
+
+            ocr_processor = OCRProcessor(
+                np.array(image), page_idx, combined_layout, ocr_agent
+            )
+            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
+
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
                 doc_name = input_task.document_name
