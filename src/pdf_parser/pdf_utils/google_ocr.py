@@ -1,17 +1,16 @@
-from enum import Enum
 import io
+from collections import defaultdict
 from typing import List
 
-from layoutparser import Layout, TextBlock, Rectangle, Detectron2LayoutModel
-
+from PIL.PpmImagePlugin import PpmImageFile
 from google.cloud import vision
 from google.cloud.vision import types
-from PIL import Image, ImageDraw
-from shapely.geometry import Polygon
-from PIL.PpmImagePlugin import PpmImageFile
-
-from pydantic import BaseModel as PydanticBaseModel, Field
 from google.cloud.vision_v1.types import BoundingPoly
+from layoutparser import Layout, TextBlock, Rectangle
+from pydantic import BaseModel as PydanticBaseModel
+from shapely.geometry import Polygon
+
+from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
 
 
 class BaseModel(PydanticBaseModel):
@@ -169,3 +168,97 @@ class GoogleLayout:
         self.paragraph_texts = paragraph_text_segments
 
         self.full_blocks = all_segments
+
+
+def combine_google_lp(
+    image,
+    google_layout: GoogleLayout,
+    lp_layout: Layout,
+    threshold: float = 0.9,
+    top_exclude: float = 0.1,
+    bottom_exclude: float = 0.1,
+):
+    """
+    Combine google layout with layoutparser layout.
+
+    - Replaces layoutparser objects with objects recognised by google API + their text if they overlap sufficiently.
+    - Does not include google objects if they seem to be not part of the main text (e.g. headers, footers, etc.). We
+    use top exclude and bottom exclude to ascertain this.
+
+
+    Args:
+        image: The image the layout is based on.
+        google_layout: GoogleLayout object
+        lp_layout: Layout object
+        threshold: Threshold for overlap between google and layoutparser objects. If the overlap is larger than
+            threshold, the layoutparser object is replaced by the google object.
+        top_exclude: Exclude objects from the top of the page if they are above this fraction of the page.
+        bottom_exclude: Exclude objects from the bottom of the page if they are below this fraction of the page.
+
+    Returns:
+        Layout object with google objects replacing layoutparser objects if they overlap sufficiently.
+    """
+    google_layout.extract_google_layout()
+    all_blocks: List[GoogleTextSegment] = google_layout.full_blocks
+    shapely_google = [
+        google_layout._google_vertex_to_shapely(b.coordinates) for b in all_blocks
+    ]
+    shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
+    # for every block in the google layout, find the fraction of the block that is covered by the layoutparser layout
+    dd_intersection_over_union = defaultdict(list)
+    for ix_goog, google_block in enumerate(shapely_google):
+        for ix_lp, lp_block in enumerate(shapely_layout):
+            # Find the intersection over union of the two blocks.
+            intersection = google_block.intersection(lp_block).area
+            union = google_block.union(lp_block).area
+            dd_intersection_over_union[ix_goog].append(intersection / union)
+
+    # If a google block is covered by a layoutparser block by more than 0.9, we can assume that google OCR has
+    # identified the same block as layoutparser + heuristics and we can use the text from the google block.
+    # Filter the default dict for these cases
+    equivalent_block_mapping = {
+        k: v.index(max(v))
+        for k, v in dd_intersection_over_union.items()
+        if max(v) > threshold
+    }
+
+    # New blocks to add to the layoutparser layout
+    blocks_google_only = {
+        k: v for k, v in dd_intersection_over_union.items() if max(v) == 0.0
+    }
+
+    # use the mapping to replace the text of the layoutparser block with the text of the google block
+    for k, v in equivalent_block_mapping.items():
+        google_coords = all_blocks[k].coordinates.vertices
+        x_top_left, y_top_left = google_coords[0].x, google_coords[0].y
+        x_bottom_right, y_bottom_right = google_coords[2].x, google_coords[2].y
+        lp_layout[v].text = all_blocks[k].text
+        # Reset the coordinates of the layoutparser block to the coordinates of the google block.
+        lp_layout[v].block.x_1 = x_top_left
+        lp_layout[v].block.y_1 = y_top_left
+        lp_layout[v].block.x_2 = x_bottom_right
+        lp_layout[v].block.y_2 = y_bottom_right
+
+    # Add the blocks that are only in the google layout, but only if they are not too small or are too high
+    # up/down on the page indicating that they are probably not part of the main text.
+    for key, val in blocks_google_only.items():
+        google_coords = all_blocks[key].coordinates.vertices
+        x_top_left, y_top_left = google_coords[0].x, google_coords[0].y
+        x_bottom_right, y_bottom_right = google_coords[2].x, google_coords[2].y
+        if (
+            y_top_left > image.height * bottom_exclude
+            or y_bottom_right < image.height * top_exclude
+        ):
+            rect = Rectangle(
+                x_1=x_top_left, y_1=y_top_left, x_2=x_bottom_right, y_2=y_bottom_right
+            )
+            lp_layout.append(
+                TextBlock(
+                    rect,
+                    text=all_blocks[key].text,
+                    type="GoogleTextBlock",
+                    score=1.0,  # TODO: Default to 1.0 for now but check if google has a score.
+                )
+            )
+
+    return lp_layout
