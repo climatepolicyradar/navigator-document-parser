@@ -183,8 +183,15 @@ def extract_google_layout(
 
             # For every block, create a block object (contains paragraph metadata).
             block_list = [
-                GoogleTextSegment(coordinates=coords, text=para_text, language=language, confidence=confidence)
-                for para_text, coords, language, confidence in zip(block_paras, block_para_coords, block_languages, para_confidences)
+                GoogleTextSegment(
+                    coordinates=coords,
+                    text=para_text,
+                    language=language,
+                    confidence=confidence,
+                )
+                for para_text, coords, language, confidence in zip(
+                    block_paras, block_para_coords, block_languages, para_confidences
+                )
             ]
             google_block = GoogleBlock(
                 coordinates=block.bounding_box, text_blocks=block_list
@@ -294,13 +301,12 @@ def combine_google_lp(
                 TextBlock(
                     rect,
                     text=google_layout[key].text,
-                    type="GoogleTextBlock",
+                    type="Google Text Block",
                     score=google_layout[key].confidence,
                 )
             )
             # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
             lp_layout[-1].language = google_layout[key].language
-
 
     return lp_layout
 
