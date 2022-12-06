@@ -1,8 +1,12 @@
+import concurrent
 from ctypes import Union
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import numpy as np
 from layoutparser.elements import Layout, TextBlock
+from layoutparser.ocr import TesseractAgent, GCVAgent
+
+from src.base import PDFTextBlock
 
 
 class OCRProcessor:
@@ -20,7 +24,7 @@ class OCRProcessor:
         image: np.ndarray,
         page_number: int,
         layout: Layout,
-        ocr_agent: Union[ocr.TesseractAgent, ocr.GCVAgent],
+        ocr_agent: Union[TesseractAgent, GCVAgent],
     ):
         self.image = image
         self.page_number = page_number
@@ -48,8 +52,7 @@ class OCRProcessor:
         top_pad: int = 2,
         bottom_pad: int = 2,
     ) -> Tuple[TextBlock, Optional[str]]:
-        """
-        Perform OCR on a block of text.
+        """Perform OCR on a block of text.
 
         Args:
             image: The image to perform OCR on.
@@ -60,7 +63,7 @@ class OCRProcessor:
             bottom_pad: The number of pixels to pad the bottom of the block.
 
         Returns:
-            lp.TextBlock: text block with the text set.
+            TextBlock: text block with the text set.
             str: the language of the text or None if the OCR processor doesn't support language detection.
         """
         # TODO: THis won't work currently because the image isn't part of the class.
@@ -73,10 +76,10 @@ class OCRProcessor:
         segment_image = padded_block.crop_image(image)
 
         # Perform OCR
-        if isinstance(self.ocr_agent, ocr.TesseractAgent):
+        if isinstance(self.ocr_agent, TesseractAgent):
             language = None
             text = self.ocr_agent.detect(segment_image, return_only_text=True)
-        elif isinstance(self.ocr_agent, ocr.GCVAgent):
+        elif isinstance(self.ocr_agent, GCVAgent):
             gcv_response = self.ocr_agent.detect(segment_image, return_response=True)
             text = gcv_response.full_text_annotation.text
 
@@ -101,17 +104,17 @@ class OCRProcessor:
         return block_with_text, language  # type: ignore
 
     @staticmethod
-    def _remove_empty_text_blocks(layout: lp.Layout) -> lp.Layout:
+    def _remove_empty_text_blocks(layout: Layout) -> Layout:
         """Remove text blocks with no text from the layout."""
         # Heuristic to get rid of blocks with no text or text that is too short.
         ixs_to_remove = []
         for ix, block in enumerate(layout):
             if len(block.text.split(" ")) < 3:
                 ixs_to_remove.append(ix)
-        return lp.Layout([b for ix, b in enumerate(layout) if ix not in ixs_to_remove])
+        return Layout([b for ix, b in enumerate(layout) if ix not in ixs_to_remove])
 
     @staticmethod
-    def _is_block_valid(block: lp.TextBlock) -> bool:
+    def _is_block_valid(block: TextBlock) -> bool:
         """Check if a block is valid."""
         if block.text is None:
             return False
@@ -123,7 +126,7 @@ class OCRProcessor:
                 return False
         return True
 
-    def process_layout(self) -> Tuple[List[PDFTextBlock], List[lp.TextBlock]]:
+    def process_layout(self) -> Tuple[List[PDFTextBlock], List[TextBlock]]:
         """Get text for blocks in the layout and return a `Page` with text, language id per text block
 
         :return: list of text blocks with text, language and text block IDs set + a list of text blocks in
