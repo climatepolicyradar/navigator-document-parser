@@ -8,8 +8,7 @@ from PIL.PpmImagePlugin import PpmImageFile
 from google.cloud import vision
 from google.cloud.vision import types
 from google.cloud.vision_v1.types import BoundingPoly
-from layoutparser import TextBlock, Rectangle
-from layoutparser.elements import Layout, TextBlock
+from layoutparser import TextBlock, Rectangle, Layout
 from layoutparser.ocr import TesseractAgent, GCVAgent
 from pydantic import BaseModel as PydanticBaseModel
 from shapely.geometry import Polygon
@@ -29,6 +28,8 @@ class BaseModel(PydanticBaseModel):
 
 # Hierarchical data structure for representing document text.
 class GoogleTextSegment(BaseModel):
+    """A segment of text from Google OCR."""
+
     text: str
     coordinates: BoundingPoly
     confidence: float
@@ -36,6 +37,8 @@ class GoogleTextSegment(BaseModel):
 
 
 class GoogleBlock(BaseModel):
+    """A fully structured block from google OCR. Can contain multiple segments."""
+
     coordinates: BoundingPoly
     text_blocks: List[GoogleTextSegment]
 
@@ -428,7 +431,7 @@ class OCRProcessor:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for block_idx, block in enumerate(self.layout):
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
-                # Skip blocks that already have text
+                # Skip blocks that already have text (likely because we used google's structure detection)
                 if block.text is not None:
                     block_with_text = block
                     block_language = block.language
