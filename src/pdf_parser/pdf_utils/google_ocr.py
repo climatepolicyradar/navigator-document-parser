@@ -126,14 +126,19 @@ def extract_google_layout(
             block_paras = []
             block_para_coords = []
             block_languages = []
+            para_confidences = []
             for paragraph in block.paragraphs:
+                para_confidences.append(paragraph.confidence)
                 para = ""
                 line = ""
                 para_languages = (
                     []
                 )  # languages stored at word level. Detect then take mode.
                 for word in paragraph.words:
-                    lang = word.property.detected_languages[0].language_code
+                    try:
+                        lang = word.property.detected_languages[0].language_code
+                    except IndexError:
+                        lang = None
                     para_languages.append(lang)
                     block_languages.append(lang)
                     for symbol in word.symbols:
@@ -178,8 +183,8 @@ def extract_google_layout(
 
             # For every block, create a block object (contains paragraph metadata).
             block_list = [
-                GoogleTextSegment(coordinates=coords, text=para_text)
-                for para_text, coords in zip(block_paras, block_para_coords)
+                GoogleTextSegment(coordinates=coords, text=para_text, language=language, confidence=confidence)
+                for para_text, coords, language, confidence in zip(block_paras, block_para_coords, block_languages, para_confidences)
             ]
             google_block = GoogleBlock(
                 coordinates=block.bounding_box, text_blocks=block_list
@@ -263,6 +268,9 @@ def combine_google_lp(
         x_top_left, y_top_left = google_coords[0].x, google_coords[0].y
         x_bottom_right, y_bottom_right = google_coords[2].x, google_coords[2].y
         lp_layout[v].text = google_layout[k].text
+        # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
+        lp_layout[v].language = google_layout[k].language
+        lp_layout[v].confidence = google_layout[k].confidence
         # Reset the coordinates of the layoutparser block to the coordinates of the google block.
         lp_layout[v].block.x_1 = x_top_left
         lp_layout[v].block.y_1 = y_top_left
@@ -287,9 +295,12 @@ def combine_google_lp(
                     rect,
                     text=google_layout[key].text,
                     type="GoogleTextBlock",
-                    score=1.0,  # TODO: Default to 1.0 for now but check if google has a score.
+                    score=google_layout[key].confidence,
                 )
             )
+            # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
+            lp_layout[-1].language = google_layout[key].language
+
 
     return lp_layout
 
@@ -410,20 +421,24 @@ class OCRProcessor:
         text_blocks, text_layout = [], []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for block_idx, block in enumerate(self.layout):
+                text_block_id = f"p_{self.page_number}_b_{block_idx}"
                 # Skip blocks that already have text
                 if block.text is not None:
-                    continue
-                future = executor.submit(self._perform_ocr, self.image, block)
-                block_with_text, block_language = future.result()
-                if block_with_text is None:
-                    continue
-                if block.type == "Ambiguous":
-                    block_with_text.type = self._infer_block_type(block)
-                # Heuristic to get rid of blocks with no text or text that is too short.
-                if not self._is_block_valid(block_with_text):
-                    continue
+                    block_with_text = block
+                    block_language = block.language
+                    if not self._is_block_valid(block):
+                        continue
+                else:
+                    future = executor.submit(self._perform_ocr, self.image, block)
+                    block_with_text, block_language = future.result()
+                    if block_with_text is None:
+                        continue
+                    if block.type == "Ambiguous":
+                        block_with_text.type = self._infer_block_type(block)
+                    # Heuristic to get rid of blocks with no text or text that is too short.
+                    if not self._is_block_valid(block_with_text):
+                        continue
 
-                text_block_id = f"p_{self.page_number}_b_{block_idx}"
                 text_block = PDFTextBlock.from_layoutparser(
                     block_with_text, text_block_id, self.page_number
                 )
