@@ -152,8 +152,8 @@ class GoogleLayout:
 
                 # For every block, create a block object (contains paragraph metadata).
                 block_list = [
-                    GoogleTextSegment(coordinates=b2, text=b)
-                    for b, b2 in zip(block_paras, block_para_coords)
+                    GoogleTextSegment(coordinates=coords, text=para_text)
+                    for para_text, coords in zip(block_paras, block_para_coords)
                 ]
                 google_block = GoogleBlock(
                     coordinates=block.bounding_box, text_blocks=block_list
