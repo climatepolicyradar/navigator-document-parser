@@ -365,16 +365,6 @@ class OCRProcessor:
         return block_with_text, language  # type: ignore
 
     @staticmethod
-    def _remove_empty_text_blocks(layout: Layout) -> Layout:
-        """Remove text blocks with no text from the layout."""
-        # Heuristic to get rid of blocks with no text or text that is too short.
-        ixs_to_remove = []
-        for ix, block in enumerate(layout):
-            if len(block.text.split(" ")) < 3:
-                ixs_to_remove.append(ix)
-        return Layout([b for ix, b in enumerate(layout) if ix not in ixs_to_remove])
-
-    @staticmethod
     def _is_block_valid(block: TextBlock) -> bool:
         """Check if a block is valid."""
         if block.text is None:
