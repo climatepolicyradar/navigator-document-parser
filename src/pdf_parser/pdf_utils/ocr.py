@@ -218,7 +218,10 @@ def extract_google_layout(
         paragraph_text_segments,
     )
 
-def google_coords_to_lp_coords(google_coords: RepeatedCompositeContainer) -> Tuple[int, int, int, int]:
+
+def google_coords_to_lp_coords(
+    google_coords: RepeatedCompositeContainer,
+) -> Tuple[int, int, int, int]:
     """Converts Google OCR coordinates to LayoutParser coordinates.
 
     Args:
@@ -228,12 +231,13 @@ def google_coords_to_lp_coords(google_coords: RepeatedCompositeContainer) -> Tup
         Tuple of (x1, y1, x2, y2)
     """
     x1, y1, x2, y2 = (
-        google_coords.vertices[0].x,
-        google_coords.vertices[0].y,
-        google_coords.vertices[2].x,
-        google_coords.vertices[2].y,
+        google_coords[0].x,
+        google_coords[0].y,
+        google_coords[2].x,
+        google_coords[2].y,
     )
     return x1, y1, x2, y2
+
 
 def combine_google_lp(
     image,
@@ -291,7 +295,12 @@ def combine_google_lp(
     # use the mapping to replace the text of the layoutparser block with the text of the google block
     for k, v in equivalent_block_mapping.items():
         google_coords = google_layout[k].coordinates.vertices
-        x_top_left, y_top_left, x_bottom_right, y_bottom_right = google_coords_to_lp_coords(google_coords)
+        (
+            x_top_left,
+            y_top_left,
+            x_bottom_right,
+            y_bottom_right,
+        ) = google_coords_to_lp_coords(google_coords)
         lp_layout[v].text = google_layout[k].text
         # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
         lp_layout[v].language = google_layout[k].language
@@ -306,7 +315,12 @@ def combine_google_lp(
     # up/down on the page indicating that they are probably not part of the main text.
     for key, val in blocks_google_only.items():
         google_coords = google_layout[key].coordinates.vertices
-        x_top_left, y_top_left, x_bottom_right, y_bottom_right = google_coords_to_lp_coords(google_coords)
+        (
+            x_top_left,
+            y_top_left,
+            x_bottom_right,
+            y_bottom_right,
+        ) = google_coords_to_lp_coords(google_coords)
         if (
             y_top_left > image.height * bottom_exclude
             or y_bottom_right < image.height * top_exclude
