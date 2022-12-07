@@ -20,10 +20,11 @@ from tqdm import tqdm
 
 from src import config
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
-from src.pdf_parser.pdf_utils.disambiguate_layout import disambiguation_pipeline
-from src.pdf_parser.pdf_utils.ocr import extract_google_layout, combine_google_lp
+from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
+    extract_google_layout,
+    combine_google_lp,
 )
 
 
@@ -143,7 +144,7 @@ def parse_file(
                 if not select_page:
                     continue
 
-            layout_disambiguated = disambiguation_pipeline(
+            layout_disambiguated = run_disambiguation_pipeline(
                 image,
                 model,
                 restrictive_model_threshold=0.4,
