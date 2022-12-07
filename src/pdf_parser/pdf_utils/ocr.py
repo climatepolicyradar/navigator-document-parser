@@ -119,19 +119,16 @@ def extract_google_layout(
     document = response.full_text_annotation
 
     breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
-    paragraphs = []
     lines = []
     fully_structured_blocks = []
     paragraph_text_segments = []
     block_text_segments = []
     for page in document.pages:
         for block in page.blocks:
-            block_paras = []
-            block_para_coords = []
             block_languages = []
-            para_confidences = []
+            default_dict = defaultdict(list)
             for paragraph in block.paragraphs:
-                para_confidences.append(paragraph.confidence)
+                default_dict["paragraph_confidences"].append(paragraph.confidence)
                 para = ""
                 line = ""
                 para_languages = (
@@ -144,6 +141,7 @@ def extract_google_layout(
                         lang = None
                     para_languages.append(lang)
                     block_languages.append(lang)
+                    default_dict["block_languages"].append(lang)
                     for symbol in word.symbols:
                         line += symbol.text
                         break_type = symbol.property.detected_break.type
@@ -165,14 +163,13 @@ def extract_google_layout(
                         language=para_lang,
                     )
                 )
-                paragraphs.append(para)
-                block_paras.append(para)
-                block_para_coords.append(paragraph.bounding_box)
+                default_dict["block_paragraphs"].append(para)
+                default_dict["block_paragraph_coords"].append(paragraph.bounding_box)
 
             # Detect language by selecting the modal language of the words in the block.
-            block_lang = _get_modal_string(block_languages)
+            block_lang = _get_modal_string(default_dict["block_languages"])
             # for every block, create a text block
-            block_all_text = "\n".join(block_paras)
+            block_all_text = "\n".join(default_dict["block_paragraphs"])
             block_text_segments.append(
                 GoogleTextSegment(
                     coordinates=block.bounding_box,
@@ -185,14 +182,12 @@ def extract_google_layout(
             # For every block, create a block object (contains paragraph metadata).
             block_list = [
                 GoogleTextSegment(
-                    coordinates=coords,
-                    text=para_text,
-                    language=language,
-                    confidence=confidence,
+                    coordinates=default_dict["block_paragraph_coords"][i],
+                    text=default_dict["block_paragraphs"][i],
+                    language=default_dict["block_languages"][i],
+                    confidence=default_dict["paragraph_confidences"][i],
                 )
-                for para_text, coords, language, confidence in zip(
-                    block_paras, block_para_coords, block_languages, para_confidences
-                )
+                for i in range(len(default_dict["block_paragraphs"]))
             ]
             google_block = GoogleBlock(
                 coordinates=block.bounding_box, text_blocks=block_list
