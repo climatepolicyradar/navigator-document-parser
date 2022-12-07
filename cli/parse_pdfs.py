@@ -14,13 +14,14 @@ from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
 import fitz
-import layoutparser as lp
 import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
+from layoutparser import load_pdf, Layout, draw_box
+from layoutparser.models import Detectron2LayoutModel
+from layoutparser.ocr import TesseractAgent, GCVAgent
 from tqdm import tqdm
-
 
 from src import config  # noqa: E402
 from src.base import (  # noqa: E402
@@ -190,6 +191,9 @@ def parse_file(
     input_task: ParserInput,
     model,
     model_threshold_restrictive: float,
+    unnest_soft_margin: float,
+    max_overlapping_pixels_horizontal: int,
+    max_overlapping_pixels_vertical: int,
     ocr_agent: str,
     debug: bool,
     output_dir: Union[Path, S3Path],
@@ -201,6 +205,11 @@ def parse_file(
         input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         model (layoutparser.LayoutModel): Layout model to use for parsing.
         model_threshold_restrictive (float): Threshold to use for parsing.
+        unnest_soft_margin (float): Soft margin to use for unnesting.
+        max_overlapping_pixels_horizontal (int): Maximum number of overlapping pixels to allow for horizontal
+            unnesting.
+        max_overlapping_pixels_vertical (int): Maximum number of overlapping pixels to allow for vertical
+            unnesting.
         debug (bool): Whether to save debug images.
         ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
@@ -236,7 +245,7 @@ def parse_file(
             )
             return None
         else:
-            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)  # type: ignore
+            page_layouts, pdf_images = load_pdf(pdf_path, load_images=True)  # type: ignore
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
         num_pages = len(pdf_images)
@@ -270,10 +279,10 @@ def parse_file(
             layout_disambiguated = run_disambiguation_pipeline(
                 image,
                 model,
-                restrictive_model_threshold=0.4,
-                unnest_soft_margin=15,
-                max_overlapping_pixels_horizontal=5,
-                max_overlapping_pixels_vertical=5,
+                restrictive_model_threshold=model_threshold_restrictive,
+                unnest_soft_margin=unnest_soft_margin,  # type: ignore
+                max_overlapping_pixels_horizontal=max_overlapping_pixels_horizontal,
+                max_overlapping_pixels_vertical=max_overlapping_pixels_vertical,
             )
             if len(layout_disambiguated) == 0:
                 _LOGGER.info(
@@ -287,6 +296,25 @@ def parse_file(
             combined_layout = combine_google_lp(
                 image, google_layout, layout_disambiguated
             )
+            ocr_blocks = Layout(
+                [
+                    b
+                    for b in combined_layout
+                    if b.type
+                    in [
+                        "Google Text Block",
+                        "Text",
+                        "List",
+                        "Title",
+                        "Ambiguous",
+                        "Inferred from gaps",
+                    ]
+                ]
+            )
+            if len(ocr_blocks) == 0:
+                _LOGGER.info(f"No text found for page {page_idx}.")
+                all_pages_metadata.append(page_metadata)
+                continue
             ocr_processor = OCRProcessor(
                 np.array(image), page_idx, combined_layout, ocr_agent
             )
@@ -295,11 +323,6 @@ def parse_file(
             )
             page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
 
-            #
-            # if len(ocr_blocks) == 0:
-            #     logging.info(f"No text found for page {page_idx}.")
-            #     all_pages_metadata.append(page_metadata)
-            #     continue
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
                 doc_name = input_task.document_name
@@ -308,8 +331,8 @@ def parse_file(
                     Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
                 )
 
-                page_layout = lp.Layout(page_layout_blocks)
-                lp.draw_box(
+                page_layout = Layout(page_layout_blocks)
+                draw_box(
                     image,
                     page_layout,
                     show_element_type=True,
@@ -369,8 +392,8 @@ def _pdf_num_pages(file: str):
 
 # TODO: We may want to make this an option, but for now just use Detectron by default as we are unlikely
 #  to change this unless we start labelling by ourselves.
-def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
-    return lp.Detectron2LayoutModel(
+def _get_detectron_model(model: str, device: str) -> Detectron2LayoutModel:
+    return Detectron2LayoutModel(
         config_path=f"lp://PubLayNet/{model}",  # In model catalog,
         label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
         device=device,
@@ -394,9 +417,9 @@ def get_model(
     # FIXME: handle EmptyFileError here using _pdf_num_pages
     model = _get_detectron_model(model, device)
     if ocr_agent == "tesseract":
-        ocr_agent = lp.TesseractAgent()
+        ocr_agent = TesseractAgent()
     elif ocr_agent == "gcv":
-        ocr_agent = lp.GCVAgent()
+        ocr_agent = GCVAgent()
 
     return model, ocr_agent
 
