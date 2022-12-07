@@ -22,7 +22,7 @@ from src import config
 from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
 from src.pdf_parser.pdf_utils.disambiguate_layout import disambiguation_pipeline
 from src.pdf_parser.pdf_utils.ocr import extract_google_layout, combine_google_lp
-from src.pdf_parser.pdf_utils.parsing_utils import (
+from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
 )
 
