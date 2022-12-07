@@ -108,14 +108,16 @@ def calculate_unexplained_fractions(
 
 
 def combine_layouts(
-    layout_restrictive: Layout, layout_permissive: LayoutWithFractions, threshold: float
+    layout_restrictive: Layout,
+    layout_permissive: LayoutWithFractions,
+    combination_threshold: float,
 ) -> Layout:
     """Add unexplained text boxes to the strict layout to get a combined layout.
 
     Args:
         layout_restrictive: The layout with boxes above the restrictive threshold.
         layout_permissive: The layout with boxes below the restrictive threshold.
-        threshold: The threshold above which to include boxes from the permissive layout.
+        combination_threshold: The threshold above which to include boxes from the permissive layout.
 
     Returns:
         The layout with boxes from the unfiltered perspective added if their areas aren't already sufficiently accounted for..
@@ -126,7 +128,7 @@ def combine_layouts(
         unexplained_fractions = layout_permissive.unexplained_fractions
         # If the box's area is not "explained away" by the strict layout, add it to the combined layout with an
         # ambiguous type tag. We can use heuristics to determine its type downstream.
-        if unexplained_fractions[ix] > threshold:
+        if unexplained_fractions[ix] > combination_threshold:
             box.block_1.type = "Ambiguous"
             boxes_to_add.append(box)
     layout_combined = layout_restrictive + Layout(boxes_to_add)
@@ -338,6 +340,7 @@ def run_disambiguation_pipeline(
     unnest_soft_margin: int,
     max_overlapping_pixels_vertical: int,
     max_overlapping_pixels_horizontal: int,
+    combination_threshold: float = 0.8,
 ) -> Layout:
     """
     Initial output from layoutparser is ambiguous (overlapping boxes, nested boxes, etc). Disambiguate.
@@ -366,7 +369,9 @@ def run_disambiguation_pipeline(
         layout_restrictive, layout_permissive
     )
     layout_combined = combine_layouts(
-        layout_restrictive, layout_permissive, threshold=0.8
+        layout_restrictive,
+        layout_permissive,
+        combination_threshold=combination_threshold,
     )
 
     layout_vertically_reduced = reduce_all_overlapping_boxes(
