@@ -12,6 +12,7 @@ from layoutparser import TextBlock, Rectangle, Layout
 from layoutparser.ocr import TesseractAgent, GCVAgent
 from pydantic import BaseModel as PydanticBaseModel
 from shapely.geometry import Polygon
+from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 from src.base import PDFTextBlock
 from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
@@ -116,7 +117,6 @@ def extract_google_layout(
     # TODO: Handle errors. Hit a 503.
     response = client.document_text_detection(image=image)
     document = response.full_text_annotation
-    # TODO: Language? Score?
 
     breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
     paragraphs = []
@@ -218,6 +218,22 @@ def extract_google_layout(
         paragraph_text_segments,
     )
 
+def google_coords_to_lp_coords(google_coords: RepeatedCompositeContainer) -> Tuple[int, int, int, int]:
+    """Converts Google OCR coordinates to LayoutParser coordinates.
+
+    Args:
+        google_coords: Google OCR coordinates.
+
+    Returns:
+        Tuple of (x1, y1, x2, y2)
+    """
+    x1, y1, x2, y2 = (
+        google_coords.vertices[0].x,
+        google_coords.vertices[0].y,
+        google_coords.vertices[2].x,
+        google_coords.vertices[2].y,
+    )
+    return x1, y1, x2, y2
 
 def combine_google_lp(
     image,
@@ -275,8 +291,7 @@ def combine_google_lp(
     # use the mapping to replace the text of the layoutparser block with the text of the google block
     for k, v in equivalent_block_mapping.items():
         google_coords = google_layout[k].coordinates.vertices
-        x_top_left, y_top_left = google_coords[0].x, google_coords[0].y
-        x_bottom_right, y_bottom_right = google_coords[2].x, google_coords[2].y
+        x_top_left, y_top_left, x_bottom_right, y_bottom_right = google_coords_to_lp_coords(google_coords)
         lp_layout[v].text = google_layout[k].text
         # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
         lp_layout[v].language = google_layout[k].language
@@ -291,8 +306,7 @@ def combine_google_lp(
     # up/down on the page indicating that they are probably not part of the main text.
     for key, val in blocks_google_only.items():
         google_coords = google_layout[key].coordinates.vertices
-        x_top_left, y_top_left = google_coords[0].x, google_coords[0].y
-        x_bottom_right, y_bottom_right = google_coords[2].x, google_coords[2].y
+        x_top_left, y_top_left, x_bottom_right, y_bottom_right = google_coords_to_lp_coords(google_coords)
         if (
             y_top_left > image.height * bottom_exclude
             or y_bottom_right < image.height * top_exclude
