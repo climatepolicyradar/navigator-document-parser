@@ -146,14 +146,12 @@ def extract_google_layout(
                     block_languages.append(lang)
                     for symbol in word.symbols:
                         line += symbol.text
-                        if symbol.property.detected_break.type == breaks.SPACE:
+                        break_type = symbol.property.detected_break.type
+                        # Add space to end of line if it's not a break.
+                        if break_type in [breaks.SPACE, breaks.EOL_SURE_SPACE]:
                             line += " "
-                        if symbol.property.detected_break.type == breaks.EOL_SURE_SPACE:
-                            line += " "
-                            lines.append(line)
-                            para += line
-                            line = ""
-                        if symbol.property.detected_break.type == breaks.LINE_BREAK:
+                        # Start new line in same paragraph if there is a line break or a sure space (i.e. large space)
+                        if break_type in [breaks.LINE_BREAK, breaks.EOL_SURE_SPACE]:
                             lines.append(line)
                             para += line
                             line = ""
