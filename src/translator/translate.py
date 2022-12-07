@@ -1,10 +1,13 @@
 from typing import List
 import six
-
+import logging
 from google.cloud import translate_v2
-
+from src.config import LOGGING_LEVEL
 from src.base import ParserOutput
 
+logger = logging.getLogger(__name__)
+level=logging.getLevelName(LOGGING_LEVEL)
+logger.setLevel(level)
 
 def translate_text(text: List[str], target_language: str) -> List[str]:
     """
@@ -23,8 +26,10 @@ def translate_text(text: List[str], target_language: str) -> List[str]:
         _str.decode("utf-8") if isinstance(_str, six.binary_type) else _str
         for _str in text
     ]
-
-    result = translate_client.translate(text, target_language=target_language)
+    try:
+        result = translate_client.translate(text, target_language=target_language)
+    except Exception as e:
+        logger.exception(f"Error translating text: {e}")
 
     return [item["translatedText"] for item in result]
 

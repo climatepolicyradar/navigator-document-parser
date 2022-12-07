@@ -1,14 +1,13 @@
 """A combined parser which uses both readability and newsplease to parse HTML."""
 
 import logging
-
 import requests
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
-
+from datetime import datetime
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
-from src.base import HTMLParser, ParserInput, ParserOutput
+from src.base import HTMLParser, ParserInput, ParserOutput, StandardErrorLog
 from src.config import (
     HTML_MIN_NO_LINES_FOR_VALID_TEXT,
     HTML_HTTP_REQUEST_TIMEOUT,
@@ -20,11 +19,17 @@ logger = logging.getLogger(__name__)
 
 class CombinedParser(HTMLParser):
     """
-    Runs the NewsPlease parser on the given URL. If any paragraph is longer than `max_paragraph_words` or the NewsPlease output is empty, it falls back to the Readability parser.
+    Runs the NewsPlease parser on the given URL.
 
-    This has been created as generally NewsPlease is the best parser, but sometimes it pulls paragraphs together, resulting in very long blocks which will be harder to do things with downstream.
-    Readability is better at paragraph splitting in these cases, so when NewsPlease creates a long paragraph, we fall back to Readability.
+    If any paragraph is longer than `max_paragraph_words` or the NewsPlease output
+    is empty, it falls back to the Readability parser.
 
+    This has been created as generally NewsPlease is the best parser, but sometimes
+    it pulls paragraphs together, resulting in very long blocks which will be harder
+    to do things with downstream.
+
+    Readability is better at paragraph splitting in these cases, so when NewsPlease
+    creates a long paragraph, we fall back to Readability.
     """
 
     def __init__(
@@ -34,7 +39,8 @@ class CombinedParser(HTMLParser):
         Initialise combined parser
 
         Keyword Arguments:
-            max_paragraph_words -- if the longest paragraph has more than this number of words, the parser falls back to the Readability parser (default: {500})
+            max_paragraph_words -- if the longest paragraph has more than this number
+              of words, the parser falls back to the Readability parser (default: {500})
         """
         super().__init__()
         self._max_paragraph_words = max_paragraph_words
@@ -48,8 +54,8 @@ class CombinedParser(HTMLParser):
         """
         Parse HTML using the better option between NewsPlease and Readability.
 
-        NewsPlease is used unless it returns an empty response or combines paragraphs into paragraphs that we consider too long,
-        based on the number of words in them.
+        NewsPlease is used unless it returns an empty response or combines paragraphs
+        into paragraphs that we consider too long, based on the number of words in them.
 
         :param html: HTML to parse
         :param url: url of web page
@@ -74,23 +80,41 @@ class CombinedParser(HTMLParser):
 
     def parse(self, input: ParserInput) -> ParserOutput:
         """
-        Parse web page using the better option between NewsPlease and Readability. If requests fails to capture HTML that looks like a full web page, it falls back to using a headless browser with JS enabled.
+        Parse web page using the better option between NewsPlease and Readability.
+
+        If requests fails to capture HTML that looks like a full web page, it falls
+        back to using a headless browser with JS enabled.
 
         :param url: URL of web page
 
         :return ParsedHTML: parsed HTML
         """
-
+        # TODO: Tighten up these except statements?
         try:
+            if input.document_source_url is None:
+                raise ValueError(
+                    "HTML processing was supplied an empty source URL for "
+                    f"{input.document_id}"
+                )
+
             requests_response = requests.get(
-                input.document_url,
+                input.document_source_url,
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
             logger.error(
-                f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                StandardErrorLog.parse_obj(
+                    {
+                        "timestamp": datetime.now(),
+                        "pipeline_stage": "Parser: Download HTML file.",
+                        "status_code": "None",
+                        "error_type": "RequestError",
+                        "message": f"{e}",
+                        "document_in_process": str(input.document_id),
+                    }
+                )
             )
             return self._get_empty_response(input)
 
@@ -98,28 +122,48 @@ class CombinedParser(HTMLParser):
             parsed_html = self.parse_html(requests_response.text, input)
         except Exception as e:
             logger.error(
-                f"Could not parse {input.document_url} for {input.document_id}: {e}"
+                StandardErrorLog.parse_obj(
+                    {
+                        "timestamp": datetime.now(),
+                        "pipeline_stage": "Parser: Parse HTML file.",
+                        "status_code": "None",
+                        "error_type": "HTMLParsingError",
+                        "message": f"{e}",
+                        "document_in_process": str(input.document_id),
+                    }
+                )
             )
             return self._get_empty_response(input)
 
-        # If there isn't enough text and there's a `<noscript>` tag in the HTML, try again with JS enabled
+        # If there isn't enough text and there's a `<noscript>` tag in the HTML,
+        # try again with JS enabled
         if (len(parsed_html.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) and (
             "<noscript>" in requests_response.text
         ):
             logger.info(
-                f"Falling back to JS-enabled browser for {input.document_id} ({input.document_url})"
+                f"Falling back to JS-enabled browser for {input.document_id} "
+                f"({input.document_source_url})"
             )
             try:
                 with sync_playwright() as playwright:
                     html_playwright = self._get_html_with_js_enabled(
-                        playwright, input.document_url
+                        playwright, input.document_source_url
                     )
                     parsed_html_playwright = self.parse_html(html_playwright, input)
 
                 return parsed_html_playwright
             except Exception as e:
                 logger.error(
-                    f"Could not fetch {input.document_url} for {input.document_id}: {e}"
+                    StandardErrorLog.parse_obj(
+                        {
+                            "timestamp": datetime.now(),
+                            "pipeline_stage": "Parser: Get HTML with playwright.",
+                            "status_code": "None",
+                            "error_type": "HTMLParsingError",
+                            "message": f"{e}",
+                            "document_in_process": str(input.document_id),
+                        }
+                    )
                 )
                 return self._get_empty_response(input)
 

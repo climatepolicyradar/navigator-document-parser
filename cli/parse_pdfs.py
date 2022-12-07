@@ -3,23 +3,33 @@ import hashlib
 import logging
 import multiprocessing
 import os
+import sys
 import tempfile
 import time
 import warnings
+from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
+import cloudpathlib.exceptions
 import fitz
 import layoutparser as lp
 import numpy as np
 import requests
-from cloudpathlib import S3Path
+from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
 from tqdm import tqdm
 
-from src import config
-from src.base import ParserOutput, PDFPageMetadata, PDFData, ParserInput
+
+from src import config  # noqa: E402
+from src.base import (  # noqa: E402
+    ParserInput,
+    ParserOutput,
+    PDFData,
+    PDFPageMetadata,
+    StandardErrorLog,
+)
 from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
@@ -27,8 +37,63 @@ from src.pdf_parser.pdf_utils.ocr import (
     combine_google_lp,
 )
 
+sys.path.append("..")
 
-def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Path:
+CDN_DOMAIN = os.environ["CDN_DOMAIN"]
+
+
+_LOGGER = logging.getLogger(__name__)
+_LOGGER.setLevel(logging.DEBUG)
+
+
+def copy_input_to_output_pdf(
+    task: ParserInput, output_path: Union[Path, CloudPath]
+) -> None:
+    """Necessary to copy the input file to the output to ensure that we don't drop documents.
+
+    The file is copied at the time of processing rather than syncing the entire input directory so that if that
+    parser fails and retries it will not think that all files have already been parsed. :param task: input task
+    specifying the document to copy :param output_path: path to save the copied file
+    """
+    try:
+        blank_output = ParserOutput(
+            document_id=task.document_id,
+            document_metadata=task.document_metadata,
+            document_name=task.document_name,
+            document_description=task.document_description,
+            document_source_url=task.document_source_url,
+            document_cdn_object=task.document_cdn_object,
+            document_md5_sum=task.document_md5_sum,
+            document_slug=task.document_slug,
+            document_content_type=task.document_content_type,
+            languages=None,
+            translated=False,
+            html_data=None,
+            pdf_data=PDFData(page_metadata=[], md5sum="", text_blocks=[]),
+        )
+
+        output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+        _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
+
+    except Exception as e:
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Copy pdf input to output.",
+                    "status_code": "None",
+                    "error_type": "ParsingError",
+                    "message": f"{e}",
+                    "document_in_process": output_path,
+                }
+            )
+        )
+
+
+def download_pdf(
+    parser_input: ParserInput,
+    output_dir: Union[Path, str],
+) -> Optional[Path]:
     """
     Get a PDF from a URL in a ParserInput object.
 
@@ -36,27 +101,68 @@ def download_pdf(parser_input: ParserInput, output_dir: Union[Path, str]) -> Pat
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-
-    response = requests.get(parser_input.document_url)
+    try:
+        document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+        _LOGGER.info(f"Downloading {document_url} to {output_dir}")
+        response = requests.get(document_url)
+    except Exception as e:
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download pdf",
+                    "status_code": "None",
+                    "error_type": "RequestError",
+                    "message": f"{e}",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
+        )
+        return None
 
     if response.status_code != 200:
-        # TODO: what exception should be raised here?
-        raise Exception(f"Could not get PDF from {parser_input.document_url}")
-
-    if response.headers["Content-Type"] != "application/pdf":
-        raise Exception(
-            f"Content-Type is for {parser_input.document_id} ({parser_input.document_url}) is not PDF: {response.headers['Content-Type']}"
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download of pdf.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "RequestError",
+                    "message": "Invalid response code from request.",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
         )
 
-    output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
+        return None
 
-    with open(output_path, "wb") as f:
-        f.write(response.content)
+    elif response.headers["Content-Type"] != "application/pdf":
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "ContentTypeError",
+                    "message": "Content-Type is not application/pdf.",
+                    "document_in_process": str(parser_input.document_id),
+                }
+            )
+        )
 
-    return output_path
+        return None
+
+    else:
+        _LOGGER.info(f"Saving {document_url} to {output_dir}")
+        output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
+
+        with open(output_path, "wb") as f:
+            f.write(response.content)
+
+        return output_path
 
 
-def select_page_at_random(num_pages: int) -> int:
+def select_page_at_random(num_pages: int) -> bool:
     """Determine whether to include a page using a random number generator. Used for debugging.
 
     Args:
@@ -77,6 +183,7 @@ def select_page_at_random(num_pages: int) -> int:
     else:
         if rng <= 0.05:
             return True
+    return False
 
 
 def parse_file(
@@ -86,7 +193,7 @@ def parse_file(
     ocr_agent: str,
     debug: bool,
     output_dir: Union[Path, S3Path],
-    device: str,
+    redo: bool = False,
 ):
     """Parse an individual pdf file.
 
@@ -98,36 +205,51 @@ def parse_file(
         ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
+        redo (bool): Whether to redo the parsing even if the output file already exists.
     """
 
-    # TODO: do we want to handle exceptions raised by get_pdf here?
+    _LOGGER.info(f"Processing {input_task.document_id}")
+
+    output_path = output_dir / f"{input_task.document_id}.json"
+    if not output_path.exists():  # type: ignore
+        copy_input_to_output_pdf(input_task, output_path)  # type: ignore
+
+    existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
+    # If no parsed pdf data exists, assume we've not run before
+    existing_pdf_data_exists = (
+        existing_parser_output.pdf_data is not None
+        and existing_parser_output.pdf_data.text_blocks
+    )
+    should_run_parser = not existing_pdf_data_exists or redo
+    if not should_run_parser:
+        _LOGGER.info(f"Skipping already parsed pdf with output - {output_path}.")
+        return None
+
     with tempfile.TemporaryDirectory() as temp_output_dir:
+        _LOGGER.info(f"Downloading pdf: {input_task.document_id}")
         pdf_path = download_pdf(input_task, temp_output_dir)
+        _LOGGER.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
-            logging.info(
-                f"PDF path is None for: {input_task.document_url} at {temp_output_dir} as document couldn't be "
+            _LOGGER.info(
+                f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
                 f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
+            return None
         else:
-            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)
+            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)  # type: ignore
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
-
-        # FIXME: handle EmptyFileError here using _pdf_num_pages
-
-        model = _get_detectron_model(model, device)
-        if ocr_agent == "tesseract":
-            ocr_agent = lp.TesseractAgent()
-        elif ocr_agent == "gcv":
-            ocr_agent = lp.GCVAgent()
 
         num_pages = len(pdf_images)
 
         all_pages_metadata = []
         all_text_blocks = []
 
+        _LOGGER.info(f"Iterating through pages for -  {input_task.document_id}")
+
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
         ):
+            _LOGGER.info(f"Processing page {page_idx}")
             page_dimensions = (
                 page_layouts[page_idx].page_data["width"],
                 page_layouts[page_idx].page_data["height"],
@@ -143,7 +265,8 @@ def parse_file(
                 select_page = select_page_at_random(num_pages)
                 if not select_page:
                     continue
-
+            # Maybe we should always pass a layout object into the PageParser class.
+            _LOGGER.info(f"Running layout_disambiguator for page {page_idx}")
             layout_disambiguated = run_disambiguation_pipeline(
                 image,
                 model,
@@ -153,21 +276,30 @@ def parse_file(
                 max_overlapping_pixels_vertical=5,
             )
             if len(layout_disambiguated) == 0:
-                logging.info(f"No layout found for page {page_idx}.")
+                _LOGGER.info(
+                    f"The layoutparser model has found no layout elements of any type for page {page_idx}. Continuing to next page."
+                )
                 all_pages_metadata.append(page_metadata)
                 continue
-            # Grab the inferred text blocks from google.
+            _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
             google_layout = extract_google_layout(image)[1]
             # Combine the Google text blocks with the layoutparser layout.
             combined_layout = combine_google_lp(
                 image, google_layout, layout_disambiguated
             )
-
             ocr_processor = OCRProcessor(
                 np.array(image), page_idx, combined_layout, ocr_agent
             )
+            _LOGGER.info(
+                f"Running ocr at block level for unaccounted for blocks for page {page_idx}"
+            )
             page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
 
+            #
+            # if len(ocr_blocks) == 0:
+            #     logging.info(f"No text found for page {page_idx}.")
+            #     all_pages_metadata.append(page_metadata)
+            #     continue
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
                 doc_name = input_task.document_name
@@ -194,12 +326,16 @@ def parse_file(
 
             all_pages_metadata.append(page_metadata)
 
+        _LOGGER.info(f"Processing {input_task.document_id}, setting parser_output...")
+
         document = ParserOutput(
             document_id=input_task.document_id,
-            document_url=input_task.document_url,
             document_name=input_task.document_name,
             document_description=input_task.document_description,
+            document_source_url=input_task.document_source_url,
             document_content_type=input_task.document_content_type,
+            document_cdn_object=input_task.document_cdn_object,
+            document_md5_sum=input_task.document_md5_sum,
             document_slug=input_task.document_slug,
             document_metadata=input_task.document_metadata,
             pdf_data=PDFData(
@@ -209,15 +345,18 @@ def parse_file(
             ),
         ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
-        output_path = output_dir / f"{input_task.document_id}.json"
+        try:
+            output_path.write_text(document.json(indent=4, ensure_ascii=False))
+        except cloudpathlib.exceptions.OverwriteNewerCloudError:
+            _LOGGER.info(
+                f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping."
+            )
 
-        output_path.write_text(document.json(indent=4, ensure_ascii=False))
-
-        logging.info(f"Saved {output_path.name} to {output_dir}.")
+        _LOGGER.info(f"Saved {output_path.name} to {output_dir}.")
 
         os.remove(pdf_path)
 
-        logging.info(f"Removed downloaded document at - {pdf_path}.")
+        _LOGGER.info(f"Removed downloaded document at - {pdf_path}.")
 
 
 def _pdf_num_pages(file: str):
@@ -238,12 +377,37 @@ def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
     )
 
 
+def get_model(
+    model: str,
+    ocr_agent: str,
+    device: str,
+):
+    """Get the model for the parser."""
+    _LOGGER.info(
+        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    )
+    if config.PDF_OCR_AGENT == "gcv":
+        _LOGGER.warning(
+            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
+        )
+
+    # FIXME: handle EmptyFileError here using _pdf_num_pages
+    model = _get_detectron_model(model, device)
+    if ocr_agent == "tesseract":
+        ocr_agent = lp.TesseractAgent()
+    elif ocr_agent == "gcv":
+        ocr_agent = lp.GCVAgent()
+
+    return model, ocr_agent
+
+
 def run_pdf_parser(
     input_tasks: List[ParserInput],
     output_dir: Union[Path, S3Path],
     parallel: bool,
     debug: bool,
     device: str = "cpu",
+    redo: bool = False,
 ) -> None:
     """
     Run cli to extract semi-structured JSON from document-AI + OCR.
@@ -254,45 +418,58 @@ def run_pdf_parser(
         parallel: Whether to run parsing over multiple processes.
         debug: Whether to run in debug mode (puts images of resulting layouts in output_dir).
         device: The device to use for the document AI model.
+        redo: Whether to redo the parsing even if the output file already exists.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
 
-    # Create logger that prints to stdout.
-    logging.basicConfig(level=logging.DEBUG)
-
-    logging.info(
-        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+    model, ocr_agent = get_model(
+        model=config.LAYOUTPARSER_MODEL,
+        ocr_agent=config.PDF_OCR_AGENT,
+        device=device,
     )
-    if config.PDF_OCR_AGENT == "gcv":
-        logging.warning(
-            "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
-        )
 
-    logging.info("Iterating through files and parsing pdf content from pages.")
-    # Sort pages smallest to largest. Having files of a similar size will help with parallelization.
-    # FIXME: have had to disable this for now because we're using tasks, which don't have direct access to the PDF.
-    # files = sorted(list(input_dir_path.glob("*.pdf")), key=_pdf_num_pages)
+    _LOGGER.info("Iterating through files and parsing pdf content from pages.")
 
     file_parser = partial(
         parse_file,
-        model=config.LAYOUTPARSER_MODEL,
-        ocr_agent=config.PDF_OCR_AGENT,
+        model=model,
+        ocr_agent=ocr_agent,
         output_dir=output_dir,
         debug=debug,
         model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
-        device=device,
+        redo=redo,
     )
     if parallel:
-        cpu_count = multiprocessing.cpu_count() - 1
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            executor.map(file_parser, input_tasks)
+        cpu_count = min(3, multiprocessing.cpu_count() - 1)
+        _LOGGER.info(f"Running in parallel and setting max workers to - {cpu_count}.")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
+            future_to_task = {
+                executor.submit(file_parser, task): task for task in input_tasks
+            }
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    data = future.result()  # noqa: F841
+                except Exception as exc:
+                    _LOGGER.exception(
+                        "%r generated an exception: %s" % (task.document_id, exc)
+                    )
+                else:
+                    _LOGGER.info(f"Successful parsing result for {task.document_id}.")
 
     else:
         for task in input_tasks:
-            file_parser(task)
+            _LOGGER.info("Running in series.")
+            try:
+                file_parser(task)
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to successfully parse PDF due to a raised exception",
+                    extra={"props": {"document_id": task.document_id}},
+                )
 
-    logging.info("Finished parsing pdf content from pages.")
+    _LOGGER.info("Finished parsing pdf content from all files.")
     time_end = time.time()
-    logging.info(f"Time taken: {time_end - time_start} seconds.")
+    _LOGGER.info(f"Time taken: {time_end - time_start} seconds.")

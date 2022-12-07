@@ -1,15 +1,17 @@
 from pathlib import Path
 import tempfile
 from unittest import mock
-
+from typing import Sequence, Union
 import pytest
 from click.testing import CliRunner
 
 from cloudpathlib.local import LocalS3Path
 
 from cli.run_parser import main as cli_main
+from cli.translate_outputs import should_be_translated, identify_translation_languages
 
-from src.base import ParserOutput
+from src.base import ParserOutput, HTMLData
+from src.config import TARGET_LANGUAGES
 
 patcher = mock.patch(
     "src.translator.translate.translate_text",
@@ -40,7 +42,6 @@ def test_run_parser_local(test_input_dir) -> None:
             Path(output_dir) / "test_html.json",
             Path(output_dir) / "test_pdf.json",
             Path(output_dir) / "test_no_content_type.json",
-            Path(output_dir) / "test_no_content_type_translated_en.json",
             Path(output_dir) / "test_pdf_translated_en.json",
         }
 
@@ -100,20 +101,34 @@ def test_run_parser_skip_already_done(caplog) -> None:
                     {
                         "document_id": "test_pdf",
                         "document_metadata": {},
-                        "document_url": "https://www.pdfs.org",
+                        "document_source_url": "https://www.pdfs.org",
+                        "document_cdn_object": "test_pdf.pdf",
+                        "document_md5_sum": "abcdefghijk",
                         "document_name": "test_pdf",
                         "document_description": "test_pdf_description",
                         "document_content_type": "application/pdf",
                         "languages": ["en"],
                         "document_slug": "slug",
                         "pdf_data": {
-                            "text_blocks": [],
+                            "text_blocks": [
+                                {
+                                    "text": ["hello"],
+                                    "text_block_id": "world",
+                                    "type": "Text",
+                                    "type_confidence": 0.78,
+                                    "coords": [],
+                                    "page_number": 1,
+                                }
+                            ],
                             "page_metadata": [],
                             "md5sum": "abcdefg",
                         },
+                        "html_data": None,
                     }
                 ).json()
             )
+
+
 
         with open(Path(output_dir) / "test_html.json", "w") as f:
             f.write(
@@ -121,7 +136,9 @@ def test_run_parser_skip_already_done(caplog) -> None:
                     {
                         "document_id": "test_html",
                         "document_metadata": {},
-                        "document_url": "https://www.google.org",
+                        "document_source_url": "https://www.google.org",
+                        "document_cdn_object": None,
+                        "document_md5_sum": None,
                         "document_name": "test_html",
                         "document_description": "test_html_description",
                         "document_content_type": "text/html",
@@ -129,10 +146,19 @@ def test_run_parser_skip_already_done(caplog) -> None:
                         "document_slug": "slug",
                         "html_data": {
                             "text_blocks": [],
+                            "text_blocks": [
+                                {
+                                    "text": ["hello"],
+                                    "text_block_id": "world",
+                                    "type": "Text",
+                                    "type_confidence": 0.78,
+                                }
+                            ],
                             "detected_title": "",
                             "detected_date": None,
                             "has_valid_text": False,
                         },
+                        "pdf_data": None,
                     }
                 ).json()
             )
@@ -149,6 +175,58 @@ def test_run_parser_skip_already_done(caplog) -> None:
 
         assert result.exit_code == 0
 
-        assert (
-            "Found 2 documents that have already parsed. Skipping." in caplog.messages
-        )
+        assert "Skipping already parsed html with output" in caplog.text
+        assert "Skipping already parsed pdf with output" in caplog.text
+
+
+_target_languages = set(TARGET_LANGUAGES)
+
+
+def get_parser_output(translated: bool, source_url: Union[str, None], languages: Sequence[str]) -> ParserOutput:
+    """Generate the parser output objects for the tests given input variables."""
+    return ParserOutput(
+        document_id='sdf',
+        document_metadata={},
+        document_name='sdf',
+        document_description='sdf',
+        document_source_url=source_url,
+        document_cdn_object='sdf',
+        document_content_type="text/html",
+        document_md5_sum='sdf',
+        document_slug='sdf',
+        languages=languages,
+        translated=translated,
+        html_data=HTMLData(
+            text_blocks=[],
+            detected_date=None,
+            detected_title="",
+            has_valid_text=False,
+        ),
+        pdf_data=None
+    )
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_should_be_translated() -> None:
+    """Tests whether we can successfully determine whether to translate a known input documents."""
+    doc_1 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['fr'])
+    assert should_be_translated(doc_1) is True
+
+    doc_2 = get_parser_output(translated=False, source_url=None, languages=['fr'])
+    assert should_be_translated(doc_2) is False
+
+    doc_3 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['English'])
+    assert should_be_translated(doc_3) is True
+
+    doc_4 = get_parser_output(translated=True, source_url="https://www.google.org", languages=['fr'])
+    assert should_be_translated(doc_4) is False
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_identify_target_languages() -> None:
+    """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
+    doc_1 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['fr'])
+    assert identify_translation_languages(doc_1, _target_languages) == {'en'}
+
+    doc_2 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['en'])
+    assert identify_translation_languages(doc_2, _target_languages) == set()

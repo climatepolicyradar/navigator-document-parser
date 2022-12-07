@@ -1,9 +1,10 @@
 .PHONY: run_local run_docker install test_local build test
+include .env
 
 install:
 	poetry install
 	poetry run pre-commit install
-	poetry run playwright install 
+	poetry run playwright install
 	poetry run pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 	cp .env.example .env
 
@@ -11,26 +12,28 @@ run_local:
 	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed
 
 test_local:
-	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en python -m pytest -vvv
+	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
 
 build:
-	cp Dockerfile.local.example Dockerfile
-	docker build -t html-parser .
+	docker build -t navigator-document-parser .
+	docker tag navigator-document-parser navigator-document-parser-staging
 
 test:
-	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" --network host html-parser python -m pytest -vvv
+	docker build -t navigator-document-parser .
+	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
 
 run_docker:
+	docker build -t html-parser .
 	docker run --network host -v ${PWD}/data:/app/data html-parser python -m cli.run_parser ./data/raw ./data/processed
 
-run_local_against_s3:
-	cp Dockerfile.aws.example Dockerfile
-	docker build -t html-parser_s3 .
-	docker run --cpus 1 -m 2048m -e s3_in=s3://data-pipeline-a64047a/test_loader_output/ -e s3_out=s3://data-pipeline-a64047a/runs/09-21-2022_13:19___2447bac7-2d8a-4b77-bbc9-481ec5ee135d/test_parser_output/ -it html-parser_s3
+run_on_specific_files_flag:
+	docker build -t html-parser .
+	docker run -it -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3 --files "${FILES_TO_PARSE_FLAG}"
 
-build_and_push_ecr:
-	cp Dockerfile.aws.example Dockerfile
-	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 281621126254.dkr.ecr.us-east-1.amazonaws.com
-	docker build -t parser-2263e83 .
-	docker tag parser-2263e83:latest 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest
-	docker push 281621126254.dkr.ecr.us-east-1.amazonaws.com/parser-2263e83:latest	
+run_on_specific_files_env:
+	docker build -t html-parser .
+	docker run -it -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e files_to_parse="${FILES_TO_PARSE}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3
+
+run_local_against_s3:
+	docker build -t html-parser .
+	docker run -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -e PARSER_INPUT_PREFIX="${PARSER_INPUT_PREFIX}" -e EMBEDDINGS_INPUT_PREFIX="${EMBEDDINGS_INPUT_PREFIX}" -it html-parser

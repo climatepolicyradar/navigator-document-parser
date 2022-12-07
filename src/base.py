@@ -1,18 +1,26 @@
 """Base classes for parsing."""
 
-from enum import Enum
-from typing import Optional, Sequence, Tuple, List
-from abc import ABC, abstractmethod
-from datetime import date
 import logging
-
+import logging.config
+from abc import ABC, abstractmethod
 from collections import Counter
-from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
-from langdetect import detect
-from langdetect import DetectorFactory
+from datetime import date
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Optional, Sequence, Tuple, List
+from typing import Union
+
 import layoutparser.elements as lp_elements
+from cloudpathlib import S3Path
+from langdetect import DetectorFactory
+from langdetect import detect
+from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
 logger = logging.getLogger(__name__)
+
+CONTENT_TYPE_HTML = "text/html"
+CONTENT_TYPE_PDF = "application/pdf"
 
 
 class BlockType(str, Enum):
@@ -30,13 +38,6 @@ class BlockType(str, Enum):
     INFERRED = "Inferred from gaps"
     GOOGLE = "Google Text Block"
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
-
-
-class ContentType(str, Enum):
-    """List of document content types that can be handled by the parser."""
-
-    HTML = "text/html"
-    PDF = "application/pdf"
 
 
 class TextBlock(BaseModel):
@@ -153,25 +154,11 @@ class ParserInput(BaseModel):
     document_metadata: dict
     document_name: str
     document_description: str
-    document_url: Optional[AnyHttpUrl]
-    document_content_type: Optional[ContentType]
+    document_source_url: Optional[AnyHttpUrl]
+    document_cdn_object: Optional[str]
+    document_content_type: Optional[str]
+    document_md5_sum: Optional[str]
     document_slug: str
-
-    @root_validator
-    def check_content_type_and_url(cls, values) -> None:
-        """Either both or neither of content type and url should be null."""
-        if (
-            values["document_content_type"] is None
-            and values["document_url"] is not None
-        ) or (
-            values["document_content_type"] is not None
-            and values["document_url"] is None
-        ):
-            raise ValueError(
-                "Both document_content_type and document_url must be null or not null."
-            )
-
-        return values
 
 
 class HTMLData(BaseModel):
@@ -216,11 +203,14 @@ class ParserOutput(BaseModel):
     document_metadata: dict
     document_name: str
     document_description: str
-    document_url: Optional[AnyHttpUrl]
+    document_source_url: Optional[AnyHttpUrl]
+    document_cdn_object: Optional[str]
+    document_content_type: Optional[str]
+    document_md5_sum: Optional[str]
+    document_slug: str
+
     languages: Optional[Sequence[str]] = None
     translated: bool = False
-    document_slug: str  # for better links to the frontend hopefully soon
-    document_content_type: Optional[ContentType]
     html_data: Optional[HTMLData] = None
     pdf_data: Optional[PDFData] = None
 
@@ -228,38 +218,22 @@ class ParserOutput(BaseModel):
     def check_html_pdf_metadata(cls, values):
         """Check that html_data is set if content_type is HTML, or pdf_data is set if content_type is PDF."""
         if (
-            values["document_content_type"] == ContentType.HTML
+            values["document_content_type"] == CONTENT_TYPE_HTML
             and values["html_data"] is None
         ):
             raise ValueError("html_metadata must be set for HTML documents")
 
         if (
-            values["document_content_type"] == ContentType.PDF
+            values["document_content_type"] == CONTENT_TYPE_PDF
             and values["pdf_data"] is None
         ):
-            raise ValueError("pdf_metadata must be null for HTML documents")
+            raise ValueError("pdf_data must be set for PDF documents")
 
         if values["document_content_type"] is None and (
             values["html_data"] is not None or values["pdf_data"] is not None
         ):
             raise ValueError(
                 "html_metadata and pdf_metadata must be null for documents with no content type."
-            )
-
-        return values
-
-    @root_validator
-    def check_content_type_and_url(cls, values) -> None:
-        """Either both or neither of content type and url should be null."""
-        if (
-            values["document_content_type"] is None
-            and values["document_url"] is not None
-        ) or (
-            values["document_content_type"] is not None
-            and values["document_url"] is None
-        ):
-            raise ValueError(
-                "Both document_content_type and document_url must be null or not null."
             )
 
         return values
@@ -272,9 +246,9 @@ class ParserOutput(BaseModel):
         :return: Sequence[TextBlock]
         """
 
-        if self.document_content_type == ContentType.HTML:
+        if self.document_content_type == CONTENT_TYPE_HTML:
             return self.html_data.text_blocks  # type: ignore
-        elif self.document_content_type == ContentType.PDF:
+        elif self.document_content_type == CONTENT_TYPE_PDF:
             return self.pdf_data.text_blocks  # type: ignore
 
     def to_string(self) -> str:  # type: ignore
@@ -291,7 +265,7 @@ class ParserOutput(BaseModel):
         Assumes that a document only has one language.
         """
 
-        if self.document_content_type != ContentType.HTML:
+        if self.document_content_type != CONTENT_TYPE_HTML:
             logger.warning(
                 "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
             )
@@ -363,7 +337,9 @@ class HTMLParser(ABC):
             document_content_type=input.document_content_type,
             document_name=input.document_name,
             document_description=input.document_description,
-            document_url=input.document_url,
+            document_source_url=input.document_source_url,
+            document_cdn_object=input.document_cdn_object,
+            document_md5_sum=input.document_md5_sum,
             document_slug=input.document_slug,
             html_data=HTMLData(
                 text_blocks=[],
@@ -372,3 +348,17 @@ class HTMLParser(ABC):
                 has_valid_text=False,
             ),
         )
+
+
+class StandardErrorLog(BaseModel):
+    """Standardized log format for errors.
+
+    This is used to ensure that we can effectively filter the logs when the application runs in production in AWS.
+    """
+
+    timestamp: datetime
+    pipeline_stage: str
+    status_code: str
+    error_type: str
+    message: str
+    document_in_process: Union[Path, S3Path, str]
