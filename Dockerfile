@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install dependencies for pdf2image and tesseract
 RUN apt-get update
-RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev
+RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev git
 
 # Install pip and poetry
 RUN pip install --upgrade pip
@@ -25,6 +25,8 @@ RUN playwright install-deps
 COPY ./data ./data
 COPY ./src ./src
 COPY ./cli ./cli
+COPY ./.git ./.git
+COPY ./.pre-commit-config.yaml ./.flake8 ./.gitignore ./
 
 # Run the parser on the input s3 directory
 CMD [ "sh", "./cli/run.sh" ]
