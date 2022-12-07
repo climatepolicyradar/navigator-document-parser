@@ -136,8 +136,8 @@ def parse_file(
                 page_number=page_idx,
             )
 
-            # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
-            # and processing time
+            # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid
+            # excessive redundancy and processing time
             if debug:
                 select_page = select_page_at_random(num_pages)
                 if not select_page:
