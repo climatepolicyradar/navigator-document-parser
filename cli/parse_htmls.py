@@ -18,7 +18,7 @@ _LOGGER.setLevel(logging.INFO)
 
 
 def copy_input_to_output_html(
-        task: ParserInput, output_path: Union[Path, CloudPath]
+    task: ParserInput, output_path: Union[Path, CloudPath]
 ) -> None:
     """Necessary to copy the input file to the output to ensure that we don't drop documents.
 
@@ -52,7 +52,11 @@ def copy_input_to_output_html(
     _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
 
 
-def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, CloudPath], redo: bool = False):
+def run_html_parser(
+    input_tasks: List[ParserInput],
+    output_dir: Union[Path, CloudPath],
+    redo: bool = False,
+):
     """
     Run the parser on a list of input tasks specifying documents to parse, and save the results to an output directory.
 
@@ -74,12 +78,14 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
             existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
             # If no parsed html dta exists, assume we've not run before
             existing_html_data_exists = (
-                existing_parser_output.html_data is not None and
-                existing_parser_output.html_data.text_blocks
+                existing_parser_output.html_data is not None
+                and existing_parser_output.html_data.text_blocks
             )
             should_run_parser = not existing_html_data_exists or redo
             if not should_run_parser:
-                _LOGGER.info(f"Skipping already parsed html with output - {output_path}.")
+                _LOGGER.info(
+                    f"Skipping already parsed html with output - {output_path}."
+                )
                 continue
 
             parsed_html = html_parser.parse(task).detect_and_set_languages()
@@ -87,8 +93,10 @@ def run_html_parser(input_tasks: List[ParserInput], output_dir: Union[Path, Clou
             try:
                 output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))  # type: ignore
             except cloudpathlib.exceptions.OverwriteNewerCloudError:
-                _LOGGER.info(f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
-                            f"therefore skipping.")
+                _LOGGER.info(
+                    f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
+                    f"therefore skipping."
+                )
 
             _LOGGER.info(f"Output for {task.document_id} saved to {output_path}")
         except Exception:

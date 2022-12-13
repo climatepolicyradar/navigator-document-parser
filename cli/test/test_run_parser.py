@@ -128,8 +128,6 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ).json()
             )
 
-
-
         with open(Path(output_dir) / "test_html.json", "w") as f:
             f.write(
                 ParserOutput.parse_obj(
@@ -145,7 +143,6 @@ def test_run_parser_skip_already_done(caplog) -> None:
                         "languages": ["en"],
                         "document_slug": "slug",
                         "html_data": {
-                            "text_blocks": [],
                             "text_blocks": [
                                 {
                                     "text": ["hello"],
@@ -182,18 +179,20 @@ def test_run_parser_skip_already_done(caplog) -> None:
 _target_languages = set(TARGET_LANGUAGES)
 
 
-def get_parser_output(translated: bool, source_url: Union[str, None], languages: Sequence[str]) -> ParserOutput:
+def get_parser_output(
+    translated: bool, source_url: Union[str, None], languages: Sequence[str]
+) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
-        document_id='sdf',
+        document_id="sdf",
         document_metadata={},
-        document_name='sdf',
-        document_description='sdf',
+        document_name="sdf",
+        document_description="sdf",
         document_source_url=source_url,
-        document_cdn_object='sdf',
+        document_cdn_object="sdf",
         document_content_type="text/html",
-        document_md5_sum='sdf',
-        document_slug='sdf',
+        document_md5_sum="sdf",
+        document_slug="sdf",
         languages=languages,
         translated=translated,
         html_data=HTMLData(
@@ -202,31 +201,41 @@ def get_parser_output(translated: bool, source_url: Union[str, None], languages:
             detected_title="",
             has_valid_text=False,
         ),
-        pdf_data=None
+        pdf_data=None,
     )
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_should_be_translated() -> None:
     """Tests whether we can successfully determine whether to translate a known input documents."""
-    doc_1 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['fr'])
+    doc_1 = get_parser_output(
+        translated=False, source_url="https://www.google.org", languages=["fr"]
+    )
     assert should_be_translated(doc_1) is True
 
-    doc_2 = get_parser_output(translated=False, source_url=None, languages=['fr'])
+    doc_2 = get_parser_output(translated=False, source_url=None, languages=["fr"])
     assert should_be_translated(doc_2) is False
 
-    doc_3 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['English'])
+    doc_3 = get_parser_output(
+        translated=False, source_url="https://www.google.org", languages=["English"]
+    )
     assert should_be_translated(doc_3) is True
 
-    doc_4 = get_parser_output(translated=True, source_url="https://www.google.org", languages=['fr'])
+    doc_4 = get_parser_output(
+        translated=True, source_url="https://www.google.org", languages=["fr"]
+    )
     assert should_be_translated(doc_4) is False
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_identify_target_languages() -> None:
     """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
-    doc_1 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['fr'])
-    assert identify_translation_languages(doc_1, _target_languages) == {'en'}
+    doc_1 = get_parser_output(
+        translated=False, source_url="https://www.google.org", languages=["fr"]
+    )
+    assert identify_translation_languages(doc_1, _target_languages) == {"en"}
 
-    doc_2 = get_parser_output(translated=False, source_url="https://www.google.org", languages=['en'])
+    doc_2 = get_parser_output(
+        translated=False, source_url="https://www.google.org", languages=["en"]
+    )
     assert identify_translation_languages(doc_2, _target_languages) == set()

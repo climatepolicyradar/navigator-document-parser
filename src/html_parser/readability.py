@@ -49,7 +49,7 @@ class ReadabilityParser(HTMLParser):
             )
         except Exception as e:
             logger.exception(
-                f"Could not fetch {input.document_source_url} for {input.document_id}"
+                f"Could not fetch {input.document_source_url} for {input.document_id}. Exception: {e}"
             )
             return self._get_empty_response(input)
 
