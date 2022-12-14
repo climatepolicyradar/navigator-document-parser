@@ -45,7 +45,9 @@ def process_documents_with_no_content_type(
         try:
             output_path.write_text(output.json(indent=4, ensure_ascii=False))
         except cloudpathlib.exceptions.OverwriteNewerCloudError:
-            logger.info(f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
-                        f"therefore skipping.")
+            logger.info(
+                f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
+                f"therefore skipping."
+            )
 
         logger.info(f"Output for {task.document_id} saved to {output_path}")

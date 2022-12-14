@@ -3,7 +3,7 @@ import logging
 import logging.config
 import sys
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import click
 import pydantic
@@ -12,14 +12,13 @@ from datetime import datetime
 
 sys.path.append("..")
 
-from src.base import (
+from src.base import (  # noqa: E402
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
     ParserInput,
-    ParserOutput,
     StandardErrorLog,
 )
-from src.config import (
+from src.config import (  # noqa: E402
     FILES_TO_PARSE,
     RUN_HTML_PARSER,
     RUN_PDF_PARSER,
@@ -27,12 +26,12 @@ from src.config import (
     TARGET_LANGUAGES,
     TEST_RUN,
 )
-from cli.parse_htmls import run_html_parser
-from cli.parse_pdfs import run_pdf_parser
-from cli.parse_no_content_type import (
+from cli.parse_htmls import run_html_parser  # noqa: E402
+from cli.parse_pdfs import run_pdf_parser  # noqa: E402
+from cli.parse_no_content_type import (  # noqa: E402
     process_documents_with_no_content_type,
 )
-from cli.translate_outputs import translate_parser_outputs
+from cli.translate_outputs import translate_parser_outputs  # noqa: E402
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 DEFAULT_LOGGING = {
@@ -55,7 +54,6 @@ DEFAULT_LOGGING = {
 
 logger = logging.getLogger(__name__)
 logging.config.dictConfig(DEFAULT_LOGGING)
-
 
 
 def _get_files_to_parse(
@@ -81,7 +79,6 @@ def _get_files_to_parse(
         if files_to_parse
         else input_dir_as_path.glob("*.json")
     )  # type: ignore
-
 
 
 @click.command()
@@ -215,12 +212,21 @@ def main(
 
     if RUN_HTML_PARSER:
         logger.info(f"Running HTML parser on {len(html_tasks)} documents")
-        run_html_parser(html_tasks, output_dir_as_path, redo=redo,)
+        run_html_parser(
+            html_tasks,
+            output_dir_as_path,
+            redo=redo,
+        )
 
     if RUN_PDF_PARSER:
         logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
         run_pdf_parser(
-            pdf_tasks, output_dir_as_path, parallel=parallel, device=device, debug=debug, redo=redo,
+            pdf_tasks,
+            output_dir_as_path,
+            parallel=parallel,
+            device=device,
+            debug=debug,
+            redo=redo,
         )
 
     if RUN_TRANSLATION:

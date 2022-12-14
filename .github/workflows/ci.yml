@@ -19,6 +19,9 @@ jobs:
           cp .env.example .env
           make build
 
+      - name: Run pre-commit checks
+        run: make pre-commit-checks-all-files
+
       - name: Run Unit Tests
         run:  make test
 
