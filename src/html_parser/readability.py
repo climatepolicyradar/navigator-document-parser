@@ -47,9 +47,9 @@ class ReadabilityParser(HTMLParser):
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
-        except Exception as e:
+        except requests.exceptions.RequestException:
             logger.exception(
-                f"Could not fetch {input.document_source_url} for {input.document_id}. Exception: {e}"
+                f"Could not fetch {input.document_source_url} for {input.document_id}."
             )
             return self._get_empty_response(input)
 
