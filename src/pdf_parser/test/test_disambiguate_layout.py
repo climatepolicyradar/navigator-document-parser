@@ -15,14 +15,14 @@ from src.pdf_parser.pdf_utils.disambiguate_layout import (
 @pytest.fixture
 def base_model():
     return Detectron2LayoutModel(
-        config_path="lp://PubLayNet/mask_rcnn_X_101_32x8d_FPN_3x",  # In model catalog,
+        config_path="lp://PubLayNet/mask_rcnn_X_101_32x8d_FPN_3x",  # See model catalog,
         label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
         device="cpu",
     )
 
 
 @pytest.fixture
-def test_layout(base_model):
+def test_image(base_model):
     """Load a page with useful test properties."""
     pdf_path = (
         Path(__file__).parent
@@ -31,8 +31,12 @@ def test_layout(base_model):
     )
     _, pdf_images = load_pdf(pdf_path, load_images=True)
     pdf_image = pdf_images[47]
-    test_layout = base_model.detect(pdf_image)
-    return test_layout
+    return pdf_image
+
+
+@pytest.fixture
+def test_layout(test_image, base_model):
+    return base_model.detect(test_image)
 
 
 @pytest.fixture
