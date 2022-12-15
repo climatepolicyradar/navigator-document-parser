@@ -18,6 +18,9 @@ build:
 	docker build -t navigator-document-parser .
 	docker tag navigator-document-parser navigator-document-parser-staging
 
+pre-commit-checks-all-files:
+	docker run navigator-document-parser pre-commit run --all-files
+
 test:
 	docker build -t navigator-document-parser .
 	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
