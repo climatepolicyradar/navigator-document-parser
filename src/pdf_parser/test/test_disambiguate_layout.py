@@ -319,14 +319,6 @@ def test_calculate_unexplained_fractions(layout_permissive, layout_restrictive):
     assert len(fractions) == len(layout_permissive)
 
 
-def test_combine_layouts(layout_restrictive, layout_permissive):
-    raise NotImplementedError
-
-
-def test_reduce_overlapping_boxes():
-    raise NotImplementedError
-
-
 def test_unnest_boxes(test_layout):
     # Setup.
     pixel_margin = 15
