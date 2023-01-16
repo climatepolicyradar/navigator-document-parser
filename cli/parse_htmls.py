@@ -13,8 +13,7 @@ sys.path.append("..")
 from src.base import HTMLData, ParserInput, ParserOutput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
-_LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
+_LOGGER = logging.getLogger(__file__)
 
 
 def copy_input_to_output_html(
@@ -49,7 +48,15 @@ def copy_input_to_output_html(
 
     output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
 
-    _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
+    _LOGGER.info(
+        "Blank output saved.",
+        extra={
+            "props": {
+                "Document ID": task.document_id,
+                "Output Path": output_path,
+            }
+        },
+    )
 
 
 def run_html_parser(
@@ -84,7 +91,13 @@ def run_html_parser(
             should_run_parser = not existing_html_data_exists or redo
             if not should_run_parser:
                 _LOGGER.info(
-                    f"Skipping already parsed html with output - {output_path}."
+                    "Skipping already parsed html document.",
+                    extra={
+                        "props": {
+                            "Output Path": output_path,
+                        }
+                    },
+
                 )
                 continue
 
@@ -92,15 +105,26 @@ def run_html_parser(
 
             try:
                 output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))  # type: ignore
-            except cloudpathlib.exceptions.OverwriteNewerCloudError:
-                _LOGGER.info(
-                    f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
-                    f"therefore skipping."
+            except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
+                _LOGGER.error(
+                    f"Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                    extra={
+                        "props": {
+                            "Document ID": task.document_id,
+                            "Output Path": output_path,
+                            "Error Message": str(e),
+                        }
+                    },
                 )
 
             _LOGGER.info(f"Output for {task.document_id} saved to {output_path}")
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(
-                "Failed to successfully parse HTML due to a raised exception",
-                extra={"props": {"document_id": task.document_id}},
+                "Failed to successfully parse HTML due to a raised exception.",
+                extra={
+                    "props": {
+                        "document_id": task.document_id,
+                        "Exception Message": str(e),
+                    }
+                },
             )

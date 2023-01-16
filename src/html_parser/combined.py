@@ -14,7 +14,7 @@ from src.config import (
     HTML_MAX_PARAGRAPH_LENGTH_WORDS,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class CombinedParser(HTMLParser):
@@ -33,7 +33,7 @@ class CombinedParser(HTMLParser):
     """
 
     def __init__(
-        self, max_paragraph_words: int = HTML_MAX_PARAGRAPH_LENGTH_WORDS
+            self, max_paragraph_words: int = HTML_MAX_PARAGRAPH_LENGTH_WORDS
     ) -> None:
         """
         Initialise combined parser
@@ -68,11 +68,11 @@ class CombinedParser(HTMLParser):
             return ReadabilityParser().parse_html(html, input)
 
         if (
-            max(
-                len(paragraph.to_string().split(" "))
-                for paragraph in newsplease_result.text_blocks
-            )
-            > self._max_paragraph_words
+                max(
+                    len(paragraph.to_string().split(" "))
+                    for paragraph in newsplease_result.text_blocks
+                )
+                > self._max_paragraph_words
         ):
             return ReadabilityParser().parse_html(html, input)
 
@@ -93,8 +93,7 @@ class CombinedParser(HTMLParser):
         try:
             if input.document_source_url is None:
                 raise ValueError(
-                    "HTML processing was supplied an empty source URL for "
-                    f"{input.document_id}"
+                    f"HTML processing was supplied an empty source URL for {input.document_id}"
                 )
 
             requests_response = requests.get(
@@ -104,45 +103,46 @@ class CombinedParser(HTMLParser):
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except Exception as e:
-            logger.error(
-                StandardErrorLog.parse_obj(
-                    {
-                        "timestamp": datetime.now(),
-                        "pipeline_stage": "Parser: Download HTML file.",
-                        "status_code": "None",
-                        "error_type": "RequestError",
-                        "message": f"{e}",
-                        "document_in_process": str(input.document_id),
-                    }
-                )
+            _LOGGER.error(
+                "Failed to download html document.",
+                extra={
+                    "props": {
+                        "Document Id": input.document_id,
+                        "Document Source Url": input.document_source_url,
+                        "Error Message": str(e),
+                    },
+                }
             )
             return self._get_empty_response(input)
 
         try:
             parsed_html = self.parse_html(requests_response.text, input)
         except Exception as e:
-            logger.error(
-                StandardErrorLog.parse_obj(
-                    {
-                        "timestamp": datetime.now(),
-                        "pipeline_stage": "Parser: Parse HTML file.",
-                        "status_code": "None",
-                        "error_type": "HTMLParsingError",
-                        "message": f"{e}",
-                        "document_in_process": str(input.document_id),
-                    }
-                )
+            _LOGGER.error(
+                "Failed to parse html file.",
+                extra={
+                    "props": {
+                        "Document Id": input.document_id,
+                        "Document Source Url": input.document_source_url,
+                        "Error Message": str(e),
+                    },
+                }
             )
             return self._get_empty_response(input)
 
         # If there isn't enough text and there's a `<noscript>` tag in the HTML,
         # try again with JS enabled
         if (len(parsed_html.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) and (
-            "<noscript>" in requests_response.text
+                "<noscript>" in requests_response.text
         ):
-            logger.info(
-                f"Falling back to JS-enabled browser for {input.document_id} "
-                f"({input.document_source_url})"
+            _LOGGER.info(
+                "Falling back to JS-enabled browser.",
+                extra={
+                    "props": {
+                        "Document Id": input.document_id,
+                        "Document Source Url": input.document_source_url,
+                    },
+                }
             )
             try:
                 with sync_playwright() as playwright:
@@ -153,17 +153,15 @@ class CombinedParser(HTMLParser):
 
                 return parsed_html_playwright
             except Exception as e:
-                logger.error(
-                    StandardErrorLog.parse_obj(
-                        {
-                            "timestamp": datetime.now(),
-                            "pipeline_stage": "Parser: Get HTML with playwright.",
-                            "status_code": "None",
-                            "error_type": "HTMLParsingError",
-                            "message": f"{e}",
-                            "document_in_process": str(input.document_id),
-                        }
-                    )
+                _LOGGER.error(
+                    "Failed to get HTML with playwright.",
+                    extra={
+                        "props": {
+                            "Document Id": input.document_id,
+                            "Document Source Url": input.document_source_url,
+                            "Error Message": str(e),
+                        },
+                    }
                 )
                 return self._get_empty_response(input)
 

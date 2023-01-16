@@ -8,7 +8,7 @@ from newsplease import NewsPlease
 from src.base import HTMLData, HTMLParser, HTMLTextBlock, ParserInput, ParserOutput
 from src.config import HTML_HTTP_REQUEST_TIMEOUT, HTML_MIN_NO_LINES_FOR_VALID_TEXT
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class NewsPleaseParser(HTMLParser):
@@ -35,16 +35,16 @@ class NewsPleaseParser(HTMLParser):
         try:
             if input.document_source_url is None:
                 raise ValueError(
-                    "HTML processing was supplied an empty source URL for "
-                    f"{input.document_id}"
+                    f"HTML processing was supplied an empty source URL for {input.document_id}"
                 )
 
             article = NewsPlease.from_html(
                 html=html, url=input.document_source_url, fetch_images=False
             )
-        except Exception:
-            logger.exception(
-                f"Failed to parse {input.document_source_url} for {input.document_id}"
+        except Exception as e:
+            _LOGGER.exception(
+                "Failed to parse document.{input.document_source_url} for {input.document_id}",
+                extra={"Document ID": input.document_id, "Source URL": input.document_source_url, "Error Message": e},
             )
             return self._get_empty_response(input)
 
@@ -62,8 +62,7 @@ class NewsPleaseParser(HTMLParser):
 
         if input.document_source_url is None:
             raise ValueError(
-                "HTML processing was supplied an empty source URL for "
-                f"{input.document_id}"
+                f"HTML processing was supplied an empty source URL for {input.document_id}"
             )
 
         try:
@@ -74,9 +73,10 @@ class NewsPleaseParser(HTMLParser):
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
 
-        except Exception:
-            logger.exception(
-                f"Could not fetch {input.document_source_url} for {input.document_id}"
+        except Exception as e:
+            _LOGGER.exception(
+                "Could not fetch document.",
+                extra={"Document ID": input.document_id, "Source URL": input.document_source_url, "Error Message": e},
             )
             return self._get_empty_response(input)
 

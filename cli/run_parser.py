@@ -1,6 +1,7 @@
 import os
 import logging
 import logging.config
+import json_logging
 import sys
 from pathlib import Path
 from typing import Optional, Union
@@ -8,7 +9,6 @@ from typing import Optional, Union
 import click
 import pydantic
 from cloudpathlib import S3Path, CloudPath
-from datetime import datetime
 
 sys.path.append("..")
 
@@ -16,7 +16,6 @@ from src.base import (  # noqa: E402
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
     ParserInput,
-    StandardErrorLog,
 )
 from src.config import (  # noqa: E402
     FILES_TO_PARSE,
@@ -33,32 +32,44 @@ from cli.parse_no_content_type import (  # noqa: E402
 )
 from cli.translate_outputs import translate_parser_outputs  # noqa: E402
 
+# Clear existing log handlers so we always log in structured JSON
+root_logger = logging.getLogger()
+if root_logger.handlers:
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+
+for _, logger in logging.root.manager.loggerDict.items():
+    if isinstance(logger, logging.Logger):
+        logger.propagate = True
+        if logger.handlers:
+            for handler in logger.handlers:
+                logger.removeHandler(handler)
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
 DEFAULT_LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {
-        "console": {
+        "default": {
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stdout",  # Default is stderr
-            "formatter": "json",
         },
     },
     "loggers": {},
     "root": {
-        "handlers": ["console"],
+        "handlers": ["default"],
         "level": LOG_LEVEL,
     },
-    "formatters": {"json": {"()": "pythonjsonlogger.jsonlogger.JsonFormatter"}},
 }
-
-logger = logging.getLogger(__name__)
 logging.config.dictConfig(DEFAULT_LOGGING)
+json_logging.init_non_web(enable_json=True)
+_LOGGER = logging.getLogger(__name__)
 
 
 def _get_files_to_parse(
-    files: Optional[tuple[str]],
-    input_dir_as_path: Union[CloudPath, Path],
+        files: Optional[tuple[str]],
+        input_dir_as_path: Union[CloudPath, Path],
 ) -> list[Path]:
     # If no file list is provided, run over all inputs in the input prefix
     env_files = []
@@ -120,14 +131,14 @@ def _get_files_to_parse(
     "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
 )
 def main(
-    input_dir: str,
-    output_dir: str,
-    parallel: bool,
-    device: str,
-    files: Optional[tuple[str]],
-    redo: bool,
-    s3: bool,
-    debug: bool,
+        input_dir: str,
+        output_dir: str,
+        parallel: bool,
+        device: str,
+        files: Optional[tuple[str]],
+        redo: bool,
+        s3: bool,
+        debug: bool,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
@@ -157,9 +168,14 @@ def main(
     files_to_parse = _get_files_to_parse(files, input_dir_as_path)
 
     logger.info(
-        f"Run configuration TEST_RUN:{TEST_RUN}, "
-        f"RUN_PDF_PARSER:{RUN_PDF_PARSER}, "
-        f"RUN_HTML_PARSER:{RUN_HTML_PARSER}"
+        "Run configuration.",
+        extra={
+            "props": {
+                "Test Run": TEST_RUN,
+                "Run PDF Parser": RUN_PDF_PARSER,
+                "Run HTML Parser": RUN_HTML_PARSER
+            }
+        },
     )
 
     tasks = []
@@ -172,16 +188,13 @@ def main(
                 tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
             except (pydantic.error_wrappers.ValidationError, KeyError) as e:
                 logger.error(
-                    StandardErrorLog.parse_obj(
-                        {
-                            "timestamp": datetime.now(),
-                            "pipeline_stage": "Parser: Parse the input files in the input directory.",
-                            "status_code": "None",
-                            "error_type": "ParserInputValidationError",
-                            "message": f"{e}",
-                            "document_in_process": path,
+                    "Failed to parse input file.",
+                    extra={
+                        "props": {
+                            "Error Message": e,
+                            "Document Path": str(path),
                         }
-                    )
+                    },
                 )
         counter += 1
 
@@ -200,18 +213,22 @@ def main(
             no_processing_tasks.append(task)
 
     logger.info(
-        f"Found {len(html_tasks)} HTML tasks, {len(pdf_tasks)} PDF tasks, and "
-        f"{len(no_processing_tasks)} tasks without a supported document to parse."
+        "Tasks to process identified.",
+        extra={
+            "props": {
+                "Total Tasks": len(tasks),
+                "No Supported Content-Type Tasks": len(no_processing_tasks),
+                "HTML Tasks": len(html_tasks),
+                "PDF Tasks": len(pdf_tasks),
+            }
+        },
     )
 
-    logger.info(
-        f"Generating outputs for {len(no_processing_tasks)} inputs that cannot "
-        "be processed."
-    )
+    logger.info(f"Generating outputs for {len(no_processing_tasks)} inputs that cannot be processed.")
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
     if RUN_HTML_PARSER:
-        logger.info(f"Running HTML parser on {len(html_tasks)} documents")
+        logger.info(f"Running HTML parser on {len(html_tasks)} documents.")
         run_html_parser(
             html_tasks,
             output_dir_as_path,
@@ -219,7 +236,7 @@ def main(
         )
 
     if RUN_PDF_PARSER:
-        logger.info(f"Running PDF parser on {len(pdf_tasks)} documents")
+        logger.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
         run_pdf_parser(
             pdf_tasks,
             output_dir_as_path,
@@ -231,8 +248,12 @@ def main(
 
     if RUN_TRANSLATION:
         logger.info(
-            "Translating results to target languages specified in environment "
-            f"variables: {','.join(TARGET_LANGUAGES)}"
+            "Translating results to target languages specified in environment variables.",
+            extra={
+                "props": {
+                    "Target Languages": ','.join(TARGET_LANGUAGES),
+                }
+            },
         )
         translate_parser_outputs(output_tasks_paths, redo=redo)
 

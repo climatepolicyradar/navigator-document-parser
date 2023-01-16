@@ -36,8 +36,7 @@ class ReadabilityParser(HTMLParser):
         """
         if input.document_source_url is None:
             raise ValueError(
-                "HTML processing was supplied an empty source URL for "
-                f"{input.document_id}"
+                "HTML processing was supplied an empty source URL for {input.document_id}"
             )
 
         try:
@@ -47,9 +46,16 @@ class ReadabilityParser(HTMLParser):
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
             logger.exception(
-                f"Could not fetch {input.document_source_url} for {input.document_id}."
+                "Could not fetch document.",
+                extra={
+                    "props": {
+                        "Document ID": input.document_id,
+                        "Source URL": input.document_source_url,
+                        "Error": str(e),
+                    }
+                },
             )
             return self._get_empty_response(input)
 
