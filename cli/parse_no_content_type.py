@@ -57,7 +57,7 @@ def process_documents_with_no_content_type(
             )
 
         _LOGGER.info(
-            f"Output saved.",
+            "Output saved.",
             extra={
                 "props": {
                     "Document ID": task.document_id,

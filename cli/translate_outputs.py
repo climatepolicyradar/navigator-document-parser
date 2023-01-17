@@ -165,7 +165,7 @@ def _translate_to_target_languages(
 
             except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
                 _LOGGER.error(
-                    f"Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                    "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                     extra={
                         "props": {
                             "Document ID": parser_output.document_id,

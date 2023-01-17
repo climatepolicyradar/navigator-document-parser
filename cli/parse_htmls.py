@@ -19,11 +19,13 @@ _LOGGER = logging.getLogger(__file__)
 def copy_input_to_output_html(
     task: ParserInput, output_path: Union[Path, CloudPath]
 ) -> None:
-    """Necessary to copy the input file to the output to ensure that we don't drop documents.
+    """
+    Necessary to copy the input file to the output to ensure that we don't drop documents.
 
     The file is copied at the time of processing rather than syncing the entire input directory so that if that
-    parser fails and retries it will not think that all files have already been parsed. :param task: input task
-    specifying the document to copy :param output_path: path to save the copied file
+    parser fails and retries it will not think that all files have already been parsed.
+    :param task: input task specifying the document to copy
+    :param output_path: path to save the copied file
     """
     blank_output = ParserOutput(
         document_id=task.document_id,
@@ -49,7 +51,7 @@ def copy_input_to_output_html(
     output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
 
     _LOGGER.info(
-        "Blank output saved.",
+        "Blank html output saved.",
         extra={
             "props": {
                 "Document ID": task.document_id,
@@ -69,9 +71,9 @@ def run_html_parser(
 
     :param input_tasks: list of input tasks specifying documents to parse
     :param output_dir: directory of output JSON files (results)
+    :param redo: if True, will re-parse documents that have already been parsed
     """
-
-    _LOGGER.info("Running HTML parser")
+    _LOGGER.info("Running HTML parser.")
     html_parser = CombinedParser()
 
     for task in tqdm(input_tasks):
@@ -79,10 +81,10 @@ def run_html_parser(
         try:
             output_path = output_dir / f"{task.document_id}.json"
 
-            if not output_path.exists():  # type: ignore
-                copy_input_to_output_html(task, output_path)  # type: ignore
+            if not output_path.exists():
+                copy_input_to_output_html(task, output_path)
 
-            existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
+            existing_parser_output = ParserOutput.parse_raw(output_path.read_text())
             # If no parsed html dta exists, assume we've not run before
             existing_html_data_exists = (
                 existing_parser_output.html_data is not None
@@ -95,6 +97,8 @@ def run_html_parser(
                     extra={
                         "props": {
                             "Output Path": output_path,
+                            "Document ID": task.document_id,
+                            "redo": redo,
                         }
                     },
                 )
@@ -103,10 +107,10 @@ def run_html_parser(
             parsed_html = html_parser.parse(task).detect_and_set_languages()
 
             try:
-                output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))  # type: ignore
+                output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
             except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
                 _LOGGER.error(
-                    f"Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                    "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                     extra={
                         "props": {
                             "Document ID": task.document_id,
@@ -115,8 +119,16 @@ def run_html_parser(
                         }
                     },
                 )
+            _LOGGER.info(
+                "HTML document saved.",
+                extra={
+                    "props": {
+                        "Document ID": task.document_id,
+                        "Output Path": output_path,
+                    }
+                },
+            )
 
-            _LOGGER.info(f"Output for {task.document_id} saved to {output_path}")
         except Exception as e:
             _LOGGER.exception(
                 "Failed to successfully parse HTML due to a raised exception.",

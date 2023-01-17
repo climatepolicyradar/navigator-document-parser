@@ -69,7 +69,7 @@ def copy_input_to_output_pdf(
         try:
             output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
             _LOGGER.info(
-                f"Blank output saved.",
+                "Blank output saved.",
                 extra={
                     "props": {
                         "Document ID": task.document_id,
@@ -269,8 +269,8 @@ def parse_file(
         _LOGGER.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             _LOGGER.info(
-                f"PDF path is None for document as the document either couldn't be downloaded, isn't content-type pdf "
-                f"or the response status code is not 200.",
+                "PDF path is None for document as the document either couldn't be downloaded, isn't content-type pdf "
+                "or the response status code is not 200.",
                 extra={
                     "props": {
                         "Document ID": input_task.document_id,
@@ -302,7 +302,7 @@ def parse_file(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
         ):
             _LOGGER.info(
-                f"Processing page.",
+                "Processing page.",
                 extra={
                     "props": {
                         "Document ID": input_task.document_id,
@@ -415,7 +415,7 @@ def parse_file(
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
         except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
             _LOGGER.error(
-                f"Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                 extra={
                     "props": {
                         "Document ID": input_task.document_id,
