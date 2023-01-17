@@ -68,8 +68,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_files_to_parse(
-        files: Optional[tuple[str]],
-        input_dir_as_path: Union[CloudPath, Path],
+    files: Optional[tuple[str]],
+    input_dir_as_path: Union[CloudPath, Path],
 ) -> list[Path]:
     # If no file list is provided, run over all inputs in the input prefix
     env_files = []
@@ -131,14 +131,14 @@ def _get_files_to_parse(
     "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
 )
 def main(
-        input_dir: str,
-        output_dir: str,
-        parallel: bool,
-        device: str,
-        files: Optional[tuple[str]],
-        redo: bool,
-        s3: bool,
-        debug: bool,
+    input_dir: str,
+    output_dir: str,
+    parallel: bool,
+    device: str,
+    files: Optional[tuple[str]],
+    redo: bool,
+    s3: bool,
+    debug: bool,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
@@ -173,7 +173,7 @@ def main(
             "props": {
                 "Test Run": TEST_RUN,
                 "Run PDF Parser": RUN_PDF_PARSER,
-                "Run HTML Parser": RUN_HTML_PARSER
+                "Run HTML Parser": RUN_HTML_PARSER,
             }
         },
     )
@@ -224,7 +224,9 @@ def main(
         },
     )
 
-    logger.info(f"Generating outputs for {len(no_processing_tasks)} inputs that cannot be processed.")
+    logger.info(
+        f"Generating outputs for {len(no_processing_tasks)} inputs that cannot be processed."
+    )
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
     if RUN_HTML_PARSER:
@@ -251,7 +253,7 @@ def main(
             "Translating results to target languages specified in environment variables.",
             extra={
                 "props": {
-                    "Target Languages": ','.join(TARGET_LANGUAGES),
+                    "Target Languages": ",".join(TARGET_LANGUAGES),
                 }
             },
         )

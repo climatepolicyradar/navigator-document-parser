@@ -97,7 +97,6 @@ def run_html_parser(
                             "Output Path": output_path,
                         }
                     },
-
                 )
                 continue
 

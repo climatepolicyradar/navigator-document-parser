@@ -44,7 +44,11 @@ class NewsPleaseParser(HTMLParser):
         except Exception as e:
             _LOGGER.exception(
                 "Failed to parse document.{input.document_source_url} for {input.document_id}",
-                extra={"Document ID": input.document_id, "Source URL": input.document_source_url, "Error Message": e},
+                extra={
+                    "Document ID": input.document_id,
+                    "Source URL": input.document_source_url,
+                    "Error Message": e,
+                },
             )
             return self._get_empty_response(input)
 
@@ -76,7 +80,11 @@ class NewsPleaseParser(HTMLParser):
         except Exception as e:
             _LOGGER.exception(
                 "Could not fetch document.",
-                extra={"Document ID": input.document_id, "Source URL": input.document_source_url, "Error Message": e},
+                extra={
+                    "Document ID": input.document_id,
+                    "Source URL": input.document_source_url,
+                    "Error Message": e,
+                },
             )
             return self._get_empty_response(input)
 

@@ -4,10 +4,9 @@ import logging
 import requests
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
-from datetime import datetime
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
-from src.base import HTMLParser, ParserInput, ParserOutput, StandardErrorLog
+from src.base import HTMLParser, ParserInput, ParserOutput
 from src.config import (
     HTML_MIN_NO_LINES_FOR_VALID_TEXT,
     HTML_HTTP_REQUEST_TIMEOUT,
@@ -33,7 +32,7 @@ class CombinedParser(HTMLParser):
     """
 
     def __init__(
-            self, max_paragraph_words: int = HTML_MAX_PARAGRAPH_LENGTH_WORDS
+        self, max_paragraph_words: int = HTML_MAX_PARAGRAPH_LENGTH_WORDS
     ) -> None:
         """
         Initialise combined parser
@@ -68,11 +67,11 @@ class CombinedParser(HTMLParser):
             return ReadabilityParser().parse_html(html, input)
 
         if (
-                max(
-                    len(paragraph.to_string().split(" "))
-                    for paragraph in newsplease_result.text_blocks
-                )
-                > self._max_paragraph_words
+            max(
+                len(paragraph.to_string().split(" "))
+                for paragraph in newsplease_result.text_blocks
+            )
+            > self._max_paragraph_words
         ):
             return ReadabilityParser().parse_html(html, input)
 
@@ -111,7 +110,7 @@ class CombinedParser(HTMLParser):
                         "Document Source Url": input.document_source_url,
                         "Error Message": str(e),
                     },
-                }
+                },
             )
             return self._get_empty_response(input)
 
@@ -126,14 +125,14 @@ class CombinedParser(HTMLParser):
                         "Document Source Url": input.document_source_url,
                         "Error Message": str(e),
                     },
-                }
+                },
             )
             return self._get_empty_response(input)
 
         # If there isn't enough text and there's a `<noscript>` tag in the HTML,
         # try again with JS enabled
         if (len(parsed_html.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) and (
-                "<noscript>" in requests_response.text
+            "<noscript>" in requests_response.text
         ):
             _LOGGER.info(
                 "Falling back to JS-enabled browser.",
@@ -142,7 +141,7 @@ class CombinedParser(HTMLParser):
                         "Document Id": input.document_id,
                         "Document Source Url": input.document_source_url,
                     },
-                }
+                },
             )
             try:
                 with sync_playwright() as playwright:
@@ -161,7 +160,7 @@ class CombinedParser(HTMLParser):
                             "Document Source Url": input.document_source_url,
                             "Error Message": str(e),
                         },
-                    }
+                    },
                 )
                 return self._get_empty_response(input)
 

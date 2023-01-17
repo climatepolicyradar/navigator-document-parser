@@ -41,7 +41,7 @@ _LOGGER = logging.getLogger(__file__)
 
 
 def copy_input_to_output_pdf(
-        task: ParserInput, output_path: Union[Path, CloudPath]
+    task: ParserInput, output_path: Union[Path, CloudPath]
 ) -> None:
     """Necessary to copy the input file to the output to ensure that we don't drop documents.
 
@@ -103,8 +103,8 @@ def copy_input_to_output_pdf(
 
 
 def download_pdf(
-        parser_input: ParserInput,
-        output_dir: Union[Path, str],
+    parser_input: ParserInput,
+    output_dir: Union[Path, str],
 ) -> Optional[Path]:
     """
     Get a PDF from a URL in a ParserInput object.
@@ -210,13 +210,13 @@ def select_page_at_random(num_pages: int) -> bool:
 
 
 def parse_file(
-        input_task: ParserInput,
-        model,
-        model_threshold_restrictive: float,
-        ocr_agent: str,
-        debug: bool,
-        output_dir: Union[Path, S3Path],
-        redo: bool = False,
+    input_task: ParserInput,
+    model,
+    model_threshold_restrictive: float,
+    ocr_agent: str,
+    debug: bool,
+    output_dir: Union[Path, S3Path],
+    redo: bool = False,
 ):
     """Parse an individual pdf file.
 
@@ -247,8 +247,8 @@ def parse_file(
     existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
     # If no parsed pdf data exists, assume we've not run before
     existing_pdf_data_exists = (
-            existing_parser_output.pdf_data is not None
-            and existing_parser_output.pdf_data.text_blocks
+        existing_parser_output.pdf_data is not None
+        and existing_parser_output.pdf_data.text_blocks
     )
     should_run_parser = not existing_pdf_data_exists or redo
     if not should_run_parser:
@@ -299,7 +299,7 @@ def parse_file(
         )
 
         for page_idx, image in tqdm(
-                enumerate(pdf_images), total=num_pages, desc=pdf_path.name
+            enumerate(pdf_images), total=num_pages, desc=pdf_path.name
         ):
             _LOGGER.info(
                 f"Processing page.",
@@ -364,7 +364,7 @@ def parse_file(
                 doc_name = input_task.document_name
                 page_number = page_idx + 1
                 image_output_path = (
-                        Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
+                    Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
                 )
 
                 page_layout = lp.Layout(page_layout_blocks)
@@ -391,7 +391,7 @@ def parse_file(
                 "props": {
                     "Document ID": input_task.document_id,
                 }
-            }
+            },
         )
 
         document = ParserOutput(
@@ -467,9 +467,9 @@ def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
 
 
 def get_model(
-        model: str,
-        ocr_agent: str,
-        device: str,
+    model: str,
+    ocr_agent: str,
+    device: str,
 ):
     """Get the model for the parser."""
     _LOGGER.info(
@@ -498,12 +498,12 @@ def get_model(
 
 
 def run_pdf_parser(
-        input_tasks: List[ParserInput],
-        output_dir: Union[Path, S3Path],
-        parallel: bool,
-        debug: bool,
-        device: str = "cpu",
-        redo: bool = False,
+    input_tasks: List[ParserInput],
+    output_dir: Union[Path, S3Path],
+    parallel: bool,
+    debug: bool,
+    device: str = "cpu",
+    redo: bool = False,
 ) -> None:
     """
     Run cli to extract semi-structured JSON from document-AI + OCR.
@@ -551,11 +551,7 @@ def run_pdf_parser(
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
         _LOGGER.info(
             "Running in parallel and setting max workers.",
-            extra={
-                "props": {
-                    "Max Workers": cpu_count
-                }
-            }
+            extra={"props": {"Max Workers": cpu_count}},
         )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
@@ -574,7 +570,7 @@ def run_pdf_parser(
                                 "Document ID": task.document_id,
                                 "Error Message": str(e),
                             }
-                        }
+                        },
                     )
                 else:
                     _LOGGER.info(
@@ -583,7 +579,7 @@ def run_pdf_parser(
                             "props": {
                                 "Document ID": task.document_id,
                             }
-                        }
+                        },
                     )
 
     else:
@@ -613,4 +609,3 @@ def run_pdf_parser(
             }
         },
     )
-

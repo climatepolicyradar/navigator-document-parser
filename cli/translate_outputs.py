@@ -88,7 +88,10 @@ def translate_parser_outputs(
             target_languages = identify_translation_languages(
                 parser_output, _target_languages
             )
-            _LOGGER.debug("Target languages identified.", extra={"props": {"target_languages": target_languages}})
+            _LOGGER.debug(
+                "Target languages identified.",
+                extra={"props": {"target_languages": target_languages}},
+            )
 
             _translate_to_target_languages(
                 path, parser_output, target_languages, redo=redo
@@ -111,9 +114,9 @@ def _translate_to_target_languages(
                     "props": {
                         "Document ID": parser_output.document_id,
                         "path": path,
-                        "target_language": target_language
+                        "target_language": target_language,
                     }
-                }
+                },
             )
 
             output_path = path.with_name(
@@ -126,7 +129,7 @@ def _translate_to_target_languages(
                         "props": {
                             "Document ID": parser_output.document_id,
                             "Output Path": output_path,
-                            "redo": redo
+                            "redo": redo,
                         }
                     },
                 )
@@ -141,9 +144,9 @@ def _translate_to_target_languages(
                     "props": {
                         "Document ID": parser_output.document_id,
                         "path": path,
-                        "target_language": target_language
+                        "target_language": target_language,
                     }
-                }
+                },
             )
 
             try:
@@ -157,7 +160,7 @@ def _translate_to_target_languages(
                             "Document ID": parser_output.document_id,
                             "Output Path": output_path,
                         }
-                    }
+                    },
                 )
 
             except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
