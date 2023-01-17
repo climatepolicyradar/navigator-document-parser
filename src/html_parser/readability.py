@@ -11,7 +11,7 @@ import bleach
 from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
 from src.base import HTMLParser, ParserInput, ParserOutput, HTMLData, HTMLTextBlock
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class ReadabilityParser(HTMLParser):
@@ -47,7 +47,7 @@ class ReadabilityParser(HTMLParser):
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
         except requests.exceptions.RequestException as e:
-            logger.exception(
+            _LOGGER.exception(
                 "Could not fetch document.",
                 extra={
                     "props": {

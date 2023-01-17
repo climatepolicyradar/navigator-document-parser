@@ -81,9 +81,9 @@ def _get_files_to_parse(
     files_to_parse.extend(env_files)
 
     if files_to_parse:
-        logger.info(f"Only parsing files: {files_to_parse}")
+        _LOGGER.info(f"Only parsing files: {files_to_parse}")
     else:
-        logger.info("Parsing all files")
+        _LOGGER.info("Parsing all files")
 
     return list(
         (input_dir_as_path / f for f in files_to_parse)
@@ -167,7 +167,7 @@ def main(
 
     files_to_parse = _get_files_to_parse(files, input_dir_as_path)
 
-    logger.info(
+    _LOGGER.info(
         "Run configuration.",
         extra={
             "props": {
@@ -187,7 +187,7 @@ def main(
             try:
                 tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
             except (pydantic.error_wrappers.ValidationError, KeyError) as e:
-                logger.error(
+                _LOGGER.error(
                     "Failed to parse input file.",
                     extra={
                         "props": {
@@ -212,7 +212,7 @@ def main(
         else:
             no_processing_tasks.append(task)
 
-    logger.info(
+    _LOGGER.info(
         "Tasks to process identified.",
         extra={
             "props": {
@@ -224,13 +224,13 @@ def main(
         },
     )
 
-    logger.info(
+    _LOGGER.info(
         f"Generating outputs for {len(no_processing_tasks)} inputs that cannot be processed."
     )
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
     if RUN_HTML_PARSER:
-        logger.info(f"Running HTML parser on {len(html_tasks)} documents.")
+        _LOGGER.info(f"Running HTML parser on {len(html_tasks)} documents.")
         run_html_parser(
             html_tasks,
             output_dir_as_path,
@@ -238,7 +238,7 @@ def main(
         )
 
     if RUN_PDF_PARSER:
-        logger.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
+        _LOGGER.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
         run_pdf_parser(
             pdf_tasks,
             output_dir_as_path,
@@ -249,7 +249,7 @@ def main(
         )
 
     if RUN_TRANSLATION:
-        logger.info(
+        _LOGGER.info(
             "Translating results to target languages specified in environment variables.",
             extra={
                 "props": {
