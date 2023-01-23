@@ -172,8 +172,8 @@ def test_run_parser_skip_already_done(caplog) -> None:
 
         assert result.exit_code == 0
 
-        assert "Skipping already parsed html with output" in caplog.text
-        assert "Skipping already parsed pdf with output" in caplog.text
+        assert "Skipping already parsed html document." in caplog.text
+        assert "Skipping already parsed pdf." in caplog.text
 
 
 _target_languages = set(TARGET_LANGUAGES)
