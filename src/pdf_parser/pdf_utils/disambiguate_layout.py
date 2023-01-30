@@ -4,17 +4,8 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from typing import List, Tuple, Optional
 
-from pydantic import BaseModel as PydanticBaseModel, Field
-
-
-# Ww need this class in order to add a new attribute to a LayoutWithFractions object.
-class BaseModel(PydanticBaseModel):
-    """Base class for all models."""
-
-    class Config:
-        """Pydantic config."""
-
-        arbitrary_types_allowed = True
+from pydantic import Field
+from src.pdf_parser.pdf_utils.utils import BaseModel
 
 
 # TODO: I added this because I want to enforce that the unexplained fractions are in the same order as the boxes in
