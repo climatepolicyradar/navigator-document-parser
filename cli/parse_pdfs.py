@@ -3,7 +3,6 @@ import hashlib
 import logging
 import multiprocessing
 import os
-import sys
 import tempfile
 import time
 import warnings
@@ -37,8 +36,6 @@ from src.pdf_parser.pdf_utils.ocr import (
     extract_google_layout,
     combine_google_lp,
 )
-
-sys.path.append("..")
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
