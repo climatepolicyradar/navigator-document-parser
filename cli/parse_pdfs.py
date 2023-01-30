@@ -438,7 +438,7 @@ def parse_file(
 
         os.remove(pdf_path)
         _LOGGER.info(
-            "Removed downloaded document.{pdf_path}.",
+            "Removed downloaded document.",
             extra={
                 "props": {
                     "document_id": input_task.document_id,
