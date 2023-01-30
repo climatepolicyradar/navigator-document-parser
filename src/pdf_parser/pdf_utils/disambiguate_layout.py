@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional
 from pydantic import BaseModel as PydanticBaseModel, Field
 
 
+# Ww need this class in order to add a new attribute to a LayoutWithFractions object.
 class BaseModel(PydanticBaseModel):
     """Base class for all models."""
 
