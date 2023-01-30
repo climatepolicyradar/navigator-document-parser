@@ -10,21 +10,12 @@ from google.cloud.vision import types
 from google.cloud.vision_v1.types import BoundingPoly
 from layoutparser import TextBlock, Rectangle, Layout
 from layoutparser.ocr import TesseractAgent, GCVAgent
-from pydantic import BaseModel as PydanticBaseModel
 from shapely.geometry import Polygon
 from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 from src.base import PDFTextBlock
 from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
-
-
-class BaseModel(PydanticBaseModel):
-    """Base class for all models."""
-
-    class Config:
-        """Pydantic config."""
-
-        arbitrary_types_allowed = True
+from src.pdf_parser.pdf_utils.utils import BaseModel
 
 
 # Hierarchical data structure for representing document text.
