@@ -49,9 +49,9 @@ def process_documents_with_no_content_type(
                 "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                 extra={
                     "props": {
-                        "Document ID": task.document_id,
-                        "Output Path": output_path,
-                        "Error Message": str(e),
+                        "document_id": task.document_id,
+                        "output_path": output_path,
+                        "error_message": str(e),
                     }
                 },
             )
@@ -60,8 +60,8 @@ def process_documents_with_no_content_type(
             "Output saved.",
             extra={
                 "props": {
-                    "Document ID": task.document_id,
-                    "Output Path": output_path,
+                    "document_id": task.document_id,
+                    "output_path": output_path,
                 }
             },
         )

@@ -72,8 +72,8 @@ def copy_input_to_output_pdf(
                 "Blank output saved.",
                 extra={
                     "props": {
-                        "Document ID": task.document_id,
-                        "Output Path": output_path,
+                        "document_id": task.document_id,
+                        "output_path": output_path,
                     }
                 },
             )
@@ -82,9 +82,9 @@ def copy_input_to_output_pdf(
                 "Failed to write to output path.",
                 extra={
                     "props": {
-                        "Document ID": task.document_id,
-                        "Output Path": output_path,
-                        "Error Message": str(e),
+                        "document_id": task.document_id,
+                        "output_path": output_path,
+                        "error_message": str(e),
                     }
                 },
             )
@@ -94,9 +94,9 @@ def copy_input_to_output_pdf(
             "Failed to parse",
             extra={
                 "props": {
-                    "Document ID": task.document_id,
-                    "Output Path": output_path,
-                    "Error Message": str(e),
+                    "document_id": task.document_id,
+                    "output_path": output_path,
+                    "error_message": str(e),
                 }
             },
         )
@@ -120,9 +120,9 @@ def download_pdf(
             "Downloading document from url to local directory.",
             extra={
                 "props": {
-                    "Document ID": parser_input.document_id,
-                    "Document URL": document_url,
-                    "Output Directory": output_dir,
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "output_directory": output_dir,
                 }
             },
         )
@@ -133,9 +133,9 @@ def download_pdf(
             "Failed to download document from url.",
             extra={
                 "props": {
-                    "Document ID": parser_input.document_id,
-                    "Document URL": document_url,
-                    "Error Message": str(e),
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "error_message": str(e),
                 }
             },
         )
@@ -146,9 +146,9 @@ def download_pdf(
             "Non 200 status code from response.",
             extra={
                 "props": {
-                    "Document ID": parser_input.document_id,
-                    "Document URL": document_url,
-                    "Response Status Code": response.status_code,
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "response_status_code": response.status_code,
                 }
             },
         )
@@ -159,9 +159,9 @@ def download_pdf(
             "Content-Type is not application/pdf.",
             extra={
                 "props": {
-                    "Document ID": parser_input.document_id,
-                    "Document URL": document_url,
-                    "Response Status Code": response.status_code,
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "response_status_code": response.status_code,
                 }
             },
         )
@@ -172,8 +172,8 @@ def download_pdf(
             "Saving downloaded file locally.",
             extra={
                 "props": {
-                    "Document ID": parser_input.document_id,
-                    "Document URL": document_url,
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
                 }
             },
         )
@@ -235,7 +235,7 @@ def parse_file(
         "Running pdf parser on document.",
         extra={
             "props": {
-                "Document ID": input_task.document_id,
+                "document_id": input_task.document_id,
             }
         },
     )
@@ -256,8 +256,8 @@ def parse_file(
             "Skipping already parsed pdf.",
             extra={
                 "props": {
-                    "Document ID": input_task.document_id,
-                    "Output Path": output_path,
+                    "document_id": input_task.document_id,
+                    "output_path": output_path,
                 }
             },
         )
@@ -273,8 +273,8 @@ def parse_file(
                 "or the response status code is not 200.",
                 extra={
                     "props": {
-                        "Document ID": input_task.document_id,
-                        "Temporary Local Location": temp_output_dir,
+                        "document_id": input_task.document_id,
+                        "temporary_local_location": temp_output_dir,
                     }
                 },
             )
@@ -292,8 +292,8 @@ def parse_file(
             "Iterating through pages.",
             extra={
                 "props": {
-                    "Document ID": input_task.document_id,
-                    "Number of Pages": num_pages,
+                    "document_id": input_task.document_id,
+                    "number_of_pages": num_pages,
                 }
             },
         )
@@ -305,8 +305,8 @@ def parse_file(
                 "Processing page.",
                 extra={
                     "props": {
-                        "Document ID": input_task.document_id,
-                        "Page Index": page_idx,
+                        "document_id": input_task.document_id,
+                        "page_index": page_idx,
                     }
                 },
             )
@@ -389,7 +389,7 @@ def parse_file(
             "Setting parser output for document.",
             extra={
                 "props": {
-                    "Document ID": input_task.document_id,
+                    "document_id": input_task.document_id,
                 }
             },
         )
@@ -418,9 +418,9 @@ def parse_file(
                 "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                 extra={
                     "props": {
-                        "Document ID": input_task.document_id,
-                        "Output Path": output_path,
-                        "Error Message": str(e),
+                        "document_id": input_task.document_id,
+                        "output_path": output_path,
+                        "error_message": str(e),
                     }
                 },
             )
@@ -429,9 +429,9 @@ def parse_file(
             "Saved document.",
             extra={
                 "props": {
-                    "Document ID": input_task.document_id,
-                    "Output Path": output_path.name,
-                    "Output Directory": output_dir,
+                    "document_id": input_task.document_id,
+                    "output_path": output_path.name,
+                    "output_directory": output_dir,
                 }
             },
         )
@@ -441,8 +441,8 @@ def parse_file(
             "Removed downloaded document.{pdf_path}.",
             extra={
                 "props": {
-                    "Document ID": input_task.document_id,
-                    "Local Document Path": pdf_path,
+                    "document_id": input_task.document_id,
+                    "local_document_path": pdf_path,
                 }
             },
         )
@@ -476,9 +476,9 @@ def get_model(
         "Model Configuration",
         extra={
             "props": {
-                "Model": model,
-                "OCR Agent": ocr_agent,
-                "Device": device,
+                "model": model,
+                "ocr_agent": ocr_agent,
+                "device": device,
             }
         },
     )
@@ -530,10 +530,10 @@ def run_pdf_parser(
         "Running pdf parser.",
         extra={
             "props": {
-                "Parallel": parallel,
-                "Debug": debug,
-                "Redo": redo,
-                "Number of Tasks": len(input_tasks),
+                "parallel": parallel,
+                "debug": debug,
+                "redo": redo,
+                "number_of_tasks": len(input_tasks),
             },
         },
     )
@@ -551,7 +551,7 @@ def run_pdf_parser(
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
         _LOGGER.info(
             "Running in parallel and setting max workers.",
-            extra={"props": {"Max Workers": cpu_count}},
+            extra={"props": {"max_workers": cpu_count}},
         )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
@@ -567,8 +567,8 @@ def run_pdf_parser(
                         "Document failed to generate a result.",
                         extra={
                             "props": {
-                                "Document ID": task.document_id,
-                                "Error Message": str(e),
+                                "document_id": task.document_id,
+                                "error_message": str(e),
                             }
                         },
                     )
@@ -577,7 +577,7 @@ def run_pdf_parser(
                         "Document successful parsed by pdf parser.",
                         extra={
                             "props": {
-                                "Document ID": task.document_id,
+                                "document_id": task.document_id,
                             }
                         },
                     )
@@ -603,9 +603,9 @@ def run_pdf_parser(
         "PDF parsing complete for all files.",
         extra={
             "props": {
-                "Time Taken": time_end - time_start,
-                "Start Time": time_start,
-                "End Time": time_end,
+                "time_taken": time_end - time_start,
+                "start_time": time_start,
+                "end_time": time_end,
             }
         },
     )

@@ -96,8 +96,8 @@ def run_html_parser(
                     "Skipping already parsed html document.",
                     extra={
                         "props": {
-                            "Output Path": output_path,
-                            "Document ID": task.document_id,
+                            "output_path": output_path,
+                            "document_id": task.document_id,
                             "redo": redo,
                         }
                     },
@@ -113,9 +113,9 @@ def run_html_parser(
                     "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                     extra={
                         "props": {
-                            "Document ID": task.document_id,
-                            "Output Path": output_path,
-                            "Error Message": str(e),
+                            "document_id": task.document_id,
+                            "output_path": output_path,
+                            "error_message": str(e),
                         }
                     },
                 )
@@ -123,8 +123,8 @@ def run_html_parser(
                 "HTML document saved.",
                 extra={
                     "props": {
-                        "Document ID": task.document_id,
-                        "Output Path": output_path,
+                        "document_id": task.document_id,
+                        "output_path": output_path,
                     }
                 },
             )
@@ -135,7 +135,7 @@ def run_html_parser(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "Exception Message": str(e),
+                        "exception_message": str(e),
                     }
                 },
             )

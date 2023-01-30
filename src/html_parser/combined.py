@@ -106,9 +106,9 @@ class CombinedParser(HTMLParser):
                 "Failed to download html document.",
                 extra={
                     "props": {
-                        "Document Id": input.document_id,
-                        "Document Source Url": input.document_source_url,
-                        "Error Message": str(e),
+                        "document_id": input.document_id,
+                        "document_source_url": input.document_source_url,
+                        "error_message": str(e),
                     },
                 },
             )
@@ -121,9 +121,9 @@ class CombinedParser(HTMLParser):
                 "Failed to parse html file.",
                 extra={
                     "props": {
-                        "Document Id": input.document_id,
-                        "Document Source Url": input.document_source_url,
-                        "Error Message": str(e),
+                        "document_id": input.document_id,
+                        "document_source_url": input.document_source_url,
+                        "error_message": str(e),
                     },
                 },
             )
@@ -138,8 +138,8 @@ class CombinedParser(HTMLParser):
                 "Falling back to JS-enabled browser.",
                 extra={
                     "props": {
-                        "Document Id": input.document_id,
-                        "Document Source Url": input.document_source_url,
+                        "document_id": input.document_id,
+                        "document_source_url": input.document_source_url,
                     },
                 },
             )
@@ -156,9 +156,9 @@ class CombinedParser(HTMLParser):
                     "Failed to get HTML with playwright.",
                     extra={
                         "props": {
-                            "Document Id": input.document_id,
-                            "Document Source Url": input.document_source_url,
-                            "Error Message": str(e),
+                            "document_id": input.document_id,
+                            "document_source_url": input.document_source_url,
+                            "error_message": str(e),
                         },
                     },
                 )

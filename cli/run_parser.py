@@ -171,9 +171,9 @@ def main(
         "Run configuration.",
         extra={
             "props": {
-                "Test Run": TEST_RUN,
-                "Run PDF Parser": RUN_PDF_PARSER,
-                "Run HTML Parser": RUN_HTML_PARSER,
+                "test_run": TEST_RUN,
+                "run_pdf_parser": RUN_PDF_PARSER,
+                "run_html_parser": RUN_HTML_PARSER,
             }
         },
     )
@@ -191,8 +191,8 @@ def main(
                     "Failed to parse input file.",
                     extra={
                         "props": {
-                            "Error Message": e,
-                            "Document Path": str(path),
+                            "error_message": e,
+                            "document_path": str(path),
                         }
                     },
                 )
@@ -216,10 +216,10 @@ def main(
         "Tasks to process identified.",
         extra={
             "props": {
-                "Total Tasks": len(tasks),
-                "No Supported Content-Type Tasks": len(no_processing_tasks),
-                "HTML Tasks": len(html_tasks),
-                "PDF Tasks": len(pdf_tasks),
+                "total_tasks": len(tasks),
+                "no_supported _content-type_tasks": len(no_processing_tasks),
+                "html_asks": len(html_tasks),
+                "pdf_tasks": len(pdf_tasks),
             }
         },
     )
@@ -253,7 +253,7 @@ def main(
             "Translating results to target languages specified in environment variables.",
             extra={
                 "props": {
-                    "Target Languages": ",".join(TARGET_LANGUAGES),
+                    "target_languages": ",".join(TARGET_LANGUAGES),
                 }
             },
         )

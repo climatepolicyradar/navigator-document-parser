@@ -51,9 +51,9 @@ class ReadabilityParser(HTMLParser):
                 "Could not fetch document.",
                 extra={
                     "props": {
-                        "Document ID": input.document_id,
-                        "Source URL": input.document_source_url,
-                        "Error": str(e),
+                        "document_id": input.document_id,
+                        "source_url": input.document_source_url,
+                        "error": str(e),
                     }
                 },
             )

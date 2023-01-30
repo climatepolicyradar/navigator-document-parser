@@ -112,7 +112,7 @@ def _translate_to_target_languages(
                 "Translating document.",
                 extra={
                     "props": {
-                        "Document ID": parser_output.document_id,
+                        "document_id": parser_output.document_id,
                         "path": path,
                         "target_language": target_language,
                     }
@@ -127,7 +127,7 @@ def _translate_to_target_languages(
                     "Skipping translating document because it already exists and redo=False.",
                     extra={
                         "props": {
-                            "Document ID": parser_output.document_id,
+                            "document_id": parser_output.document_id,
                             "Output Path": output_path,
                             "redo": redo,
                         }
@@ -142,7 +142,7 @@ def _translate_to_target_languages(
                 "Translated document.",
                 extra={
                     "props": {
-                        "Document ID": parser_output.document_id,
+                        "document_id": parser_output.document_id,
                         "path": path,
                         "target_language": target_language,
                     }
@@ -157,8 +157,8 @@ def _translate_to_target_languages(
                     "Saved translated output for document.",
                     extra={
                         "props": {
-                            "Document ID": parser_output.document_id,
-                            "Output Path": output_path,
+                            "document_id": parser_output.document_id,
+                            "output_path": output_path,
                         }
                     },
                 )
@@ -168,9 +168,9 @@ def _translate_to_target_languages(
                     "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
                     extra={
                         "props": {
-                            "Document ID": parser_output.document_id,
-                            "Output Path": output_path,
-                            "Error Message": str(e),
+                            "document_id": parser_output.document_id,
+                            "output_path": output_path,
+                            "error_message": str(e),
                         }
                     },
                 )
@@ -179,9 +179,9 @@ def _translate_to_target_languages(
                 "Failed to successfully translate due to a raised exception.",
                 extra={
                     "props": {
-                        "Document ID": parser_output.document_id,
-                        "Target Language": target_language,
-                        "Error Message": str(e),
+                        "document_id": parser_output.document_id,
+                        "target_language": target_language,
+                        "error_message": str(e),
                     }
                 },
             )
