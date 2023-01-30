@@ -54,8 +54,8 @@ def copy_input_to_output_html(
         "Blank html output saved.",
         extra={
             "props": {
-                "Document ID": task.document_id,
-                "Output Path": output_path,
+                "document_id": task.document_id,
+                "output_path": output_path,
             }
         },
     )

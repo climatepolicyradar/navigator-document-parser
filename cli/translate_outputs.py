@@ -1,4 +1,5 @@
 import logging
+import time
 from pathlib import Path
 from typing import Set, Sequence, Union
 
@@ -53,6 +54,7 @@ def translate_parser_outputs(
 
     :param task_output_paths: A list of the paths to the parser outputs for this current instance to translate.
     """
+    time_start = time.time()
     _target_languages = set(TARGET_LANGUAGES)
 
     for path in tqdm(task_output_paths):
@@ -97,7 +99,17 @@ def translate_parser_outputs(
                 path, parser_output, target_languages, redo=redo
             )
 
-    _LOGGER.info("Finished translation stage for all input tasks.")
+    time_end = time.time()
+    _LOGGER.info(
+        "Finished translation stage for all input tasks.",
+        extra={
+            "props": {
+                "time_taken": time_end - time_start,
+                "start_time": time_start,
+                "end_time": time_end,
+            }
+        },
+    )
 
 
 def _translate_to_target_languages(
