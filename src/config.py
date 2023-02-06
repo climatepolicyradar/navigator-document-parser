@@ -18,7 +18,6 @@ LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE = float(
 )
 PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "gcv")
 
-TEST_RUN = os.getenv("TEST_RUN", "false").lower() == "true"
 RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", "true").lower() == "true"
 RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", "true").lower() == "true"
 RUN_TRANSLATION = os.getenv("RUN_TRANSLATION", "true").lower() == "true"
