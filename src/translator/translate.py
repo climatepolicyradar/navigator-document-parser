@@ -2,12 +2,9 @@ from typing import List
 import six
 import logging
 from google.cloud import translate_v2
-from src.config import LOGGING_LEVEL
 from src.base import ParserOutput
 
-logger = logging.getLogger(__name__)
-level = logging.getLevelName(LOGGING_LEVEL)
-logger.setLevel(level)
+_LOGGER = logging.getLogger(__file__)
 
 
 def translate_text(text: List[str], target_language: str) -> List[str]:
@@ -32,8 +29,17 @@ def translate_text(text: List[str], target_language: str) -> List[str]:
         result = translate_client.translate(text, target_language=target_language)
         return [item["translatedText"] for item in result]
     except Exception as e:
-        logger.exception(f"Error translating text: {e}")
-        raise (e)
+        _LOGGER.exception(
+            "Error translating text.",
+            extra={
+                "props": {
+                    "text": text,
+                    "target_language": target_language,
+                    "error": str(e),
+                }
+            },
+        )
+        raise e
 
 
 def translate_parser_output(

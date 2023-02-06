@@ -11,7 +11,7 @@ import bleach
 from src.config import HTML_MIN_NO_LINES_FOR_VALID_TEXT, HTML_HTTP_REQUEST_TIMEOUT
 from src.base import HTMLParser, ParserInput, ParserOutput, HTMLData, HTMLTextBlock
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class ReadabilityParser(HTMLParser):
@@ -36,8 +36,7 @@ class ReadabilityParser(HTMLParser):
         """
         if input.document_source_url is None:
             raise ValueError(
-                "HTML processing was supplied an empty source URL for "
-                f"{input.document_id}"
+                "HTML processing was supplied an empty source URL for {input.document_id}"
             )
 
         try:
@@ -47,9 +46,16 @@ class ReadabilityParser(HTMLParser):
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
-        except requests.exceptions.RequestException:
-            logger.exception(
-                f"Could not fetch {input.document_source_url} for {input.document_id}."
+        except requests.exceptions.RequestException as e:
+            _LOGGER.exception(
+                "Could not fetch document.",
+                extra={
+                    "props": {
+                        "document_id": input.document_id,
+                        "source_url": input.document_source_url,
+                        "error": str(e),
+                    }
+                },
             )
             return self._get_empty_response(input)
 

@@ -13,18 +13,19 @@ sys.path.append("..")
 from src.base import HTMLData, ParserInput, ParserOutput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
-_LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
+_LOGGER = logging.getLogger(__file__)
 
 
 def copy_input_to_output_html(
     task: ParserInput, output_path: Union[Path, CloudPath]
 ) -> None:
-    """Necessary to copy the input file to the output to ensure that we don't drop documents.
+    """
+    Necessary to copy the input file to the output to ensure that we don't drop documents.
 
     The file is copied at the time of processing rather than syncing the entire input directory so that if that
-    parser fails and retries it will not think that all files have already been parsed. :param task: input task
-    specifying the document to copy :param output_path: path to save the copied file
+    parser fails and retries it will not think that all files have already been parsed.
+    :param task: input task specifying the document to copy
+    :param output_path: path to save the copied file
     """
     blank_output = ParserOutput(
         document_id=task.document_id,
@@ -49,7 +50,15 @@ def copy_input_to_output_html(
 
     output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
 
-    _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
+    _LOGGER.info(
+        "Blank html output saved.",
+        extra={
+            "props": {
+                "document_id": task.document_id,
+                "output_path": output_path,
+            }
+        },
+    )
 
 
 def run_html_parser(
@@ -62,9 +71,9 @@ def run_html_parser(
 
     :param input_tasks: list of input tasks specifying documents to parse
     :param output_dir: directory of output JSON files (results)
+    :param redo: if True, will re-parse documents that have already been parsed
     """
-
-    _LOGGER.info("Running HTML parser")
+    _LOGGER.info("Running HTML parser.")
     html_parser = CombinedParser()
 
     for task in tqdm(input_tasks):
@@ -72,10 +81,10 @@ def run_html_parser(
         try:
             output_path = output_dir / f"{task.document_id}.json"
 
-            if not output_path.exists():  # type: ignore
-                copy_input_to_output_html(task, output_path)  # type: ignore
+            if not output_path.exists():
+                copy_input_to_output_html(task, output_path)
 
-            existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
+            existing_parser_output = ParserOutput.parse_raw(output_path.read_text())
             # If no parsed html dta exists, assume we've not run before
             existing_html_data_exists = (
                 existing_parser_output.html_data is not None
@@ -84,23 +93,49 @@ def run_html_parser(
             should_run_parser = not existing_html_data_exists or redo
             if not should_run_parser:
                 _LOGGER.info(
-                    f"Skipping already parsed html with output - {output_path}."
+                    "Skipping already parsed html document.",
+                    extra={
+                        "props": {
+                            "output_path": output_path,
+                            "document_id": task.document_id,
+                            "redo": redo,
+                        }
+                    },
                 )
                 continue
 
             parsed_html = html_parser.parse(task).detect_and_set_languages()
 
             try:
-                output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))  # type: ignore
-            except cloudpathlib.exceptions.OverwriteNewerCloudError:
-                _LOGGER.info(
-                    f"Tried to write {task.document_id} to {output_path}, received OverwriteNewerCloudError and "
-                    f"therefore skipping."
+                output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
+            except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
+                _LOGGER.error(
+                    "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                    extra={
+                        "props": {
+                            "document_id": task.document_id,
+                            "output_path": output_path,
+                            "error_message": str(e),
+                        }
+                    },
                 )
+            _LOGGER.info(
+                "HTML document saved.",
+                extra={
+                    "props": {
+                        "document_id": task.document_id,
+                        "output_path": output_path,
+                    }
+                },
+            )
 
-            _LOGGER.info(f"Output for {task.document_id} saved to {output_path}")
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(
-                "Failed to successfully parse HTML due to a raised exception",
-                extra={"props": {"document_id": task.document_id}},
+                "Failed to successfully parse HTML due to a raised exception.",
+                extra={
+                    "props": {
+                        "document_id": task.document_id,
+                        "exception_message": str(e),
+                    }
+                },
             )
