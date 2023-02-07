@@ -23,7 +23,6 @@ from src.config import (  # noqa: E402
     RUN_PDF_PARSER,
     RUN_TRANSLATION,
     TARGET_LANGUAGES,
-    TEST_RUN,
 )
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
@@ -171,7 +170,6 @@ def main(
         "Run configuration.",
         extra={
             "props": {
-                "test_run": TEST_RUN,
                 "run_pdf_parser": RUN_PDF_PARSER,
                 "run_html_parser": RUN_HTML_PARSER,
             }
@@ -179,24 +177,19 @@ def main(
     )
 
     tasks = []
-    counter = 0
     for path in files_to_parse:
-        if TEST_RUN and counter > 100:
-            break
-        else:
-            try:
-                tasks.append(ParserInput.parse_raw(path.read_text()))  # type: ignore
-            except (pydantic.error_wrappers.ValidationError, KeyError) as e:
-                _LOGGER.error(
-                    "Failed to parse input file.",
-                    extra={
-                        "props": {
-                            "error_message": e,
-                            "document_path": str(path),
-                        }
-                    },
-                )
-        counter += 1
+        try:
+            tasks.append(ParserInput.parse_raw(path.read_text()))
+        except (pydantic.error_wrappers.ValidationError, KeyError) as e:
+            _LOGGER.error(
+                "Failed to parse input file.",
+                extra={
+                    "props": {
+                        "error_message": e,
+                        "document_path": str(path),
+                    }
+                },
+            )
 
     # TODO: Update splitting to be based on ContentType enum
     no_processing_tasks = []
