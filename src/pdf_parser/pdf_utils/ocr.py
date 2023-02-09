@@ -1,11 +1,329 @@
 import concurrent.futures
+import io
+from collections import defaultdict
 from typing import Optional, Tuple, List, Union
 
 import numpy as np
-from layoutparser import TextBlock, Layout
+from PIL.PpmImagePlugin import PpmImageFile
+from google.cloud import vision
+from google.cloud.vision import types
+from google.cloud.vision_v1.types import BoundingPoly
+from layoutparser import TextBlock, Rectangle, Layout
 from layoutparser.ocr import TesseractAgent, GCVAgent
+from shapely.geometry import Polygon
+from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 from src.base import PDFTextBlock
+from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
+from src.pdf_parser.pdf_utils.utils import BaseModel
+
+
+# Hierarchical data structure for representing document text.
+class GoogleTextSegment(BaseModel):
+    """A segment of text from Google OCR."""
+
+    text: str
+    coordinates: BoundingPoly
+    confidence: float
+    language: Optional[str]
+
+
+class GoogleBlock(BaseModel):
+    """A fully structured block from google OCR. Can contain multiple segments."""
+
+    coordinates: BoundingPoly
+    text_blocks: List[GoogleTextSegment]
+
+
+def image_bytes(image: PpmImageFile) -> bytes:
+    """Return the image as a bytes object."""
+    image_buffer = io.BytesIO()
+    image.save(image_buffer, format="PNG")
+    image_buffer.seek(0)
+    return image_buffer.read()
+
+
+def google_vertex_to_shapely(bound):
+    return Polygon(
+        [
+            (bound.vertices[0].x, bound.vertices[0].y),
+            (bound.vertices[1].x, bound.vertices[1].y),
+            (bound.vertices[2].x, bound.vertices[2].y),
+            (bound.vertices[3].x, bound.vertices[3].y),
+        ]
+    )
+
+
+def extract_google_layout(
+    image: PpmImageFile,
+) -> Tuple[
+    List[GoogleBlock],
+    List[GoogleTextSegment],
+    List[GoogleTextSegment],
+    List[GoogleTextSegment],
+]:
+    """Returns document bounds given an image.
+
+        The Google OCR API returns blocks of paragraphs. Roughly, there are 3 cases worth considering:
+
+    1. A block consists of a heading and a paragraph of text below it. In this case the block consists of 2
+    paragraphs, the first being the heading and the second being the text.
+    2. A block consists of a paragraph of
+    text. In this case the block and the paragraph have the same coordinates.
+    3. A block consists of multiple  paragraphs of text. For example, if we have a list of items,
+    each item is a paragraph.
+
+    Given this, and given that we want to cross-reference the returned layout with the one returned by
+    layoutparser + heuristics, we store blocks and paragraphs separately as "GoogleBlocks". To see the utility of this,
+    consider 2 cases:
+
+    1. Layout parser classifies a heading and a paragraph of text below it as 2 separate blocks,
+     one for a heading and another for the following paragraph. In this case, the best coordinate matches
+      with LayoutParser will be on what google classifies as paragraphs.
+    2. Layout parser detects a list of items as a single block but is unable to detect the individual items.
+    In this case, the best matches will be on what google classifies as blocks. So we want to merge the text
+    from the paragraphs into the blocks.
+
+    Regarding point 2, Google appears to be able to detect the individual items in a list more reliably than
+    layoutparser, a point we can explore in the future to get the best results by combining the two approaches.
+    For future usability, we also store block objects with paragraphs as sub-objects.
+
+    Args:
+        image: Image to extract document bounds from.
+
+    Returns:
+        List of GoogleBlocks, List of GoogleTextSegments, List of GoogleTextSegments, List of GoogleTextSegments
+    """
+
+    def _get_modal_string(string_list: List[str]) -> Optional[str]:
+        if len(string_list) > 0:
+            return max(set(block_languages), key=block_languages.count)
+        else:
+            return None
+
+    content = image_bytes(image)
+    client = vision.ImageAnnotatorClient()
+    image = types.Image(content=content)
+
+    # TODO: Handle errors. Hit a 503.
+    response = client.document_text_detection(image=image)
+    document = response.full_text_annotation
+
+    breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
+    lines = []
+    fully_structured_blocks = []
+    paragraph_text_segments = []
+    block_text_segments = []
+    for page in document.pages:
+        for block in page.blocks:
+            block_languages = []
+            default_dict = defaultdict(list)
+            for paragraph in block.paragraphs:
+                default_dict["paragraph_confidences"].append(paragraph.confidence)
+                para = ""
+                line = ""
+                para_languages = (
+                    []
+                )  # languages stored at word level. Detect then take mode.
+                for word in paragraph.words:
+                    try:
+                        lang = word.property.detected_languages[0].language_code
+                    except IndexError:
+                        lang = None
+                    para_languages.append(lang)
+                    block_languages.append(lang)
+                    default_dict["block_languages"].append(lang)
+                    for symbol in word.symbols:
+                        line += symbol.text
+                        break_type = symbol.property.detected_break.type
+                        # Add space to end of line if it's not a break.
+                        if break_type in [breaks.SPACE, breaks.EOL_SURE_SPACE]:
+                            line += " "
+                        # Start new line in same paragraph if there is a line break or a sure space (i.e. large space)
+                        if break_type in [breaks.LINE_BREAK, breaks.EOL_SURE_SPACE]:
+                            lines.append(line)
+                            para += line
+                            line = ""
+                # Detect language by selecting the modal language of the words in the paragraph.
+                para_lang = _get_modal_string(para_languages)
+                paragraph_text_segments.append(
+                    GoogleTextSegment(
+                        text=para,
+                        coordinates=paragraph.bounding_box,
+                        confidence=paragraph.confidence,
+                        language=para_lang,
+                    )
+                )
+                default_dict["block_paragraphs"].append(para)
+                default_dict["block_paragraph_coords"].append(paragraph.bounding_box)
+
+            # Detect language by selecting the modal language of the words in the block.
+            block_lang = _get_modal_string(default_dict["block_languages"])
+            # for every block, create a text block
+            block_all_text = "\n".join(default_dict["block_paragraphs"])
+            block_text_segments.append(
+                GoogleTextSegment(
+                    coordinates=block.bounding_box,
+                    text=block_all_text,
+                    confidence=block.confidence,
+                    language=block_lang,
+                )
+            )
+
+            # For every block, create a block object (contains paragraph metadata).
+            block_list = [
+                GoogleTextSegment(
+                    coordinates=default_dict["block_paragraph_coords"][i],
+                    text=default_dict["block_paragraphs"][i],
+                    language=default_dict["block_languages"][i],
+                    confidence=default_dict["paragraph_confidences"][i],
+                )
+                for i in range(len(default_dict["block_paragraphs"]))
+            ]
+            google_block = GoogleBlock(
+                coordinates=block.bounding_box, text_blocks=block_list
+            )
+            fully_structured_blocks.append(google_block)
+
+    # look for duplicates in block_texts and paragraph_texts and create a list of full blocks
+    text_blocks_to_keep = []
+    for block in block_text_segments:
+        if block in paragraph_text_segments:
+            continue
+        else:
+            text_blocks_to_keep.append(block)
+
+    combined_text_segments = text_blocks_to_keep + paragraph_text_segments
+
+    return (
+        fully_structured_blocks,
+        combined_text_segments,
+        block_text_segments,
+        paragraph_text_segments,
+    )
+
+
+def google_coords_to_lp_coords(
+    google_coords: RepeatedCompositeContainer,
+) -> Tuple[int, int, int, int]:
+    """Converts Google OCR coordinates to LayoutParser coordinates.
+
+    Args:
+        google_coords: Google OCR coordinates.
+
+    Returns:
+        Tuple of (x1, y1, x2, y2)
+    """
+    x1, y1, x2, y2 = (
+        google_coords[0].x,
+        google_coords[0].y,
+        google_coords[2].x,
+        google_coords[2].y,
+    )
+    return x1, y1, x2, y2
+
+
+def combine_google_lp(
+    image,
+    google_layout: List[GoogleTextSegment],
+    lp_layout: Layout,
+    threshold: float = 0.9,
+    top_exclude: float = 0.1,
+    bottom_exclude: float = 0.1,
+):
+    """
+    Combine google layout with layoutparser layout.
+
+    - Replaces layoutparser objects with objects recognised by google API + their text if they overlap sufficiently.
+    - Does not include google objects if they seem to be not part of the main text (e.g. headers, footers, etc.). We
+    use top exclude and bottom exclude to ascertain this.
+
+
+    Args:
+        image: The image the layout is based on.
+        google_layout: List of GoogleTextSegment objects inferred from the structure returned by the Google OCR API.
+        lp_layout: Layout object
+        threshold: Threshold for overlap between google and layoutparser objects. If the overlap is larger than
+            threshold, the layoutparser object is replaced by the google object.
+        top_exclude: Exclude objects from the top of the page if they are above this fraction of the page.
+        bottom_exclude: Exclude objects from the bottom of the page if they are below this fraction of the page.
+
+    Returns:
+        Layout object with google objects replacing layoutparser objects if they overlap sufficiently.
+    """
+    shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
+    shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
+    # for every block in the google layout, find the fraction of the block that is covered by the layoutparser layout
+    dd_intersection_over_union = defaultdict(list)
+    for ix_goog, google_block in enumerate(shapely_google):
+        for ix_lp, lp_block in enumerate(shapely_layout):
+            # Find the intersection over union of the two blocks.
+            intersection = google_block.intersection(lp_block).area
+            union = google_block.union(lp_block).area
+            dd_intersection_over_union[ix_goog].append(intersection / union)
+
+    # If a google block is covered by a layoutparser block by more than 0.9, we can assume that google OCR has
+    # identified the same block as layoutparser + heuristics and we can use the text from the google block.
+    # Filter the default dict for these cases
+    equivalent_block_mapping = {
+        k: v.index(max(v))
+        for k, v in dd_intersection_over_union.items()
+        if max(v) > threshold
+    }
+
+    # New blocks to add to the layoutparser layout
+    blocks_google_only = {
+        k: v for k, v in dd_intersection_over_union.items() if max(v) == 0.0
+    }
+
+    # use the mapping to replace the text of the layoutparser block with the text of the google block
+    for k, v in equivalent_block_mapping.items():
+        google_coords = google_layout[k].coordinates.vertices
+        (
+            x_top_left,
+            y_top_left,
+            x_bottom_right,
+            y_bottom_right,
+        ) = google_coords_to_lp_coords(google_coords)
+        lp_layout[v].text = google_layout[k].text
+        # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
+        lp_layout[v].language = google_layout[k].language
+        lp_layout[v].confidence = google_layout[k].confidence
+        # Reset the coordinates of the layoutparser block to the coordinates of the google block.
+        lp_layout[v].block.x_1 = x_top_left
+        lp_layout[v].block.y_1 = y_top_left
+        lp_layout[v].block.x_2 = x_bottom_right
+        lp_layout[v].block.y_2 = y_bottom_right
+
+    # Add the blocks that are only in the google layout, but only if they are not too small or are too high
+    # up/down on the page indicating that they are probably not part of the main text.
+    for key, val in blocks_google_only.items():
+        google_coords = google_layout[key].coordinates.vertices
+        (
+            x_top_left,
+            y_top_left,
+            x_bottom_right,
+            y_bottom_right,
+        ) = google_coords_to_lp_coords(google_coords)
+        if (
+            y_top_left > image.height * bottom_exclude
+            or y_bottom_right < image.height * top_exclude
+        ):
+            rect = Rectangle(
+                x_1=x_top_left, y_1=y_top_left, x_2=x_bottom_right, y_2=y_bottom_right
+            )
+            lp_layout.append(
+                TextBlock(
+                    rect,
+                    text=google_layout[key].text,
+                    type="Google Text Block",
+                    score=google_layout[key].confidence,
+                )
+            )
+            # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
+            lp_layout[-1].language = google_layout[key].language
+
+    return lp_layout
 
 
 class OCRProcessor:

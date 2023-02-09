@@ -34,6 +34,8 @@ from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipe
 from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
+    extract_google_layout,
+    combine_google_lp,
 )
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
@@ -187,13 +189,16 @@ def parse_file(
     model,
     model_threshold_restrictive: float,
     unnest_soft_margin: float,
-    min_overlapping_pixels_horizontal: int,
+    min_overlapping_pixels_horizontalzontal: int,
     min_overlapping_pixels_vertical: int,
     disambiguation_combination_threshold: float,
     ocr_agent: str,
     debug: bool,
     output_dir: Union[Path, S3Path],
     redo: bool = False,
+    top_exclude_threshold=float,
+    bottom_exclude_threshold=float,
+    replace_threshold=float,
 ):
     """Parse an individual pdf file.
 
@@ -203,7 +208,7 @@ def parse_file(
         model_threshold_restrictive (float): Threshold to use for parsing.
         unnest_soft_margin (int): Soft margin to use for unnesting (i.e. we expand a block by n pixels before
             performing is_in checks)
-        min_overlapping_pixels_horizontal (int): Minimum number of pixel overlaps before reducing size to
+        min_overlapping_pixels_horizontalzontal (int): Minimum number of pixel overlaps before reducing size to
             avoid OCR conflicts.
         min_overlapping_pixels_vertical (int): Minimum number of pixel overlaps before reducing size to
             avoid OCR conflicts.
@@ -213,6 +218,13 @@ def parse_file(
         output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
         redo (bool): Whether to redo the parsing even if the output file already exists.
+        bottom_exclude_threshold (float): Percentage of page to ignore at the bottom of the page when adding blocks
+            to the page from google (e.g. to ignore footers).
+        top_exclude_threshold (float): Percentage of page to ignore at the top of the page when adding blocks to the
+            page from google (e.g. to ignore headers).
+        replace_threshold (float): Threshold for replacing blocks from google with blocks from the model. e.g.
+            if a block from layoutparser is 95% covered by a block from google, as measured by intersection over
+            union, then the block from layoutparser will be replaced by the block from google.
     """
 
     _LOGGER.info(f"Processing {input_task.document_id}")
@@ -279,7 +291,7 @@ def parse_file(
                 model,
                 restrictive_model_threshold=model_threshold_restrictive,
                 unnest_soft_margin=unnest_soft_margin,  # type: ignore
-                min_overlapping_pixels_horizontalzontal=min_overlapping_pixels_horizontal,
+                min_overlapping_pixels_horizontalzontal=min_overlapping_pixels_horizontalzontal,
                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                 combination_threshold=disambiguation_combination_threshold,
             )
@@ -290,8 +302,18 @@ def parse_file(
                 all_pages_metadata.append(page_metadata)
                 continue
             _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
+            google_layout = extract_google_layout(image)[1]
+            # Combine the Google text blocks with the layoutparser layout.
+            combined_layout = combine_google_lp(
+                image,
+                google_layout,
+                layout_disambiguated,
+                threshold=replace_threshold,
+                top_exclude=top_exclude_threshold,
+                bottom_exclude=bottom_exclude_threshold,
+            )
             postprocessed_layout = postprocessing_pipline(
-                layout_disambiguated, page_dimensions[1]
+                combined_layout, page_dimensions[1]
             )
             ocr_blocks = Layout(
                 [
@@ -299,6 +321,7 @@ def parse_file(
                     for b in postprocessed_layout
                     if b.type
                     in [
+                        "Google Text Block",
                         "Text",
                         "List",
                         "Title",
@@ -460,7 +483,10 @@ def run_pdf_parser(
         unnest_soft_margin=config.LAYOUTPARSER_UNNEST_SOFT_MARGIN,
         disambiguation_combination_threshold=config.LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD,
         min_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
-        min_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
+        min_overlapping_pixels_horizontalzontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
+        top_exclude_threshold=config.LAYOUTPARSER_TOP_EXCLUDE_THRESHOLD,
+        bottom_exclude_threshold=config.LAYOUTPARSER_BOTTOM_EXCLUDE_THRESHOLD,
+        replace_threshold=config.LAYOUTPARSER_REPLACE_THRESHOLD,
         redo=redo,
     )
     if parallel:
