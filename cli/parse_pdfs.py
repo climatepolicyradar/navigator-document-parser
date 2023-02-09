@@ -460,7 +460,7 @@ def run_pdf_parser(
         unnest_soft_margin=config.LAYOUTPARSER_UNNEST_SOFT_MARGIN,
         disambiguation_combination_threshold=config.LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD,
         min_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
-        min_overlapping_pixels_horizontalzontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
+        min_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
         redo=redo,
     )
     if parallel:
