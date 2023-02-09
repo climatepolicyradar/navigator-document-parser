@@ -4,7 +4,7 @@ import logging.config
 import json_logging
 import sys
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 import click
 import pydantic
@@ -67,9 +67,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_files_to_parse(
-    files: Optional[tuple[str]],
+    files: Optional[Tuple[str]],
     input_dir_as_path: Union[CloudPath, Path],
-) -> list[Path]:
+) -> List[Path]:
     # If no file list is provided, run over all inputs in the input prefix
     env_files = []
     if FILES_TO_PARSE is not None:
@@ -134,7 +134,7 @@ def main(
     output_dir: str,
     parallel: bool,
     device: str,
-    files: Optional[tuple[str]],
+    files: Optional[Tuple[str]],
     redo: bool,
     s3: bool,
     debug: bool,
