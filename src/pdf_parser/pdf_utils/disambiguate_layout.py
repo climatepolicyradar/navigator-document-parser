@@ -271,6 +271,60 @@ def reduce_all_overlapping_boxes(
     return blocks
 
 
+# def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
+#     """
+#     Loop through boxes, unnest them until there are no nested boxes left..
+#
+#     Args: layout: The layout to unnest.
+#     unnest_soft_margin: The number of pixels to inflate each box by in each direction
+#     when checking for containment (i.e. a soft margin).
+#
+#     Returns:
+#         The unnested boxes.
+#     """
+#     if len(layout) == 0:
+#         return layout
+#     else:
+#         # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
+#         soft_margin = {
+#             "top": unnest_soft_margin,
+#             "bottom": unnest_soft_margin,
+#             "left": unnest_soft_margin,
+#             "right": unnest_soft_margin,
+#         }
+#         # The loop checks each block for containment within other blocks.
+#         # Contained blocks are removed if they have lower confidence scores than their parents;
+#         # otherwise, the parent is removed. The process continues until there are no contained blocks.
+#         # There are potentially nestings within nestings, hence the complicated loop.
+#         # A recursion might be more elegant, leaving it as a TODO.
+#         stop_cond = True
+#         counter = 0  # num contained blocks in every run through of all pairs to calculate stop
+#         # condition.
+#         ixs_to_remove = []
+#         while stop_cond:
+#             for ix, box_1 in enumerate(layout):
+#                 for ix2, box_2 in enumerate(layout):
+#                     if box_1 == box_2:
+#                         continue
+#                     else:
+#                         if box_1.is_in(box_2, soft_margin):
+#                             counter += 1
+#                             # Remove the box the model is less confident about.
+#                             if box_1.score > box_2.score:
+#                                 remove_ix = ix2
+#                             else:
+#                                 remove_ix = ix
+#                             ixs_to_remove.append(remove_ix)
+#                 # stop condition: no contained blocks
+#                 if counter == 0:
+#                     stop_cond = False
+#                 counter = 0
+#
+#         layout_unnested = Layout(
+#             [box for index, box in enumerate(layout) if index not in ixs_to_remove]
+#         )
+#         return layout_unnested
+
 def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
     """
     Loop through boxes, unnest them until there are no nested boxes left..
@@ -295,35 +349,36 @@ def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
         # The loop checks each block for containment within other blocks.
         # Contained blocks are removed if they have lower confidence scores than their parents;
         # otherwise, the parent is removed. The process continues until there are no contained blocks.
-        # There are potentially nestings within nestings, hence the complicated loop.
+        # There are potentially nestings within nestings, hence the rather complicated loop.
         # A recursion might be more elegant, leaving it as a TODO.
-        stop_cond = True
-        counter = 0  # num contained blocks in every run through of all pairs to calculate stop
+        counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
         # condition.
+        layout_length = len(layout)
         ixs_to_remove = []
-        while stop_cond:
+        # TODO: this function runs the nested loops a number of times proportional to the number of blocks rather than checking for an end state. We should improve this.
+        while counter < layout_length:
+            counter += 1
             for ix, box_1 in enumerate(layout):
                 for ix2, box_2 in enumerate(layout):
                     if box_1 == box_2:
                         continue
                     else:
                         if box_1.is_in(box_2, soft_margin):
-                            counter += 1
                             # Remove the box the model is less confident about.
                             if box_1.score > box_2.score:
                                 remove_ix = ix2
                             else:
                                 remove_ix = ix
                             ixs_to_remove.append(remove_ix)
-                # stop condition: no contained blocks
-                if counter == 0:
-                    stop_cond = False
-                counter = 0
 
-        layout_unnested = Layout(
-            [box for index, box in enumerate(layout) if index not in ixs_to_remove]
+        unnested_layout = Layout(
+            [
+                box
+                for index, box in enumerate(layout)
+                if index not in ixs_to_remove
+            ]
         )
-        return layout_unnested
+        return unnested_layout
 
 
 # TODO: This is not part of the module and is for a CLI, but placing here for visibility before I edit the CLI.
