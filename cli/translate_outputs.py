@@ -115,7 +115,7 @@ def translate_parser_outputs(
 def _translate_to_target_languages(
     path: Union[Path, CloudPath],
     parser_output: ParserOutput,
-    target_languages: set[str],
+    target_languages: Set[str],
     redo: bool = False,
 ) -> None:
     for target_language in target_languages:

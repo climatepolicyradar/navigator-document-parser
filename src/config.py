@@ -34,6 +34,22 @@ LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL = int(
 LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL = int(
     os.getenv("LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL", "5")
 )
+# Percentage of page to ignore at the top of the page when adding blocks to the
+# page from google (e.g. to ignore headers).
+LAYOUTPARSER_TOP_EXCLUDE_THRESHOLD = float(
+    os.getenv("LAYOUTPARSER_TOP_EXCLUDE_THRESHOLD", "0.1")
+)
+# Percentage of page to ignore at the bottom of the page when adding blocks to the
+# page from google (e.g. to ignore footers).
+LAYOUTPARSER_BOTTOM_EXCLUDE_THRESHOLD = float(
+    os.getenv("LAYOUTPARSER_BOTTOM_EXCLUDE_THRESHOLD", "0.1")
+)
+# Threshold for replacing blocks from google with blocks from the model. e.g.
+# if a block from layoutparser is 95% covered by a block from google, as measured by intersection over
+# union, then the block from layoutparser will be replaced by the block from google.
+LAYOUTPARSER_REPLACE_THRESHOLD = float(
+    os.getenv("LAYOUTPARSER_REPLACE_THRESHOLD", "0.9")
+)
 # The fraction of unexplained area from restrrctive layours above which to include boxes
 # from the permissive layout.
 LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD = float(

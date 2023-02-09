@@ -6,9 +6,10 @@ import os
 import tempfile
 import time
 import warnings
+from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import cloudpathlib.exceptions
 import fitz
@@ -16,7 +17,7 @@ import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
-from layoutparser import load_pdf, Layout, draw_box
+from layoutparser import load_pdf, Layout, draw_box  # type: ignore
 from layoutparser.models import Detectron2LayoutModel
 from layoutparser.ocr import TesseractAgent, GCVAgent
 from tqdm import tqdm
@@ -27,10 +28,14 @@ from src.base import (  # noqa: E402
     ParserOutput,
     PDFData,
     PDFPageMetadata,
+    StandardErrorLog,
 )
 from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
+from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
+    extract_google_layout,
+    combine_google_lp,
 )
 from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 
@@ -66,39 +71,21 @@ def copy_input_to_output_pdf(
             pdf_data=PDFData(page_metadata=[], md5sum="", text_blocks=[]),
         )
 
-        try:
-            output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
-            _LOGGER.info(
-                "Blank output saved.",
-                extra={
-                    "props": {
-                        "document_id": task.document_id,
-                        "output_path": output_path,
-                    }
-                },
-            )
-        except Exception as e:
-            _LOGGER.exception(
-                "Failed to write to output path.",
-                extra={
-                    "props": {
-                        "document_id": task.document_id,
-                        "output_path": output_path,
-                        "error_message": str(e),
-                    }
-                },
-            )
+        output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+        _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
 
     except Exception as e:
-        _LOGGER.exception(
-            "Failed to parse",
-            extra={
-                "props": {
-                    "document_id": task.document_id,
-                    "output_path": output_path,
-                    "error_message": str(e),
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Copy pdf input to output.",
+                    "status_code": "None",
+                    "error_type": "ParsingError",
+                    "message": f"{e}",
+                    "document_in_process": output_path,
                 }
-            },
+            )
         )
 
 
@@ -112,70 +99,59 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-    document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
-
     try:
-        _LOGGER.info(
-            "Downloading document from url to local directory.",
-            extra={
-                "props": {
-                    "document_id": parser_input.document_id,
-                    "document_url": document_url,
-                    "output_directory": output_dir,
-                }
-            },
-        )
+        document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+        _LOGGER.info(f"Downloading {document_url} to {output_dir}")
         response = requests.get(document_url)
-
     except Exception as e:
-        _LOGGER.exception(
-            "Failed to download document from url.",
-            extra={
-                "props": {
-                    "document_id": parser_input.document_id,
-                    "document_url": document_url,
-                    "error_message": str(e),
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download pdf",
+                    "status_code": "None",
+                    "error_type": "RequestError",
+                    "message": f"{e}",
+                    "document_in_process": str(parser_input.document_id),
                 }
-            },
+            )
         )
         return None
 
     if response.status_code != 200:
-        _LOGGER.exception(
-            "Non 200 status code from response.",
-            extra={
-                "props": {
-                    "document_id": parser_input.document_id,
-                    "document_url": document_url,
-                    "response_status_code": response.status_code,
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Download of pdf.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "RequestError",
+                    "message": "Invalid response code from request.",
+                    "document_in_process": str(parser_input.document_id),
                 }
-            },
+            )
         )
+
         return None
 
     elif response.headers["Content-Type"] != "application/pdf":
-        _LOGGER.exception(
-            "Content-Type is not application/pdf.",
-            extra={
-                "props": {
-                    "document_id": parser_input.document_id,
-                    "document_url": document_url,
-                    "response_status_code": response.status_code,
+        _LOGGER.error(
+            StandardErrorLog.parse_obj(
+                {
+                    "timestamp": datetime.now(),
+                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
+                    "status_code": f"{response.status_code}",
+                    "error_type": "ContentTypeError",
+                    "message": "Content-Type is not application/pdf.",
+                    "document_in_process": str(parser_input.document_id),
                 }
-            },
+            )
         )
+
         return None
 
     else:
-        _LOGGER.info(
-            "Saving downloaded file locally.",
-            extra={
-                "props": {
-                    "document_id": parser_input.document_id,
-                    "document_url": document_url,
-                }
-            },
-        )
+        _LOGGER.info(f"Saving {document_url} to {output_dir}")
         output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
         with open(output_path, "wb") as f:
@@ -215,9 +191,12 @@ def parse_file(
     min_overlapping_pixels_horizontal: int,
     min_overlapping_pixels_vertical: int,
     disambiguation_combination_threshold: float,
-    ocr_agent: str,
+    ocr_agent: Union[TesseractAgent, GCVAgent],
     debug: bool,
     output_dir: Union[Path, S3Path],
+    top_exclude_threshold: float,
+    bottom_exclude_threshold: float,
+    replace_threshold: float,
     redo: bool = False,
 ):
     """Parse an individual pdf file.
@@ -234,22 +213,22 @@ def parse_file(
             avoid OCR conflicts.
         disambiguation_combination_threshold (float): Threshold to use for disambiguation.
         debug (bool): Whether to save debug images.
-        ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
+        ocr_agent (Union[TesseractAgent, GCVAgent]): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
         redo (bool): Whether to redo the parsing even if the output file already exists.
+        bottom_exclude_threshold (float): Percentage of page to ignore at the bottom of the page when adding blocks
+            to the page from google (e.g. to ignore footers).
+        top_exclude_threshold (float): Percentage of page to ignore at the top of the page when adding blocks to the
+            page from google (e.g. to ignore headers).
+        replace_threshold (float): Threshold for replacing blocks from google with blocks from the model. e.g.
+            if a block from layoutparser is 95% covered by a block from google, as measured by intersection over
+            union, then the block from layoutparser will be replaced by the block from google.
     """
 
-    _LOGGER.info(
-        "Running pdf parser on document.",
-        extra={
-            "props": {
-                "document_id": input_task.document_id,
-            }
-        },
-    )
+    _LOGGER.info(f"Processing {input_task.document_id}")
 
-    output_path = output_dir / f"{input_task.document_id}.json"
+    output_path = cast(Path, output_dir / f"{input_task.document_id}.json")
     if not output_path.exists():  # type: ignore
         copy_input_to_output_pdf(input_task, output_path)  # type: ignore
 
@@ -261,15 +240,7 @@ def parse_file(
     )
     should_run_parser = not existing_pdf_data_exists or redo
     if not should_run_parser:
-        _LOGGER.info(
-            "Skipping already parsed pdf.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                    "output_path": output_path,
-                }
-            },
-        )
+        _LOGGER.info(f"Skipping already parsed pdf with output - {output_path}.")
         return None
 
     with tempfile.TemporaryDirectory() as temp_output_dir:
@@ -278,14 +249,8 @@ def parse_file(
         _LOGGER.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             _LOGGER.info(
-                "PDF path is None for document as the document either couldn't be downloaded, isn't content-type pdf "
-                "or the response status code is not 200.",
-                extra={
-                    "props": {
-                        "document_id": input_task.document_id,
-                        "temporary_local_location": temp_output_dir,
-                    }
-                },
+                f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
+                f"downloaded, isn't content-type pdf or the response status code is not 200. "
             )
             return None
         else:
@@ -297,15 +262,7 @@ def parse_file(
         all_pages_metadata = []
         all_text_blocks = []
 
-        _LOGGER.info(
-            "Iterating through pages.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                    "number_of_pages": num_pages,
-                }
-            },
-        )
+        _LOGGER.info(f"Iterating through pages for -  {input_task.document_id}")
 
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
@@ -341,7 +298,7 @@ def parse_file(
                 model,
                 restrictive_model_threshold=model_threshold_restrictive,
                 unnest_soft_margin=unnest_soft_margin,  # type: ignore
-                min_overlapping_pixels_horizontalzontal=min_overlapping_pixels_horizontal,
+                min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                 combination_threshold=disambiguation_combination_threshold,
             )
@@ -351,9 +308,19 @@ def parse_file(
                 )
                 all_pages_metadata.append(page_metadata)
                 continue
-            _LOGGER.info(f"Running postprocessing for page {page_idx}")
+            _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
+            google_layout = extract_google_layout(image)[1]
+            # Combine the Google text blocks with the layoutparser layout.
+            combined_layout = combine_google_lp(
+                image,
+                google_layout,
+                layout_disambiguated,
+                threshold=replace_threshold,
+                top_exclude=top_exclude_threshold,
+                bottom_exclude=bottom_exclude_threshold,
+            )
             postprocessed_layout = postprocessing_pipline(
-                layout_disambiguated, page_dimensions[1]
+                combined_layout, page_dimensions[1]
             )
             ocr_blocks = Layout(
                 [
@@ -361,6 +328,7 @@ def parse_file(
                     for b in postprocessed_layout
                     if b.type
                     in [
+                        "Google Text Block",
                         "Text",
                         "List",
                         "Title",
@@ -407,14 +375,7 @@ def parse_file(
 
             all_pages_metadata.append(page_metadata)
 
-        _LOGGER.info(
-            "Setting parser output for document.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                }
-            },
-        )
+        _LOGGER.info(f"Processing {input_task.document_id}, setting parser_output...")
 
         document = ParserOutput(
             document_id=input_task.document_id,
@@ -435,45 +396,22 @@ def parse_file(
 
         try:
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
-        except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
-            _LOGGER.error(
-                "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
-                extra={
-                    "props": {
-                        "document_id": input_task.document_id,
-                        "output_path": output_path,
-                        "error_message": str(e),
-                    }
-                },
+        except cloudpathlib.exceptions.OverwriteNewerCloudError:
+            _LOGGER.info(
+                f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping."
             )
 
-        _LOGGER.info(
-            "Saved document.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                    "output_path": output_path.name,
-                    "output_directory": output_dir,
-                }
-            },
-        )
+        _LOGGER.info(f"Saved {output_path.name} to {output_dir}.")
 
         os.remove(pdf_path)
-        _LOGGER.info(
-            "Removed downloaded document.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                    "local_document_path": pdf_path,
-                }
-            },
-        )
+
+        _LOGGER.info(f"Removed downloaded document at - {pdf_path}.")
 
 
 def _pdf_num_pages(file: str):
     """Get the number of pages in a pdf file."""
     try:
-        return fitz.open(file).page_count
+        return fitz.open(file).page_count  # type: ignore
     except EmptyFileError:
         return 0
 
@@ -489,20 +427,13 @@ def _get_detectron_model(model: str, device: str) -> Detectron2LayoutModel:
 
 
 def get_model(
-    model: str,
-    ocr_agent: str,
+    model_name: str,
+    ocr_agent_type_name: str,
     device: str,
-):
+) -> tuple[Detectron2LayoutModel, Union[TesseractAgent, GCVAgent]]:
     """Get the model for the parser."""
     _LOGGER.info(
-        "Model Configuration",
-        extra={
-            "props": {
-                "model": model,
-                "ocr_agent": ocr_agent,
-                "device": device,
-            }
-        },
+        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
     )
     if config.PDF_OCR_AGENT == "gcv":
         _LOGGER.warning(
@@ -510,11 +441,13 @@ def get_model(
         )
 
     # FIXME: handle EmptyFileError here using _pdf_num_pages
-    model = _get_detectron_model(model, device)
-    if ocr_agent == "tesseract":
+    model = _get_detectron_model(model_name, device)
+    if ocr_agent_type_name == "tesseract":
         ocr_agent = TesseractAgent()
-    elif ocr_agent == "gcv":
+    elif ocr_agent_type_name == "gcv":
         ocr_agent = GCVAgent()
+    else:
+        raise RuntimeError(f"Uknown OCR agent type: '{ocr_agent_type_name}'")
 
     return model, ocr_agent
 
@@ -543,13 +476,13 @@ def run_pdf_parser(
     warnings.filterwarnings("ignore")
 
     model, ocr_agent = get_model(
-        model=config.LAYOUTPARSER_MODEL,
-        ocr_agent=config.PDF_OCR_AGENT,
+        model_name=config.LAYOUTPARSER_MODEL,
+        ocr_agent_type_name=config.PDF_OCR_AGENT,
         device=device,
     )
 
     _LOGGER.info(
-        "Running pdf parser.",
+        "Iterating through files and parsing pdf content from pages.",
         extra={
             "props": {
                 "parallel": parallel,
@@ -570,15 +503,14 @@ def run_pdf_parser(
         disambiguation_combination_threshold=config.LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD,
         min_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
         min_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
+        top_exclude_threshold=config.LAYOUTPARSER_TOP_EXCLUDE_THRESHOLD,
+        bottom_exclude_threshold=config.LAYOUTPARSER_BOTTOM_EXCLUDE_THRESHOLD,
+        replace_threshold=config.LAYOUTPARSER_REPLACE_THRESHOLD,
         redo=redo,
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
-        _LOGGER.info(
-            "Running in parallel and setting max workers.",
-            extra={"props": {"max_workers": cpu_count}},
-        )
-
+        _LOGGER.info(f"Running in parallel and setting max workers to - {cpu_count}.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
             future_to_task = {
                 executor.submit(file_parser, task): task for task in input_tasks
@@ -587,50 +519,24 @@ def run_pdf_parser(
                 task = future_to_task[future]
                 try:
                     data = future.result()  # noqa: F841
-                except Exception as e:
+                except Exception as exc:
                     _LOGGER.exception(
-                        "Document failed to generate a result.",
-                        extra={
-                            "props": {
-                                "document_id": task.document_id,
-                                "error_message": str(e),
-                            }
-                        },
+                        "%r generated an exception: %s" % (task.document_id, exc)
                     )
                 else:
-                    _LOGGER.info(
-                        "Document successful parsed by pdf parser.",
-                        extra={
-                            "props": {
-                                "document_id": task.document_id,
-                            }
-                        },
-                    )
+                    _LOGGER.info(f"Successful parsing result for {task.document_id}.")
 
     else:
         for task in input_tasks:
             _LOGGER.info("Running in series.")
             try:
                 file_parser(task)
-            except Exception as e:
+            except Exception:
                 _LOGGER.exception(
                     "Failed to successfully parse PDF due to a raised exception",
-                    extra={
-                        "props": {
-                            "document_id": task.document_id,
-                            "error_message": str(e),
-                        }
-                    },
+                    extra={"props": {"document_id": task.document_id}},
                 )
 
+    _LOGGER.info("Finished parsing pdf content from all files.")
     time_end = time.time()
-    _LOGGER.info(
-        "PDF parsing complete for all files.",
-        extra={
-            "props": {
-                "time_taken": time_end - time_start,
-                "start_time": time_start,
-                "end_time": time_end,
-            }
-        },
-    )
+    _LOGGER.info(f"Time taken: {time_end - time_start} seconds.")

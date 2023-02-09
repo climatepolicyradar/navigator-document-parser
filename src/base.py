@@ -5,15 +5,17 @@ import logging.config
 from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import date
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Optional, Sequence, Tuple, List
+from typing import Union
 
 import layoutparser.elements as lp_elements
+from cloudpathlib import S3Path
 from langdetect import DetectorFactory
 from langdetect import detect
 from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
-
-_LOGGER = logging.getLogger(__name__)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -128,10 +130,10 @@ class PDFTextBlock(TextBlock):
         text_block = text_block.to_rectangle()
 
         new_format_coordinates = [
-            (text_block.block.x_1, text_block.block.y_1),
-            (text_block.block.x_2, text_block.block.y_1),
-            (text_block.block.x_2, text_block.block.y_2),
-            (text_block.block.x_1, text_block.block.y_2),
+            (text_block.block.x_1, text_block.block.y_1),  # type: ignore
+            (text_block.block.x_2, text_block.block.y_1),  # type: ignore
+            (text_block.block.x_2, text_block.block.y_2),  # type: ignore
+            (text_block.block.x_1, text_block.block.y_2),  # type: ignore
         ]
 
         # Ignoring types below as this method will raise an error if any of these values are None above.
@@ -346,3 +348,17 @@ class HTMLParser(ABC):
                 has_valid_text=False,
             ),
         )
+
+
+class StandardErrorLog(BaseModel):
+    """Standardized log format for errors.
+
+    This is used to ensure that we can effectively filter the logs when the application runs in production in AWS.
+    """
+
+    timestamp: datetime
+    pipeline_stage: str
+    status_code: str
+    error_type: str
+    message: str
+    document_in_process: Union[Path, S3Path, str]
