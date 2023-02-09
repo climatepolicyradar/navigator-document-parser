@@ -325,6 +325,7 @@ def reduce_all_overlapping_boxes(
 #         )
 #         return layout_unnested
 
+
 def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
     """
     Loop through boxes, unnest them until there are no nested boxes left..
@@ -372,11 +373,7 @@ def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
                             ixs_to_remove.append(remove_ix)
 
         unnested_layout = Layout(
-            [
-                box
-                for index, box in enumerate(layout)
-                if index not in ixs_to_remove
-            ]
+            [box for index, box in enumerate(layout) if index not in ixs_to_remove]
         )
         return unnested_layout
 
