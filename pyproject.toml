@@ -5,7 +5,7 @@ description = ""
 authors = ["CPR Tech <tech@climatepolicyradar.org>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 awscli = "1.25.69"
 news-please = "^1.5.22"
 pandas = "^1.4.4"
