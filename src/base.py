@@ -5,15 +5,19 @@ import logging.config
 from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import date
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Optional, Sequence, Tuple, List
+from typing import Union
 
 import layoutparser.elements as lp_elements
+from cloudpathlib import S3Path
 from langdetect import DetectorFactory
 from langdetect import detect
 from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
-_LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 CONTENT_TYPE_HTML = "text/html"
 CONTENT_TYPE_PDF = "application/pdf"
@@ -32,6 +36,7 @@ class BlockType(str, Enum):
     TABLE = "Table"
     FIGURE = "Figure"
     INFERRED = "Inferred from gaps"
+    GOOGLE = "Google Text Block"
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
 
 
@@ -261,7 +266,7 @@ class ParserOutput(BaseModel):
         """
 
         if self.document_content_type != CONTENT_TYPE_HTML:
-            _LOGGER.warning(
+            logger.warning(
                 "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
             )
 
@@ -343,3 +348,17 @@ class HTMLParser(ABC):
                 has_valid_text=False,
             ),
         )
+
+
+class StandardErrorLog(BaseModel):
+    """Standardized log format for errors.
+
+    This is used to ensure that we can effectively filter the logs when the application runs in production in AWS.
+    """
+
+    timestamp: datetime
+    pipeline_stage: str
+    status_code: str
+    error_type: str
+    message: str
+    document_in_process: Union[Path, S3Path, str]

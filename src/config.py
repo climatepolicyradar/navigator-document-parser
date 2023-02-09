@@ -1,6 +1,6 @@
+import multiprocessing
 import os
 from typing import List
-import multiprocessing
 
 HTML_MIN_NO_LINES_FOR_VALID_TEXT = int(
     os.getenv("HTML_MIN_NO_LINES_FOR_VALID_TEXT", "6")
@@ -14,10 +14,36 @@ TARGET_LANGUAGES: List[str] = (
 )  # comma-separated 2-letter ISO codes
 LAYOUTPARSER_MODEL = os.getenv("LAYOUTPARSER_MODEL", "mask_rcnn_X_101_32x8d_FPN_3x")
 LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE = float(
-    os.getenv("LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE", "0.5")
+    os.getenv("LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE", "0.4")
 )
+
+# This is the number of pixels in the soft margin for a box to be considered nested within another box.
+# In particular, we inflate the potential container box by this amount in each direction, and then
+# check if the potential contained box is fully contained within the inflated container box.
+LAYOUTPARSER_UNNEST_SOFT_MARGIN = int(
+    os.getenv("LAYOUTPARSER_UNNEST_SOFT_MARGIN", "15")
+)
+# We want to avoid box overlaps to avoid OCR capturing cut-off text or capturing text twice.
+# This is the minimum number of pixel overlaps before reducing size to avoid OCR conflicts. The
+# idea is that a small overlap is probably just whitespace, but a large overlap is probably
+# text that is being captured twice.
+LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL = int(
+    os.getenv("LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL", "5")
+)
+# similar to above, but for vertical overlaps
+LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL = int(
+    os.getenv("LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL", "5")
+)
+# The fraction of unexplained area from restrrctive layours above which to include boxes
+# from the permissive layout.
+LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD = float(
+    os.getenv("LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD", "0.8")
+)
+
+
 PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "gcv")
 
+TEST_RUN = os.getenv("TEST_RUN", "false").lower() == "true"
 RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", "true").lower() == "true"
 RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", "true").lower() == "true"
 RUN_TRANSLATION = os.getenv("RUN_TRANSLATION", "true").lower() == "true"
