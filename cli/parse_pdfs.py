@@ -289,7 +289,7 @@ def parse_file(
                 )
                 all_pages_metadata.append(page_metadata)
                 continue
-            _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
+            _LOGGER.info(f"Running postprocessing for page {page_idx}")
             postprocessed_layout = postprocessing_pipline(
                 layout_disambiguated, page_dimensions[1]
             )
@@ -366,16 +366,39 @@ def parse_file(
 
         try:
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
-        except cloudpathlib.exceptions.OverwriteNewerCloudError:
-            _LOGGER.info(
-                f"Tried to write to {output_path}, received OverwriteNewerCloudError and therefore skipping."
+        except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
+            _LOGGER.error(
+                "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "output_path": output_path,
+                        "error_message": str(e),
+                    }
+                },
             )
 
-        _LOGGER.info(f"Saved {output_path.name} to {output_dir}.")
+        _LOGGER.info(
+            "Saved document.",
+            extra={
+                "props": {
+                    "document_id": input_task.document_id,
+                    "output_path": output_path.name,
+                    "output_directory": output_dir,
+                }
+            },
+        )
 
         os.remove(pdf_path)
-
-        _LOGGER.info(f"Removed downloaded document at - {pdf_path}.")
+        _LOGGER.info(
+            "Removed downloaded document.",
+            extra={
+                "props": {
+                    "document_id": input_task.document_id,
+                    "local_document_path": pdf_path,
+                }
+            },
+        )
 
 
 def _pdf_num_pages(file: str):
@@ -465,7 +488,11 @@ def run_pdf_parser(
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
-        _LOGGER.info(f"Running in parallel and setting max workers to - {cpu_count}.")
+        _LOGGER.info(
+            "Running in parallel and setting max workers.",
+            extra={"props": {"max_workers": cpu_count}},
+        )
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
             future_to_task = {
                 executor.submit(file_parser, task): task for task in input_tasks
@@ -474,24 +501,50 @@ def run_pdf_parser(
                 task = future_to_task[future]
                 try:
                     data = future.result()  # noqa: F841
-                except Exception as exc:
+                except Exception as e:
                     _LOGGER.exception(
-                        "%r generated an exception: %s" % (task.document_id, exc)
+                        "Document failed to generate a result.",
+                        extra={
+                            "props": {
+                                "document_id": task.document_id,
+                                "error_message": str(e),
+                            }
+                        },
                     )
                 else:
-                    _LOGGER.info(f"Successful parsing result for {task.document_id}.")
+                    _LOGGER.info(
+                        "Document successful parsed by pdf parser.",
+                        extra={
+                            "props": {
+                                "document_id": task.document_id,
+                            }
+                        },
+                    )
 
     else:
         for task in input_tasks:
             _LOGGER.info("Running in series.")
             try:
                 file_parser(task)
-            except Exception:
+            except Exception as e:
                 _LOGGER.exception(
                     "Failed to successfully parse PDF due to a raised exception",
-                    extra={"props": {"document_id": task.document_id}},
+                    extra={
+                        "props": {
+                            "document_id": task.document_id,
+                            "error_message": str(e),
+                        }
+                    },
                 )
 
-    _LOGGER.info("Finished parsing pdf content from all files.")
     time_end = time.time()
-    _LOGGER.info(f"Time taken: {time_end - time_start} seconds.")
+    _LOGGER.info(
+        "PDF parsing complete for all files.",
+        extra={
+            "props": {
+                "time_taken": time_end - time_start,
+                "start_time": time_start,
+                "end_time": time_end,
+            }
+        },
+    )
