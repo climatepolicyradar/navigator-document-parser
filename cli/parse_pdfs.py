@@ -6,7 +6,6 @@ import os
 import tempfile
 import time
 import warnings
-from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import List, Optional, Union
@@ -28,13 +27,12 @@ from src.base import (  # noqa: E402
     ParserOutput,
     PDFData,
     PDFPageMetadata,
-    StandardErrorLog,
 )
 from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
-from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
 )
+from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
@@ -68,21 +66,39 @@ def copy_input_to_output_pdf(
             pdf_data=PDFData(page_metadata=[], md5sum="", text_blocks=[]),
         )
 
-        output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
-        _LOGGER.info(f"Blank output for {task.document_id} saved to {output_path}.")
+        try:
+            output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+            _LOGGER.info(
+                "Blank output saved.",
+                extra={
+                    "props": {
+                        "document_id": task.document_id,
+                        "output_path": output_path,
+                    }
+                },
+            )
+        except Exception as e:
+            _LOGGER.exception(
+                "Failed to write to output path.",
+                extra={
+                    "props": {
+                        "document_id": task.document_id,
+                        "output_path": output_path,
+                        "error_message": str(e),
+                    }
+                },
+            )
 
     except Exception as e:
-        _LOGGER.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Copy pdf input to output.",
-                    "status_code": "None",
-                    "error_type": "ParsingError",
-                    "message": f"{e}",
-                    "document_in_process": output_path,
+        _LOGGER.exception(
+            "Failed to parse",
+            extra={
+                "props": {
+                    "document_id": task.document_id,
+                    "output_path": output_path,
+                    "error_message": str(e),
                 }
-            )
+            },
         )
 
 
@@ -90,71 +106,80 @@ def download_pdf(
     parser_input: ParserInput,
     output_dir: Union[Path, str],
 ) -> Optional[Path]:
-    """
-    Get a PDF from a URL in a ParserInput object.
+    """Get a PDF from a URL in a ParserInput object.
 
     :param: parser input
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
+    document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+
     try:
-        document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
-        _LOGGER.info(f"Downloading {document_url} to {output_dir}")
-        response = requests.get(document_url)
-    except Exception as e:
-        _LOGGER.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Download pdf",
-                    "status_code": "None",
-                    "error_type": "RequestError",
-                    "message": f"{e}",
-                    "document_in_process": str(parser_input.document_id),
+        _LOGGER.info(
+            "Downloading document from url to local directory.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "output_directory": output_dir,
                 }
-            )
+            },
+        )
+        response = requests.get(document_url)
+
+    except Exception as e:
+        _LOGGER.exception(
+            "Failed to download document from url.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "error_message": str(e),
+                }
+            },
         )
         return None
 
     if response.status_code != 200:
-        _LOGGER.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Download of pdf.",
-                    "status_code": f"{response.status_code}",
-                    "error_type": "RequestError",
-                    "message": "Invalid response code from request.",
-                    "document_in_process": str(parser_input.document_id),
+        _LOGGER.exception(
+            "Non 200 status code from response.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "response_status_code": response.status_code,
                 }
-            )
+            },
         )
-
         return None
 
     elif response.headers["Content-Type"] != "application/pdf":
-        _LOGGER.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
-                    "status_code": f"{response.status_code}",
-                    "error_type": "ContentTypeError",
-                    "message": "Content-Type is not application/pdf.",
-                    "document_in_process": str(parser_input.document_id),
+        _LOGGER.exception(
+            "Content-Type is not application/pdf.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "response_status_code": response.status_code,
                 }
-            )
+            },
         )
-
         return None
 
     else:
-        _LOGGER.info(f"Saving {document_url} to {output_dir}")
+        _LOGGER.info(
+            "Saving downloaded file locally.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                }
+            },
+        )
         output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
 
         with open(output_path, "wb") as f:
             f.write(response.content)
-
         return output_path
 
 
@@ -215,7 +240,14 @@ def parse_file(
         redo (bool): Whether to redo the parsing even if the output file already exists.
     """
 
-    _LOGGER.info(f"Processing {input_task.document_id}")
+    _LOGGER.info(
+        "Running pdf parser on document.",
+        extra={
+            "props": {
+                "document_id": input_task.document_id,
+            }
+        },
+    )
 
     output_path = output_dir / f"{input_task.document_id}.json"
     if not output_path.exists():  # type: ignore
@@ -229,7 +261,15 @@ def parse_file(
     )
     should_run_parser = not existing_pdf_data_exists or redo
     if not should_run_parser:
-        _LOGGER.info(f"Skipping already parsed pdf with output - {output_path}.")
+        _LOGGER.info(
+            "Skipping already parsed pdf.",
+            extra={
+                "props": {
+                    "document_id": input_task.document_id,
+                    "output_path": output_path,
+                }
+            },
+        )
         return None
 
     with tempfile.TemporaryDirectory() as temp_output_dir:
@@ -238,8 +278,14 @@ def parse_file(
         _LOGGER.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             _LOGGER.info(
-                f"PDF path is None for: {input_task.document_id} at {temp_output_dir} as document couldn't be "
-                f"downloaded, isn't content-type pdf or the response status code is not 200. "
+                "PDF path is None for document as the document either couldn't be downloaded, isn't content-type pdf "
+                "or the response status code is not 200.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "temporary_local_location": temp_output_dir,
+                    }
+                },
             )
             return None
         else:
@@ -251,12 +297,28 @@ def parse_file(
         all_pages_metadata = []
         all_text_blocks = []
 
-        _LOGGER.info(f"Iterating through pages for -  {input_task.document_id}")
+        _LOGGER.info(
+            "Iterating through pages.",
+            extra={
+                "props": {
+                    "document_id": input_task.document_id,
+                    "number_of_pages": num_pages,
+                }
+            },
+        )
 
         for page_idx, image in tqdm(
             enumerate(pdf_images), total=num_pages, desc=pdf_path.name
         ):
-            _LOGGER.info(f"Processing page {page_idx}")
+            _LOGGER.info(
+                "Processing page.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "page_index": page_idx,
+                    }
+                },
+            )
             page_dimensions = (
                 page_layouts[page_idx].page_data["width"],
                 page_layouts[page_idx].page_data["height"],
@@ -345,7 +407,14 @@ def parse_file(
 
             all_pages_metadata.append(page_metadata)
 
-        _LOGGER.info(f"Processing {input_task.document_id}, setting parser_output...")
+        _LOGGER.info(
+            "Setting parser output for document.",
+            extra={
+                "props": {
+                    "document_id": input_task.document_id,
+                }
+            },
+        )
 
         document = ParserOutput(
             document_id=input_task.document_id,
@@ -426,7 +495,14 @@ def get_model(
 ):
     """Get the model for the parser."""
     _LOGGER.info(
-        f"Using {config.PDF_OCR_AGENT} OCR agent and {config.LAYOUTPARSER_MODEL} model."
+        "Model Configuration",
+        extra={
+            "props": {
+                "model": model,
+                "ocr_agent": ocr_agent,
+                "device": device,
+            }
+        },
     )
     if config.PDF_OCR_AGENT == "gcv":
         _LOGGER.warning(
@@ -472,7 +548,17 @@ def run_pdf_parser(
         device=device,
     )
 
-    _LOGGER.info("Iterating through files and parsing pdf content from pages.")
+    _LOGGER.info(
+        "Running pdf parser.",
+        extra={
+            "props": {
+                "parallel": parallel,
+                "debug": debug,
+                "redo": redo,
+                "number_of_tasks": len(input_tasks),
+            },
+        },
+    )
     file_parser = partial(
         parse_file,
         model=model,
