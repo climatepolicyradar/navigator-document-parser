@@ -15,6 +15,8 @@ from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
 _LOGGER = logging.getLogger(__name__)
 
+_LOGGER = logging.getLogger(__name__)
+
 CONTENT_TYPE_HTML = "text/html"
 CONTENT_TYPE_PDF = "application/pdf"
 
@@ -32,6 +34,7 @@ class BlockType(str, Enum):
     TABLE = "Table"
     FIGURE = "Figure"
     INFERRED = "Inferred from gaps"
+    GOOGLE = "Google Text Block"
     AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
 
 

@@ -3,7 +3,6 @@ import hashlib
 import logging
 import multiprocessing
 import os
-import sys
 import tempfile
 import time
 import warnings
@@ -13,14 +12,14 @@ from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
 import fitz
-import layoutparser as lp
 import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
+from layoutparser import load_pdf, Layout, draw_box
+from layoutparser.models import Detectron2LayoutModel
+from layoutparser.ocr import TesseractAgent, GCVAgent
 from tqdm import tqdm
-
-sys.path.append("..")
 
 from src import config  # noqa: E402
 from src.base import (  # noqa: E402
@@ -29,15 +28,16 @@ from src.base import (  # noqa: E402
     PDFData,
     PDFPageMetadata,
 )
-from src.pdf_parser.pdf_utils.parsing_utils import (  # noqa: E402
-    LayoutDisambiguator,
+from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
+from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
-    PostProcessor,
 )
+from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 
-_LOGGER = logging.getLogger(__file__)
+_LOGGER = logging.getLogger(__name__)
+_LOGGER.setLevel(logging.DEBUG)
 
 
 def copy_input_to_output_pdf(
@@ -106,8 +106,7 @@ def download_pdf(
     parser_input: ParserInput,
     output_dir: Union[Path, str],
 ) -> Optional[Path]:
-    """
-    Get a PDF from a URL in a ParserInput object.
+    """Get a PDF from a URL in a ParserInput object.
 
     :param: parser input
     :param: directory to save the PDF to
@@ -181,7 +180,6 @@ def download_pdf(
 
         with open(output_path, "wb") as f:
             f.write(response.content)
-
         return output_path
 
 
@@ -213,6 +211,10 @@ def parse_file(
     input_task: ParserInput,
     model,
     model_threshold_restrictive: float,
+    unnest_soft_margin: float,
+    min_overlapping_pixels_horizontal: int,
+    min_overlapping_pixels_vertical: int,
+    disambiguation_combination_threshold: float,
     ocr_agent: str,
     debug: bool,
     output_dir: Union[Path, S3Path],
@@ -224,6 +226,13 @@ def parse_file(
         input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         model (layoutparser.LayoutModel): Layout model to use for parsing.
         model_threshold_restrictive (float): Threshold to use for parsing.
+        unnest_soft_margin (int): Soft margin to use for unnesting (i.e. we expand a block by n pixels before
+            performing is_in checks)
+        min_overlapping_pixels_horizontal (int): Minimum number of pixel overlaps before reducing size to
+            avoid OCR conflicts.
+        min_overlapping_pixels_vertical (int): Minimum number of pixel overlaps before reducing size to
+            avoid OCR conflicts.
+        disambiguation_combination_threshold (float): Threshold to use for disambiguation.
         debug (bool): Whether to save debug images.
         ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
@@ -280,7 +289,7 @@ def parse_file(
             )
             return None
         else:
-            page_layouts, pdf_images = lp.load_pdf(pdf_path, load_images=True)  # type: ignore
+            page_layouts, pdf_images = load_pdf(pdf_path, load_images=True)  # type: ignore
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
         num_pages = len(pdf_images)
@@ -310,7 +319,6 @@ def parse_file(
                     }
                 },
             )
-
             page_dimensions = (
                 page_layouts[page_idx].page_data["width"],
                 page_layouts[page_idx].page_data["height"],
@@ -320,45 +328,59 @@ def parse_file(
                 page_number=page_idx,
             )
 
-            # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid excessive redundancy
-            # and processing time
+            # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid
+            # excessive redundancy and processing time
             if debug:
                 select_page = select_page_at_random(num_pages)
                 if not select_page:
                     continue
             # Maybe we should always pass a layout object into the PageParser class.
             _LOGGER.info(f"Running layout_disambiguator for page {page_idx}")
-            layout_disambiguator = LayoutDisambiguator(
-                image, model, model_threshold_restrictive
+            layout_disambiguated = run_disambiguation_pipeline(
+                image,
+                model,
+                restrictive_model_threshold=model_threshold_restrictive,
+                unnest_soft_margin=unnest_soft_margin,  # type: ignore
+                min_overlapping_pixels_horizontalzontal=min_overlapping_pixels_horizontal,
+                min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
+                combination_threshold=disambiguation_combination_threshold,
             )
-            initial_layout = layout_disambiguator.layout
-            if len(initial_layout) == 0:
+            if len(layout_disambiguated) == 0:
                 _LOGGER.info(
                     f"The layoutparser model has found no layout elements of any type for page {page_idx}. Continuing to next page."
                 )
                 all_pages_metadata.append(page_metadata)
                 continue
-            disambiguated_layout = layout_disambiguator.disambiguate_layout()
-
-            _LOGGER.info(f"Running postprocessor for page {page_idx}")
-            postprocessor = PostProcessor(disambiguated_layout)
-            postprocessor.postprocess()
-            blocks_to_ocr = postprocessor.ocr_blocks
-            if len(blocks_to_ocr) == 0:
-                _LOGGER.info(
-                    f"There are no text blocks to OCR on page {page_idx}. Continuing to next page."
-                )
+            _LOGGER.info(f"Running postprocessing for page {page_idx}")
+            postprocessed_layout = postprocessing_pipline(
+                layout_disambiguated, page_dimensions[1]
+            )
+            ocr_blocks = Layout(
+                [
+                    b
+                    for b in postprocessed_layout
+                    if b.type
+                    in [
+                        "Text",
+                        "List",
+                        "Title",
+                        "Ambiguous",
+                        "Inferred from gaps",
+                    ]
+                ]
+            )
+            if len(ocr_blocks) == 0:
+                _LOGGER.info(f"No text found for page {page_idx}.")
                 all_pages_metadata.append(page_metadata)
                 continue
-
-            _LOGGER.info(f"Running ocr_processor for page {page_idx}")
             ocr_processor = OCRProcessor(
-                image=np.array(image),
-                page_number=page_idx,
-                layout=blocks_to_ocr,
-                ocr_agent=ocr_agent,
+                np.array(image), page_idx, postprocessed_layout, ocr_agent
             )
-            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
+            _LOGGER.info(
+                f"Running ocr at block level for unaccounted for blocks for page {page_idx}"
+            )
+            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
+
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
                 doc_name = input_task.document_name
@@ -367,8 +389,8 @@ def parse_file(
                     Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
                 )
 
-                page_layout = lp.Layout(page_layout_blocks)
-                lp.draw_box(
+                page_layout = Layout(page_layout_blocks)
+                draw_box(
                     image,
                     page_layout,
                     show_element_type=True,
@@ -458,8 +480,8 @@ def _pdf_num_pages(file: str):
 
 # TODO: We may want to make this an option, but for now just use Detectron by default as we are unlikely
 #  to change this unless we start labelling by ourselves.
-def _get_detectron_model(model: str, device: str) -> lp.Detectron2LayoutModel:
-    return lp.Detectron2LayoutModel(
+def _get_detectron_model(model: str, device: str) -> Detectron2LayoutModel:
+    return Detectron2LayoutModel(
         config_path=f"lp://PubLayNet/{model}",  # In model catalog,
         label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
         device=device,
@@ -490,9 +512,9 @@ def get_model(
     # FIXME: handle EmptyFileError here using _pdf_num_pages
     model = _get_detectron_model(model, device)
     if ocr_agent == "tesseract":
-        ocr_agent = lp.TesseractAgent()
+        ocr_agent = TesseractAgent()
     elif ocr_agent == "gcv":
-        ocr_agent = lp.GCVAgent()
+        ocr_agent = GCVAgent()
 
     return model, ocr_agent
 
@@ -537,7 +559,6 @@ def run_pdf_parser(
             },
         },
     )
-
     file_parser = partial(
         parse_file,
         model=model,
@@ -545,6 +566,10 @@ def run_pdf_parser(
         output_dir=output_dir,
         debug=debug,
         model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
+        unnest_soft_margin=config.LAYOUTPARSER_UNNEST_SOFT_MARGIN,
+        disambiguation_combination_threshold=config.LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD,
+        min_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
+        min_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
         redo=redo,
     )
     if parallel:
