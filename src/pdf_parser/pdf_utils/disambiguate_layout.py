@@ -329,8 +329,8 @@ def run_disambiguation_pipeline(
     model: Detectron2LayoutModel,
     restrictive_model_threshold: float,
     unnest_soft_margin: int,
-    max_overlapping_pixels_horizontal: int,
-    max_overlapping_pixels_vertical: int,
+    min_overlapping_pixels_horizontal: int,
+    min_overlapping_pixels_vertical: int,
     combination_threshold: float = 0.8,
 ) -> Layout:
     """
@@ -341,10 +341,8 @@ def run_disambiguation_pipeline(
     "non-restrictive" group.
     unnest_soft_margin: The number of pixels to inflate each box by in each direction when
     checking for containment (i.e. a soft margin).
-    max_overlapping_pixels_vertical: The maximum number of pixels to
-    allow for vertical overlaps.
-    max_overlapping_pixels_horizontal: The maximum number of pixels to allow for
-    horizontal overlaps.
+    min_overlapping_pixels_vertical: The min number of overlapping pixels before reducing boxes in vertical direction.
+    min_overlapping_pixels_horizontal: The min number of overlapping pixels before reducing boxes in horizontal direction.
 
     Returns:
         A layout object containing only blocks from layoutparser with best effort disambiguation.
@@ -367,12 +365,12 @@ def run_disambiguation_pipeline(
 
     layout_vertically_reduced = reduce_all_overlapping_boxes(
         layout_combined,
-        min_overlapping_pixels_vertical=max_overlapping_pixels_vertical,
+        min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
         reduction_direction="vertical",
     )
     layout_all_reduced = reduce_all_overlapping_boxes(
         layout_vertically_reduced,
-        min_overlapping_pixels_horizontal=max_overlapping_pixels_horizontal,
+        min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
         reduction_direction="horizontal",
     )
     return layout_all_reduced
