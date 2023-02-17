@@ -30,8 +30,10 @@ from src.base import (  # noqa: E402
     PDFPageMetadata,
     StandardErrorLog,
 )
-from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
-from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
+from src.pdf_parser.pdf_utils.disambiguate_layout import (
+    run_disambiguation_pipeline,
+    unnest_boxes,
+)
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
     extract_google_layout,
@@ -103,6 +105,7 @@ def download_pdf(
         document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
         _LOGGER.info(f"Downloading {document_url} to {output_dir}")
         response = requests.get(document_url)
+        response.headers["Content-Type"] == "application/pdf"
     except Exception as e:
         _LOGGER.error(
             StandardErrorLog.parse_obj(
@@ -134,21 +137,23 @@ def download_pdf(
 
         return None
 
-    elif response.headers["Content-Type"] != "application/pdf":
-        _LOGGER.error(
-            StandardErrorLog.parse_obj(
-                {
-                    "timestamp": datetime.now(),
-                    "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
-                    "status_code": f"{response.status_code}",
-                    "error_type": "ContentTypeError",
-                    "message": "Content-Type is not application/pdf.",
-                    "document_in_process": str(parser_input.document_id),
-                }
-            )
-        )
+    # elif response.headers["Content-Type"] != "application/pdf":
+    #     print(response.headers["Content-Type"])
+    #     _LOGGER.error(
+    #         StandardErrorLog.parse_obj(
+    #             {
+    #                 "timestamp": datetime.now(),
+    #                 "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
+    #                 "status_code": f"{response.status_code}",
+    #                 "content_type": f"{response.headers['Content-Type']}",
+    #                 "error_type": "ContentTypeError",
+    #                 "message": "Content-Type is not application/pdf.",
+    #                 "document_in_process": str(parser_input.document_id),
+    #             }
+    #         )
+    #     )
 
-        return None
+    # return None
 
     else:
         _LOGGER.info(f"Saving {document_url} to {output_dir}")
@@ -159,16 +164,16 @@ def download_pdf(
         return output_path
 
 
-def select_page_at_random(num_pages: int) -> bool:
+def select_page_at_random(num_pages: int, rng: float) -> bool:
     """Determine whether to include a page using a random number generator. Used for debugging.
 
     Args:
         num_pages: The number of pages in the PDF.
+        rng: A random number between 0 and 1.
 
     Returns:
         The page number to include.
     """
-    rng = np.random.random()
     if num_pages in range(1, 10):
         # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
         # of pages)
@@ -194,6 +199,7 @@ def parse_file(
     ocr_agent: Union[TesseractAgent, GCVAgent],
     debug: bool,
     output_dir: Union[Path, S3Path],
+    combine_google_vision: bool,
     top_exclude_threshold: float,
     bottom_exclude_threshold: float,
     replace_threshold: float,
@@ -224,6 +230,7 @@ def parse_file(
         replace_threshold (float): Threshold for replacing blocks from google with blocks from the model. e.g.
             if a block from layoutparser is 95% covered by a block from google, as measured by intersection over
             union, then the block from layoutparser will be replaced by the block from google.
+        combine_google_vision (bool): Whether to combine the results from google vision with the results from the model.
     """
 
     _LOGGER.info(f"Processing {input_task.document_id}")
@@ -259,6 +266,8 @@ def parse_file(
 
         num_pages = len(pdf_images)
 
+        random_numbers = np.random.RandomState(42).random(num_pages)
+
         all_pages_metadata = []
         all_text_blocks = []
 
@@ -288,7 +297,8 @@ def parse_file(
             # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid
             # excessive redundancy and processing time
             if debug:
-                select_page = select_page_at_random(num_pages)
+                rng = random_numbers[page_idx]
+                select_page = select_page_at_random(num_pages, rng)
                 if not select_page:
                     continue
             # Maybe we should always pass a layout object into the PageParser class.
@@ -309,19 +319,29 @@ def parse_file(
                 all_pages_metadata.append(page_metadata)
                 continue
             _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
-            google_layout = extract_google_layout(image)[1]
-            # Combine the Google text blocks with the layoutparser layout.
-            combined_layout = combine_google_lp(
-                image,
-                google_layout,
-                layout_disambiguated,
-                threshold=replace_threshold,
-                top_exclude=top_exclude_threshold,
-                bottom_exclude=bottom_exclude_threshold,
-            )
-            postprocessed_layout = postprocessing_pipline(
-                combined_layout, page_dimensions[1]
-            )
+            if combine_google_vision:
+                # Add a step to use google vision instead of lists
+                layout_disambiguated = Layout(
+                    [b for b in layout_disambiguated if b.type != "List"]
+                )
+                google_layout = extract_google_layout(image)[1]
+                # Combine the Google text blocks with the layoutparser layout.
+                postprocessed_layout = combine_google_lp(
+                    image,
+                    google_layout,
+                    layout_disambiguated,
+                    threshold=replace_threshold,
+                    top_exclude=top_exclude_threshold,
+                    bottom_exclude=bottom_exclude_threshold,
+                )
+                # unnest the layout again because the google layout may have nested elements. Hack.
+                postprocessed_layout = unnest_boxes(
+                    postprocessed_layout, unnest_soft_margin=unnest_soft_margin
+                )
+            else:
+                postprocessed_layout = postprocessing_pipline(
+                    layout_disambiguated, page_dimensions[1]
+                )
             ocr_blocks = Layout(
                 [
                     b
@@ -347,7 +367,7 @@ def parse_file(
             _LOGGER.info(
                 f"Running ocr at block level for unaccounted for blocks for page {page_idx}"
             )
-            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
+            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
 
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
@@ -356,19 +376,33 @@ def parse_file(
                 image_output_path = (
                     Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
                 )
-
-                page_layout = Layout(page_layout_blocks)
+                page_layout = Layout(
+                    [
+                        b
+                        for b in postprocessed_layout
+                        if b.type
+                        in [
+                            "Text",
+                            "List",
+                            "Title",
+                            "Ambiguous",
+                            "Inferred from gaps",
+                            "Google Text Block",
+                        ]
+                    ]
+                )
                 draw_box(
                     image,
                     page_layout,
                     show_element_type=True,
-                    box_alpha=0.2,
+                    box_alpha=0.1,
                     color_map={
                         "Inferred from gaps": "red",
                         "Ambiguous": "green",
                         "Text": "orange",
                         "Title": "blue",
                         "List": "brown",
+                        "Google Text Block": "purple",
                     },
                 ).save(image_output_path)
             all_text_blocks += page_text_blocks
@@ -457,6 +491,7 @@ def run_pdf_parser(
     output_dir: Union[Path, S3Path],
     parallel: bool,
     debug: bool,
+    use_google_document_ai: bool,
     device: str = "cpu",
     redo: bool = False,
 ) -> None:
@@ -470,6 +505,7 @@ def run_pdf_parser(
         debug: Whether to run in debug mode (puts images of resulting layouts in output_dir).
         device: The device to use for the document AI model.
         redo: Whether to redo the parsing even if the output file already exists.
+        use_google_document_ai: Whether to use Google Document AI to help parse the PDFs.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
@@ -495,6 +531,7 @@ def run_pdf_parser(
     file_parser = partial(
         parse_file,
         model=model,
+        combine_google_vision=use_google_document_ai,
         ocr_agent=ocr_agent,
         output_dir=output_dir,
         debug=debug,
