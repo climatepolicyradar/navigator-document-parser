@@ -129,6 +129,12 @@ def _get_files_to_parse(
 @click.option(
     "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
 )
+@click.option(
+    "--use-google-document-ai",
+    help="Use Google Document AI to parse PDFs",
+    is_flag=True,
+    default=False,
+)
 def main(
     input_dir: str,
     output_dir: str,
@@ -138,6 +144,7 @@ def main(
     redo: bool,
     s3: bool,
     debug: bool,
+    use_google_document_ai: bool = False,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
@@ -237,6 +244,7 @@ def main(
             output_dir_as_path,
             parallel=parallel,
             device=device,
+            use_google_document_ai=use_google_document_ai,
             debug=debug,
             redo=redo,
         )
