@@ -8,7 +8,7 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
 import fitz
@@ -73,6 +73,9 @@ def copy_input_to_output_pdf(
 
         try:
             output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+        except Exception as e:
+            print(e)
+            breakpoint()
             _LOGGER.info(
                 "Blank output saved.",
                 extra={
@@ -158,23 +161,18 @@ def download_pdf(
 
         return None
     # FIXME: Had to uncomment this to get it working on some PDFs, related to oclet/stream instead of application/pdf
-    # elif response.headers["Content-Type"] != "application/pdf":
-    #     print(response.headers["Content-Type"])
-    #     _LOGGER.error(
-    #         StandardErrorLog.parse_obj(
-    #             {
-    #                 "timestamp": datetime.now(),
-    #                 "pipeline_stage": "Parser: Validate Content-Type of downloaded file.",
-    #                 "status_code": f"{response.status_code}",
-    #                 "content_type": f"{response.headers['Content-Type']}",
-    #                 "error_type": "ContentTypeError",
-    #                 "message": "Content-Type is not application/pdf.",
-    #                 "document_in_process": str(parser_input.document_id),
-    #             }
-    #         )
-    #     )
-
-    # return None
+    elif response.headers["Content-Type"] != "application/pdf":
+        _LOGGER.exception(
+            "Content-Type is not application/pdf.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "response_status_code": response.status_code,
+                }
+            },
+        )
+        return None
 
     else:
         _LOGGER.info(
@@ -271,7 +269,7 @@ def parse_file(
         },
     )
 
-    output_path = cast(Path, output_dir / f"{input_task.document_id}.json")
+    output_path = output_dir / f"{input_task.document_id}.json"
     if not output_path.exists():  # type: ignore
         copy_input_to_output_pdf(input_task, output_path)  # type: ignore
 
@@ -288,7 +286,7 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                 }
             },
         )
@@ -513,7 +511,7 @@ def parse_file(
                 "props": {
                     "document_id": input_task.document_id,
                     "output_path": output_path.name,
-                    "output_directory": output_dir,
+                    "output_directory": str(output_dir),
                 }
             },
         )
