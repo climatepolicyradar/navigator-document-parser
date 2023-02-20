@@ -157,6 +157,7 @@ def main(
     :param redo: redo parsing for files that have already been parsed. Defaults to False.
     :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
     :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
+    :param use_google_document_ai: whether to use Google Document AI to help parse PDFs. Defaults to False.
     """
 
     if s3:

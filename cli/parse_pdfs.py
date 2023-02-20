@@ -259,7 +259,7 @@ def parse_file(
         replace_threshold (float): Threshold for replacing blocks from google with blocks from the model. e.g.
             if a block from layoutparser is 95% covered by a block from google, as measured by intersection over
             union, then the block from layoutparser will be replaced by the block from google.
-        combine_google_vision (bool): Whether to combine the results from google vision with the results from the model.
+        combine_google_vision (bool): Whether to combine the results from google document API with the results from the model.
     """
 
     _LOGGER.info(
