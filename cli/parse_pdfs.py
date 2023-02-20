@@ -157,7 +157,7 @@ def download_pdf(
         )
 
         return None
-
+    # FIXME: Had to uncomment this to get it working on some PDFs, related to oclet/stream instead of application/pdf
     # elif response.headers["Content-Type"] != "application/pdf":
     #     print(response.headers["Content-Type"])
     #     _LOGGER.error(
