@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import date
 from enum import Enum
 from typing import Optional, Sequence, Tuple, List
+from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
 
 import layoutparser.elements as lp_elements
 from langdetect import DetectorFactory
@@ -17,6 +18,22 @@ _LOGGER = logging.getLogger(__name__)
 
 CONTENT_TYPE_HTML = "text/html"
 CONTENT_TYPE_PDF = "application/pdf"
+
+
+class GoogleTextSegment(BaseModel):
+    """A segment of text from Google OCR."""
+
+    text: str
+    coordinates: BoundingPoly
+    confidence: float
+    language: Optional[str]
+
+
+class GoogleBlock(BaseModel):
+    """A fully structured block from google OCR. Can contain multiple segments."""
+
+    coordinates: BoundingPoly
+    text_blocks: List[GoogleTextSegment]
 
 
 class BlockType(str, Enum):

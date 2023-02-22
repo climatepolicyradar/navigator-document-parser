@@ -7,31 +7,13 @@ import numpy as np
 from PIL.PpmImagePlugin import PpmImageFile
 from google.cloud import vision
 from google.cloud.vision import types
-from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
 from google.protobuf.pyext._message import RepeatedCompositeContainer
 from layoutparser import TextBlock, Rectangle, Layout  # type: ignore
 from layoutparser.ocr import TesseractAgent, GCVAgent
 from shapely.geometry import Polygon
 
-from src.base import PDFTextBlock
+from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment
 from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
-from src.pdf_parser.pdf_utils.utils import BaseModel
-
-
-class GoogleTextSegment(BaseModel):
-    """A segment of text from Google OCR."""
-
-    text: str
-    coordinates: BoundingPoly
-    confidence: float
-    language: Optional[str]
-
-
-class GoogleBlock(BaseModel):
-    """A fully structured block from google OCR. Can contain multiple segments."""
-
-    coordinates: BoundingPoly
-    text_blocks: List[GoogleTextSegment]
 
 
 def image_bytes(image: PpmImageFile) -> bytes:
