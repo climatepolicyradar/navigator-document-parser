@@ -63,7 +63,7 @@ def extract_google_layout(
 ]:
     """Returns document bounds given an image.
 
-        The Google OCR API returns blocks of paragraphs. Roughly, there are 3 cases worth considering:
+    The Google OCR API returns blocks of paragraphs. Roughly, there are 3 cases worth considering:
 
     1. A block consists of a heading and a paragraph of text below it. In this case the block consists of 2
     paragraphs, the first being the heading and the second being the text.
