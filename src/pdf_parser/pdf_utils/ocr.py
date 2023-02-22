@@ -1,7 +1,7 @@
 import concurrent.futures
 import io
 from collections import defaultdict
-from typing import Optional, Tuple, List, Union
+from typing import Optional, Tuple, List, Union, Dict
 
 import numpy as np
 from PIL.PpmImagePlugin import PpmImageFile
@@ -234,6 +234,52 @@ def google_coords_to_lp_coords(
     return x1, y1, x2, y2
 
 
+def calculate_intersection_over_unions(
+    shapely_google: List, shapely_layout: List
+) -> defaultdict[int, list[float]]:
+    """
+    Calculate intersection over union for every block in the Google layout and LayoutParser layout.
+
+    Args:
+        shapely_google: A list of Shapely objects representing the blocks in the Google layout.
+        shapely_layout: A list of Shapely objects representing the blocks in the LayoutParser layout.
+
+    Returns:
+        A dictionary that contains lists of intersection over unions for every google block with all lp blocks.
+    """
+    dd_intersection_over_union = defaultdict(list)
+    for ix_goog, google_block in enumerate(shapely_google):
+        lp_block = shapely_layout[ix_goog]
+        intersection = google_block.intersection(lp_block).area
+        union = google_block.union(lp_block).area
+        dd_intersection_over_union[ix_goog].append(intersection / union)
+    return dd_intersection_over_union
+
+
+def find_equivalent_block_mapping(
+    dd_intersection_over_union: Dict[int, List[float]], threshold: float
+) -> Dict[int, int]:
+    """
+    Finds the equivalent block mapping between the Google layout and LayoutParser layout.
+
+    Args:
+        dd_intersection_over_union: A dictionary that contains the intersection over union for each block in the Google
+            layout and LayoutParser layout.
+        threshold: Threshold for overlap between google and layoutparser objects. If the overlap is larger than
+            threshold, the layoutparser object is replaced by the google object.
+
+    Returns:
+        A dictionary that maps the index of each block in the Google layout to the index of the most overlapping block
+        in the LayoutParser layout, for blocks with an intersection over union greater than the threshold.
+    """
+    equivalent_block_mapping = {
+        k: v.index(max(v))
+        for k, v in dd_intersection_over_union.items()
+        if max(v) > threshold
+    }
+    return equivalent_block_mapping
+
+
 def combine_google_lp(
     image,
     google_layout: List[GoogleTextSegment],
@@ -264,23 +310,13 @@ def combine_google_lp(
     """
     shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
     shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
-    # for every block in the google layout, find the fraction of the block that is covered by the layoutparser layout
-    dd_intersection_over_union = defaultdict(list)
-    for ix_goog, google_block in enumerate(shapely_google):
-        for ix_lp, lp_block in enumerate(shapely_layout):
-            # Find the intersection over union of the two blocks.
-            intersection = google_block.intersection(lp_block).area
-            union = google_block.union(lp_block).area
-            dd_intersection_over_union[ix_goog].append(intersection / union)
+    dd_intersection_over_union = calculate_intersection_over_unions(
+        shapely_google, shapely_layout
+    )
 
-    # If a google block is covered by a layoutparser block by more than 0.9, we can assume that google OCR has
-    # identified the same block as layoutparser + heuristics and we can use the text from the google block.
-    # Filter the default dict for these cases
-    equivalent_block_mapping = {
-        k: v.index(max(v))
-        for k, v in dd_intersection_over_union.items()
-        if max(v) > threshold
-    }
+    equivalent_block_mapping = find_equivalent_block_mapping(
+        dd_intersection_over_union, threshold
+    )
 
     # New blocks to add to the layoutparser layout
     blocks_google_only = {
