@@ -366,9 +366,9 @@ def parse_file(
             _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
             google_layout = extract_google_layout(image)[1]
             combined_layout = combine_google_lp(
-                image,
-                google_layout,
-                layout_disambiguated,
+                image=image,
+                google_layout=google_layout,
+                lp_layout=layout_disambiguated,
                 threshold=replace_threshold,
                 top_exclude=top_exclude_threshold,
                 bottom_exclude=bottom_exclude_threshold,
