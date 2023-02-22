@@ -262,49 +262,22 @@ def find_equivalent_block_mapping(
     return equivalent_block_mapping
 
 
-def combine_google_lp(
-    image,
-    google_layout: List[GoogleTextSegment],
-    lp_layout: Layout,
-    threshold: float = 0.9,
-    top_exclude: float = 0.1,
-    bottom_exclude: float = 0.1,
-):
+def replace_block_text(
+    equivalent_block_mapping: Dict[int, int], lp_layout: List, google_layout: List
+) -> List:
     """
-    Combine google layout with layoutparser layout.
-
-    - Replaces layoutparser objects with objects recognised by google API + their text if they overlap sufficiently.
-    - Does not include google objects if they seem to be not part of the main text (e.g. headers, footers, etc.). We
-    use top exclude and bottom exclude to ascertain this.
-
+    Replaces the text of the LayoutParser blocks with the text of the Google blocks.
 
     Args:
-        image: The image the layout is based on.
-        google_layout: List of GoogleTextSegment objects inferred from the structure returned by the Google OCR API.
-        lp_layout: Layout object
-        threshold: Threshold for overlap between google and layoutparser objects. If the overlap is larger than
-            threshold, the layoutparser object is replaced by the google object.
-        top_exclude: Exclude objects from the top of the page if they are above this fraction of the page.
-        bottom_exclude: Exclude objects from the bottom of the page if they are below this fraction of the page.
+        equivalent_block_mapping: A dictionary that maps the index of each block in the Google layout to the index of the
+            most overlapping block in the LayoutParser layout, for blocks with an intersection over union greater than a threshold
+            defined upstream.
+        lp_layout: A list of LayoutParser blocks.
+        google_layout: A list of Google blocks.
 
     Returns:
-        Layout object with google objects replacing layoutparser objects if they overlap sufficiently.
+        A list of LayoutParser blocks with the text of the Google blocks.
     """
-    shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
-    shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
-    dd_intersection_over_union = calculate_intersection_over_unions(
-        shapely_google, shapely_layout
-    )
-
-    equivalent_block_mapping = find_equivalent_block_mapping(
-        dd_intersection_over_union, threshold
-    )
-
-    # New blocks to add to the layoutparser layout
-    blocks_google_only = {
-        k: v for k, v in dd_intersection_over_union.items() if max(v) == 0.0
-    }
-
     # use the mapping to replace the text of the layoutparser block with the text of the google block
     for k, v in equivalent_block_mapping.items():
         google_coords = google_layout[k].coordinates.vertices
@@ -323,7 +296,31 @@ def combine_google_lp(
         lp_layout[v].block.y_1 = y_top_left
         lp_layout[v].block.x_2 = x_bottom_right
         lp_layout[v].block.y_2 = y_bottom_right
+    return lp_layout
 
+
+def add_google_specific_blocks(
+    image,
+    blocks_google_only: dict,
+    google_layout: List[GoogleTextSegment],
+    lp_layout: Layout,
+    top_exclude: float,
+    bottom_exclude: float,
+) -> Layout:
+    """
+    Adds the Google blocks that do not overlap with any LayoutParser blocks to the LayoutParser layout.
+
+    Args:
+        image: The image that the LayoutParser layout was created from.
+        blocks_google_only: A list of Google blocks that do not overlap with any LayoutParser blocks.
+        google_layout: A list of Google blocks.
+        lp_layout: A list of LayoutParser blocks.
+        top_exclude: The number of pixels to exclude from the top of the image.
+        bottom_exclude: The number of pixels to exclude from the bottom of the image.
+
+    Returns:
+        A list of LayoutParser blocks with the text of the Google blocks.
+    """
     # Add the blocks that are only in the google layout, but only if they are not too small or are too high
     # up/down on the page indicating that they are probably not part of the main text.
     for key, val in blocks_google_only.items():
@@ -351,8 +348,61 @@ def combine_google_lp(
             )
             # TODO: This is ugly. Should create a data type to make these changes more explicit/to not duplicate code
             lp_layout[-1].language = google_layout[key].language
-
     return lp_layout
+
+
+def combine_google_lp(
+    image,
+    google_layout: List[GoogleTextSegment],
+    lp_layout: Layout,
+    threshold: float = 0.9,
+    top_exclude: float = 0.1,
+    bottom_exclude: float = 0.1,
+):
+    """
+    Combine google layout with layoutparser layout.
+
+    - Replaces layoutparser objects with objects recognised by google API + their text if they overlap sufficiently.
+    - Does not include google objects if they seem to be not part of the main text (e.g. headers, footers, etc.). We
+    use top exclude and bottom exclude to ascertain this.
+
+
+    Args:
+        image: The image the layout is based on.
+        google_layout: List of GoogleTextSegment objects inferred from the structure returned by the Google OCR API.
+        lp_layout: Layout object
+        threshold: Threshold for overlap between google and layoutparser objects. If the overlap is larger than
+            threshold, the layoutparser object is replaced by the google object.
+        top_exclude: Exclude objects from the top of the page if they are above this fraction of the page.
+        bottom_exclude: Exclude objects from the bottom of the page if they are below this fraction of the page.
+
+    Returns:
+        Layout object with google objects replacing layoutparser objects if they overlap sufficiently, plus any google
+        specific blocks.
+    """
+    shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
+    shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
+    dd_intersection_over_union = calculate_intersection_over_unions(
+        shapely_google, shapely_layout
+    )
+
+    equivalent_block_mapping = find_equivalent_block_mapping(
+        dd_intersection_over_union, threshold
+    )
+
+    # New blocks to add to the layoutparser layout
+    blocks_google_only = {
+        k: v for k, v in dd_intersection_over_union.items() if max(v) == 0.0
+    }
+
+    # use the mapping to replace the text of the layoutparser block with the text of the google block
+    lp_layout = replace_block_text(equivalent_block_mapping, lp_layout, google_layout)
+
+    lp_layout_with_google = add_google_specific_blocks(
+        image, blocks_google_only, google_layout, lp_layout, top_exclude, bottom_exclude
+    )
+
+    return lp_layout_with_google
 
 
 class OCRProcessor:
