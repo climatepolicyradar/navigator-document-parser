@@ -17,6 +17,15 @@ LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE = float(
     os.getenv("LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE", "0.4")
 )
 
+OCR_BLOCKS = [
+    "Google Text Block",
+    "Text",
+    "List",
+    "Title",
+    "Ambiguous",
+    "Inferred from gaps",
+]
+
 # This is the number of pixels in the soft margin for a box to be considered nested within another box.
 # In particular, we inflate the potential container box by this amount in each direction, and then
 # check if the potential contained box is fully contained within the inflated container box.
@@ -55,7 +64,6 @@ LAYOUTPARSER_REPLACE_THRESHOLD = float(
 LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD = float(
     os.getenv("LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD", "0.8")
 )
-
 
 PDF_OCR_AGENT = os.getenv("PDF_OCR_AGENT", "gcv")
 

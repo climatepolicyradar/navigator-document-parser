@@ -18,7 +18,6 @@ from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_po
 from src.pdf_parser.pdf_utils.utils import BaseModel
 
 
-# Hierarchical data structure for representing document text.
 class GoogleTextSegment(BaseModel):
     """A segment of text from Google OCR."""
 
