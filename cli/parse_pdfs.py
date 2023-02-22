@@ -492,10 +492,10 @@ def parse_file(
         )
 
 
-def _pdf_num_pages(file: str):
+def _pdf_num_pages(file: str) -> int:
     """Get the number of pages in a pdf file."""
     try:
-        return fitz.open(file).page_count  # type: ignore
+        return fitz.open(file).page_count
     except EmptyFileError:
         return 0
 
