@@ -38,6 +38,11 @@ class GoogleTextSegment(BaseModel):
 class GoogleBlock(BaseModel):
     """A fully structured block from google OCR. Can contain multiple segments."""
 
+    class Config:
+        """Pydantic config."""
+
+        arbitrary_types_allowed = True
+
     coordinates: BoundingPoly
     text_blocks: List[GoogleTextSegment]
 
