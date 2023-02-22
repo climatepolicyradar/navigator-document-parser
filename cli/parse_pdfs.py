@@ -73,12 +73,10 @@ def copy_input_to_output_pdf(
 
         try:
             output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
-        except Exception as e:
             _LOGGER.info(
                 "Blank output saved.",
                 extra={
                     "props": {
-                        "error_message": str(e),
                         "document_id": task.document_id,
                         "output_path": str(output_path),
                     }
@@ -90,7 +88,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -102,7 +100,7 @@ def copy_input_to_output_pdf(
             extra={
                 "props": {
                     "document_id": task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                     "error_message": str(e),
                 }
             },
@@ -133,6 +131,7 @@ def download_pdf(
             },
         )
         response = requests.get(document_url)
+
     except Exception as e:
         _LOGGER.exception(
             "Failed to download document from url.",
@@ -397,26 +396,14 @@ def parse_file(
                     layout_disambiguated, page_dimensions[1]
                 )
             ocr_blocks = Layout(
-                [
-                    b
-                    for b in postprocessed_layout
-                    if b.type
-                    in [
-                        "Google Text Block",
-                        "Text",
-                        "List",
-                        "Title",
-                        "Ambiguous",
-                        "Inferred from gaps",
-                    ]
-                ]
+                [b for b in postprocessed_layout if b.type in config.OCR_BLOCKS]
             )
             if len(ocr_blocks) == 0:
                 _LOGGER.info(f"No text found for page {page_idx}.")
                 all_pages_metadata.append(page_metadata)
                 continue
             ocr_processor = OCRProcessor(
-                np.array(image), page_idx, postprocessed_layout, ocr_agent
+                np.array(image), page_idx, ocr_blocks, ocr_agent
             )
             _LOGGER.info(
                 f"Running ocr at block level for unaccounted for blocks for page {page_idx}"
@@ -430,21 +417,8 @@ def parse_file(
                 image_output_path = (
                     Path(output_dir) / "debug" / f"{doc_name}_{page_number}.png"
                 )
-                page_layout = Layout(
-                    [
-                        b
-                        for b in postprocessed_layout
-                        if b.type
-                        in [
-                            "Text",
-                            "List",
-                            "Title",
-                            "Ambiguous",
-                            "Inferred from gaps",
-                            "Google Text Block",
-                        ]
-                    ]
-                )
+
+                page_layout = Layout(page_layout_blocks)
                 draw_box(
                     image,
                     page_layout,
@@ -497,7 +471,7 @@ def parse_file(
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -526,7 +500,7 @@ def parse_file(
         )
 
 
-def _pdf_num_pages(file: str):
+def _pdf_num_pages(file: str) -> int:
     """Get the number of pages in a pdf file."""
     try:
         return fitz.open(file).page_count  # type: ignore
@@ -546,7 +520,7 @@ def _get_detectron_model(model: str, device: str) -> Detectron2LayoutModel:
 
 def get_model(
     model_name: str,
-    ocr_agent_type_name: str,
+    ocr_agent_name: str,
     device: str,
 ) -> tuple[Detectron2LayoutModel, Union[TesseractAgent, GCVAgent]]:
     """Get the model for the parser."""
@@ -555,7 +529,7 @@ def get_model(
         extra={
             "props": {
                 "model": model_name,
-                "ocr_agent": ocr_agent_type_name,
+                "ocr_agent": ocr_agent_name,
                 "device": device,
             }
         },
@@ -567,12 +541,12 @@ def get_model(
 
     # FIXME: handle EmptyFileError here using _pdf_num_pages
     model = _get_detectron_model(model_name, device)
-    if ocr_agent_type_name == "tesseract":
+    if ocr_agent_name == "tesseract":
         ocr_agent = TesseractAgent()
-    elif ocr_agent_type_name == "gcv":
+    elif ocr_agent_name == "gcv":
         ocr_agent = GCVAgent()
     else:
-        raise RuntimeError(f"Uknown OCR agent type: '{ocr_agent_type_name}'")
+        raise RuntimeError(f"Uknown OCR agent type: '{ocr_agent_name}'")
 
     return model, ocr_agent
 
@@ -604,7 +578,7 @@ def run_pdf_parser(
 
     model, ocr_agent = get_model(
         model_name=config.LAYOUTPARSER_MODEL,
-        ocr_agent_type_name=config.PDF_OCR_AGENT,
+        ocr_agent_name=config.PDF_OCR_AGENT,
         device=device,
     )
 
