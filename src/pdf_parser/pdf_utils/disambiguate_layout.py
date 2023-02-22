@@ -377,10 +377,6 @@ def run_disambiguation_pipeline(
         layout_permissive,
         combination_threshold=combination_threshold,
     )
-    # # if more than 20 blocks, don't reduce this to avoid maximum recursion depth error
-    # if len(layout_combined) > 20:
-    #     return layout_combined
-    # else:
     layout_vertically_reduced = reduce_all_overlapping_boxes(
         layout_combined,
         min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
@@ -391,4 +387,4 @@ def run_disambiguation_pipeline(
         min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
         reduction_direction="horizontal",
     )
-    return layout_all_reduced  # layout_combined
+    return layout_all_reduced
