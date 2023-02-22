@@ -186,12 +186,9 @@ def extract_google_layout(
             fully_structured_blocks.append(google_block)
 
     # look for duplicates in block_texts and paragraph_texts and create a list of full blocks
-    text_blocks_to_keep = []
-    for block in block_text_segments:
-        if block in paragraph_text_segments:
-            continue
-        else:
-            text_blocks_to_keep.append(block)
+    text_blocks_to_keep = [
+        block for block in block_text_segments if block not in paragraph_text_segments
+    ]
 
     combined_text_segments = text_blocks_to_keep + paragraph_text_segments
 
