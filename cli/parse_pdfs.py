@@ -8,7 +8,7 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
 import fitz
@@ -75,7 +75,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                     }
                 },
             )
@@ -85,7 +85,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -97,7 +97,7 @@ def copy_input_to_output_pdf(
             extra={
                 "props": {
                     "document_id": task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                     "error_message": str(e),
                 }
             },
@@ -261,7 +261,7 @@ def parse_file(
         },
     )
 
-    output_path = cast(Path, output_dir / f"{input_task.document_id}.json")
+    output_path = output_dir / f"{input_task.document_id}.json"
     if not output_path.exists():  # type: ignore
         copy_input_to_output_pdf(input_task, output_path)  # type: ignore
 
@@ -278,7 +278,7 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                 }
             },
         )
@@ -451,7 +451,7 @@ def parse_file(
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },

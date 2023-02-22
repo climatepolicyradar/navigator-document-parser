@@ -14,6 +14,7 @@ from langdetect import DetectorFactory
 from langdetect import detect
 from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
+
 _LOGGER = logging.getLogger(__name__)
 
 CONTENT_TYPE_HTML = "text/html"
@@ -22,6 +23,11 @@ CONTENT_TYPE_PDF = "application/pdf"
 
 class GoogleTextSegment(BaseModel):
     """A segment of text from Google OCR."""
+
+    class Config:
+        """Pydantic config."""
+
+        arbitrary_types_allowed = True
 
     text: str
     coordinates: BoundingPoly
