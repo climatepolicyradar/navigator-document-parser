@@ -377,19 +377,7 @@ def parse_file(
                 combined_layout, page_dimensions[1]
             )
             ocr_blocks = Layout(
-                [
-                    b
-                    for b in postprocessed_layout
-                    if b.type
-                    in [
-                        "Google Text Block",
-                        "Text",
-                        "List",
-                        "Title",
-                        "Ambiguous",
-                        "Inferred from gaps",
-                    ]
-                ]
+                [b for b in postprocessed_layout if b.type in config.OCR_BLOCKS]
             )
             if len(ocr_blocks) == 0:
                 _LOGGER.info(f"No text found for page {page_idx}.")
