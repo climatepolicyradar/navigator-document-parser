@@ -365,7 +365,6 @@ def parse_file(
                 continue
             _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
             google_layout = extract_google_layout(image)[1]
-            # Combine the Google text blocks with the layoutparser layout.
             combined_layout = combine_google_lp(
                 image,
                 google_layout,
