@@ -53,6 +53,25 @@ def google_vertex_to_shapely(bound):
     )
 
 
+def get_modal_string(
+    language_list: List[str], block_languages: List[str]
+) -> Optional[str]:
+    """Get the modal language from a list of languages.
+
+    Args:
+        language_list: List of languages to choose from.
+        block_languages: List of languages that the block is in.
+
+    Returns:
+        The modal language.
+
+    """
+    if len(language_list) > 0:
+        return max(set(block_languages), key=block_languages.count)
+    else:
+        return None
+
+
 def extract_google_layout(
     image: PpmImageFile,
 ) -> Tuple[
@@ -93,12 +112,6 @@ def extract_google_layout(
     Returns:
         List of GoogleBlocks, List of GoogleTextSegments, List of GoogleTextSegments, List of GoogleTextSegments
     """
-
-    def _get_modal_string(string_list: List[str]) -> Optional[str]:
-        if len(string_list) > 0:
-            return max(set(block_languages), key=block_languages.count)
-        else:
-            return None
 
     content = image_bytes(image)
     client = vision.ImageAnnotatorClient()
@@ -144,7 +157,7 @@ def extract_google_layout(
                             para += line
                             line = ""
                 # Detect language by selecting the modal language of the words in the paragraph.
-                para_lang = _get_modal_string(para_languages)
+                para_lang = get_modal_string(para_languages, block_languages)
                 paragraph_text_segments.append(
                     GoogleTextSegment(
                         text=para,
@@ -157,7 +170,9 @@ def extract_google_layout(
                 default_dict["block_paragraph_coords"].append(paragraph.bounding_box)
 
             # Detect language by selecting the modal language of the words in the block.
-            block_lang = _get_modal_string(default_dict["block_languages"])
+            block_lang = get_modal_string(
+                default_dict["block_languages"], block_languages
+            )
             # for every block, create a text block
             block_all_text = "\n".join(default_dict["block_paragraphs"])
             block_text_segments.append(
