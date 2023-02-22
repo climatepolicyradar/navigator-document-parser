@@ -231,10 +231,11 @@ def calculate_intersection_over_unions(
     """
     dd_intersection_over_union = defaultdict(list)
     for ix_goog, google_block in enumerate(shapely_google):
-        lp_block = shapely_layout[ix_goog]
-        intersection = google_block.intersection(lp_block).area
-        union = google_block.union(lp_block).area
-        dd_intersection_over_union[ix_goog].append(intersection / union)
+        for ix_lp, lp_block in enumerate(shapely_layout):
+            # Find the intersection over union of the two blocks.
+            intersection = google_block.intersection(lp_block).area
+            union = google_block.union(lp_block).area
+            dd_intersection_over_union[ix_goog].append(intersection / union)
     return dd_intersection_over_union
 
 

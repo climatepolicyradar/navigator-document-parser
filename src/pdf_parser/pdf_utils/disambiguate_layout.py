@@ -121,7 +121,7 @@ def combine_layouts(
         # If the box's area is not "explained away" by the strict layout, add it to the combined layout with an
         # ambiguous type tag. We can use heuristics to determine its type downstream.
         if unexplained_fractions[ix] > combination_threshold:
-            box.block_1.type = "Ambiguous"
+            box.type = "Ambiguous"
             boxes_to_add.append(box)
     layout_combined = layout_restrictive + Layout(boxes_to_add)
     return layout_combined
@@ -224,18 +224,20 @@ def reduce_all_overlapping_boxes(
     Returns:
         The new layout with blocks having no overlapping coordinates.
     """
-    assert reduction_direction in ("vertical", "horizontal"), (
-        "Invalid direction. Must be 'vertical' or " "'horizontal'. "
-    )
-    for box_1 in blocks:
-        for box_2 in blocks:
-            if box_1 == box_2:
+    assert reduction_direction in (
+        "vertical",
+        "horizontal",
+    ), "Invalid direction. Must be 'vertical' or 'horizontal'."
+    edited_blocks = []
+    edited_coords = []
+    for i, box_1 in enumerate(blocks):
+        for j, box_2 in enumerate(blocks):
+            if i == j:
                 continue
             else:
                 intersection_area = box_1.intersect(box_2).area
                 if intersection_area > 0:
                     if reduction_direction == "vertical":
-                        # check which box is upper and which is lower
                         if box_1.coordinates[3] < box_2.coordinates[3]:
                             rect_1, rect_2 = reduce_overlapping_boxes(
                                 box_1,
@@ -243,6 +245,8 @@ def reduce_all_overlapping_boxes(
                                 direction=reduction_direction,
                                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                             )
+                        elif box_1.coordinates[3] == box_2.coordinates[3]:
+                            continue
                         else:
                             rect_1, rect_2 = reduce_overlapping_boxes(
                                 box_2,
@@ -251,7 +255,6 @@ def reduce_all_overlapping_boxes(
                                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                             )
                     elif reduction_direction == "horizontal":
-                        # check which box is left and which is right
                         if box_1.coordinates[2] < box_2.coordinates[2]:
                             rect_1, rect_2 = reduce_overlapping_boxes(
                                 box_1,
@@ -259,6 +262,8 @@ def reduce_all_overlapping_boxes(
                                 direction=reduction_direction,
                                 min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
                             )
+                        elif box_1.coordinates[2] == box_2.coordinates[2]:
+                            continue
                         else:
                             rect_1, rect_2 = reduce_overlapping_boxes(
                                 box_2,
@@ -266,9 +271,19 @@ def reduce_all_overlapping_boxes(
                                 direction=reduction_direction,
                                 min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
                             )
-                    box_1 = rect_1
-                    box_2 = rect_2
-    return blocks
+                    box_1.box = rect_1
+                    box_2.box = rect_2
+                    if box_1.coordinates not in edited_coords:
+                        edited_blocks.append(box_1)
+                        edited_coords.append(box_1.coordinates)
+                    if box_2.coordinates not in edited_coords:
+                        edited_blocks.append(box_2)
+                        edited_coords.append(box_2.coordinates)
+                else:
+                    if box_1.coordinates not in edited_coords:
+                        edited_blocks.append(box_1)
+                        edited_coords.append(box_1.coordinates)
+    return Layout(edited_blocks)
 
 
 def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
@@ -362,7 +377,6 @@ def run_disambiguation_pipeline(
         layout_permissive,
         combination_threshold=combination_threshold,
     )
-
     layout_vertically_reduced = reduce_all_overlapping_boxes(
         layout_combined,
         min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
