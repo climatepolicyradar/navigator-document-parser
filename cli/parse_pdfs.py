@@ -500,7 +500,7 @@ def _get_detectron_model(model: str, device: str) -> Detectron2LayoutModel:
 
 def get_model(
     model_name: str,
-    ocr_agent_type_name: str,
+    ocr_agent_name: str,
     device: str,
 ) -> tuple[Detectron2LayoutModel, Union[TesseractAgent, GCVAgent]]:
     """Get the model for the parser."""
@@ -509,7 +509,7 @@ def get_model(
         extra={
             "props": {
                 "model": model_name,
-                "ocr_agent": ocr_agent_type_name,
+                "ocr_agent": ocr_agent_name,
                 "device": device,
             }
         },
@@ -521,12 +521,12 @@ def get_model(
 
     # FIXME: handle EmptyFileError here using _pdf_num_pages
     model = _get_detectron_model(model_name, device)
-    if ocr_agent_type_name == "tesseract":
+    if ocr_agent_name == "tesseract":
         ocr_agent = TesseractAgent()
-    elif ocr_agent_type_name == "gcv":
+    elif ocr_agent_name == "gcv":
         ocr_agent = GCVAgent()
     else:
-        raise RuntimeError(f"Uknown OCR agent type: '{ocr_agent_type_name}'")
+        raise RuntimeError(f"Uknown OCR agent type: '{ocr_agent_name}'")
 
     return model, ocr_agent
 
@@ -556,7 +556,7 @@ def run_pdf_parser(
 
     model, ocr_agent = get_model(
         model_name=config.LAYOUTPARSER_MODEL,
-        ocr_agent_type_name=config.PDF_OCR_AGENT,
+        ocr_agent_name=config.PDF_OCR_AGENT,
         device=device,
     )
 
