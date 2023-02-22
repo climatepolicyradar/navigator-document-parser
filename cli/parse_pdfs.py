@@ -74,14 +74,13 @@ def copy_input_to_output_pdf(
         try:
             output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
         except Exception as e:
-            print(e)
-            breakpoint()
             _LOGGER.info(
                 "Blank output saved.",
                 extra={
                     "props": {
+                        "error_message": str(e),
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                     }
                 },
             )
