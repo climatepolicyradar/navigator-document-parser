@@ -159,6 +159,22 @@ def download_pdf(
 
         return None
     elif response.headers["Content-Type"] != "application/pdf":
+        if response.headers["Content-Type"] == "binary/octet-stream":
+            _LOGGER.info(
+                "Saving downloaded file locally.",
+                extra={
+                    "props": {
+                        "document_id": parser_input.document_id,
+                        "document_url": document_url,
+                    }
+                },
+            )
+            output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
+
+            with open(output_path, "wb") as f:
+                f.write(response.content)
+            return output_path
+
         _LOGGER.exception(
             "Failed to save downloaded file locally. Content-Type is not application/pdf.",
             extra={
