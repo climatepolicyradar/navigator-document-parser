@@ -11,11 +11,9 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
-import fitz
 import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
-from fitz.fitz import EmptyFileError
 from layoutparser.io import load_pdf
 from layoutparser.elements import Layout
 from layoutparser.visualization import draw_box
@@ -161,34 +159,17 @@ def download_pdf(
 
         return None
     elif response.headers["Content-Type"] != "application/pdf":
-        try:
-            _LOGGER.info(
-                "Saving downloaded file locally.",
-                extra={
-                    "props": {
-                        "document_id": parser_input.document_id,
-                        "document_url": document_url,
-                    }
-                },
-            )
-            output_path = Path(output_dir) / f"{parser_input.document_id}.pdf"
-
-            with open(output_path, "wb") as f:
-                f.write(response.content)
-            return output_path
-        except Exception as e:
-            _LOGGER.exception(
-                "Failed to save downloaded file locally. Content-Type is not application/pdf.",
-                extra={
-                    "props": {
-                        "document_id": parser_input.document_id,
-                        "document_url": document_url,
-                        "response_status_code": response.status_code,
-                        "error_message": str(e),
-                    }
-                },
-            )
-            return None
+        _LOGGER.exception(
+            "Failed to save downloaded file locally. Content-Type is not application/pdf.",
+            extra={
+                "props": {
+                    "document_id": parser_input.document_id,
+                    "document_url": document_url,
+                    "response_status_code": response.status_code,
+                }
+            },
+        )
+        return None
     else:
         _LOGGER.info(
             "Saving downloaded file locally.",
@@ -516,14 +497,6 @@ def parse_file(
                 }
             },
         )
-
-
-def _pdf_num_pages(file: str) -> int:
-    """Get the number of pages in a pdf file."""
-    try:
-        return fitz.open(file).page_count  # type: ignore
-    except EmptyFileError:
-        return 0
 
 
 # TODO: We may want to make this an option, but for now just use Detectron by default as we are unlikely
