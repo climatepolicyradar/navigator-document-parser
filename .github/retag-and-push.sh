@@ -63,11 +63,11 @@ if [[ "${GITHUB_REF}" == "refs/heads"* ]]; then
         docker_tag "${input_image}" "${name}:latest"
         docker push "${name}:latest"
         # Also tag for any versioning that might get done
-        docker_tag "${input_image}" "${name}:globalstocktake"
-        docker push "${name}:globalstocktake"
+        docker_tag "${input_image}" "${name}:${branch}-${timestamp}-${short_sha}"
+        docker push "${name}:${branch}-${timestamp}-${short_sha}"
         # Also tag for any versioning that might get done
-        docker_tag "${input_image}" "${name}:globalstocktake"
-        docker push "${name}:globalstocktake"
+        docker_tag "${input_image}" "${name}:${branch}-${short_sha}"
+        docker push "${name}:${branch}-${short_sha}"
     fi
 elif is_tagged_version ${GITHUB_REF} ; then
     # push `semver` tagged image
@@ -90,8 +90,8 @@ else
     echo "Assuming '${GITHUB_HEAD_REF}' is a branch"
     if [[ -n "${GITHUB_HEAD_REF}" ]]; then
         branch="$(echo ${GITHUB_HEAD_REF}| tr -c '[0-9,A-Z,a-z]' '-')"
-        docker_tag "${input_image}" "${name}:globalstocktake"
-        docker push "${name}:globalstocktake"
+        docker_tag "${input_image}" "${name}:${branch}-${timestamp}-${short_sha}"
+        docker push "${name}:${branch}-${timestamp}-${short_sha}"
     else
         echo "No branch found, not a PR so not publishing."
     fi

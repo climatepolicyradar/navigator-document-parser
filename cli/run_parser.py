@@ -73,7 +73,7 @@ def _get_files_to_parse(
     # If no file list is provided, run over all inputs in the input prefix
     env_files = []
     if FILES_TO_PARSE is not None:
-        logger.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
+        _LOGGER.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
         env_files = FILES_TO_PARSE.split("$")[1:]
 
     files_to_parse: list[str] = list(files or [])
