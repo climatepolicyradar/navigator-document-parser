@@ -158,7 +158,10 @@ def download_pdf(
         )
 
         return None
-    elif response.headers["Content-Type"] != "application/pdf":
+    elif (
+        response.headers["Content-Type"] != "application/pdf"
+        and response.headers["Content-Type"] != "binary/octet-stream"
+    ):
         _LOGGER.exception(
             "Failed to save downloaded file locally. Content-Type is not application/pdf.",
             extra={
