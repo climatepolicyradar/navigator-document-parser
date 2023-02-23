@@ -555,7 +555,6 @@ def get_model(
             "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
         )
 
-    # FIXME: handle EmptyFileError here using _pdf_num_pages
     model = _get_detectron_model(model_name, device)
     if ocr_agent_name == "tesseract":
         ocr_agent = TesseractAgent()
