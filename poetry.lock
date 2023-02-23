@@ -1466,6 +1466,17 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "tenacity"
+version = "8.2.1"
+description = "Retry code until it succeeds"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+doc = ["reno", "sphinx", "tornado (>=4.5)"]
+
+[[package]]
 name = "tinysegmenter"
 version = "0.3"
 description = "Very compact Japanese tokenizer"
@@ -1680,7 +1691,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "91a0e7b0684cf03fcae38535835b3b3c922a8f42ba416f04d73cf6fbb469789a"
+content-hash = "3837df79fb3e78f7bd89ec5048c3eb772c0c2543ee6385e6de3138027924d82b"
 
 [metadata.files]
 ago = [
@@ -3007,6 +3018,10 @@ six = [
 soupsieve = [
     {file = "soupsieve-2.3.2.post1-py3-none-any.whl", hash = "sha256:3b2503d3c7084a42b1ebd08116e5f81aadfaea95863628c80a3b774a11b7c759"},
     {file = "soupsieve-2.3.2.post1.tar.gz", hash = "sha256:fc53893b3da2c33de295667a0e19f078c14bf86544af307354de5fcf12a3f30d"},
+]
+tenacity = [
+    {file = "tenacity-8.2.1-py3-none-any.whl", hash = "sha256:dd1b769ca7002fda992322939feca5bee4fa11f39146b0af14e0b8d9f27ea854"},
+    {file = "tenacity-8.2.1.tar.gz", hash = "sha256:c7bb4b86425b977726a7b49971542d4f67baf72096597d283f3ffd01f33b92df"},
 ]
 tinysegmenter = [
     {file = "tinysegmenter-0.3.tar.gz", hash = "sha256:ed1f6d2e806a4758a73be589754384cbadadc7e1a414c81a166fc9adf2d40c6d"},

@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Optional, Tuple, List, Union, Dict
 
 import numpy as np
+from tenacity import retry, wait_fixed
 from PIL.PpmImagePlugin import PpmImageFile
 from google.cloud import vision
 from google.cloud.vision import types
@@ -54,6 +55,20 @@ def get_modal_string(
         return None
 
 
+@retry(wait=wait_fixed(60))
+def get_text_annotation(image_):
+    """
+    Get the text annotation from the Google OCR API.
+
+    Retry once after 1 min if the API returns an error.
+    """
+    client = vision.ImageAnnotatorClient()
+    response = client.document_text_detection(image=image_)
+    if response.error.code == 503:
+        raise Exception("Google OCR API returned 503. Try again later.")
+    return response
+
+
 def extract_google_layout(
     image: PpmImageFile,
 ) -> Tuple[
@@ -96,11 +111,11 @@ def extract_google_layout(
     """
 
     content = image_bytes(image)
-    client = vision.ImageAnnotatorClient()
     image = types.Image(content=content)  # type: ignore
 
-    # TODO: Handle errors. Hit a 503.
-    response = client.document_text_detection(image=image)  # type: ignore
+    # # TODO: Handle errors. Hit a 503.
+    # response = client.document_text_detection(image=image)  # type: ignore
+    response = get_text_annotation(image)
     document = response.full_text_annotation
 
     breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
