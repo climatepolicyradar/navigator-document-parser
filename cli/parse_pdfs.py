@@ -496,7 +496,7 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "local_document_path": pdf_path,
+                    "local_document_path": str(pdf_path),
                 }
             },
         )
