@@ -133,7 +133,7 @@ def _get_files_to_parse(
     "--use-google-document-ai",
     help="Use Google Document AI to parse PDFs",
     is_flag=True,
-    default=False,
+    default=True,
 )
 def main(
     input_dir: str,
