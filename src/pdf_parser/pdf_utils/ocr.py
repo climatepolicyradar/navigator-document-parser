@@ -114,7 +114,6 @@ def extract_google_layout(
     image = types.Image(content=content)  # type: ignore
 
     # # TODO: Handle errors. Hit a 503.
-    # response = client.document_text_detection(image=image)  # type: ignore
     response = get_text_annotation(image)
     document = response.full_text_annotation
 
