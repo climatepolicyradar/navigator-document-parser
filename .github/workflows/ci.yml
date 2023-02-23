@@ -7,7 +7,6 @@ on:
   pull_request:
     branches:
       - main
-      - feature/dsci-218-2
 
 jobs:
   build-start-test:
