@@ -154,19 +154,18 @@ class PDFTextBlock(TextBlock):
         text_block = text_block.to_rectangle()
 
         new_format_coordinates = [
-            (text_block.block.x_1, text_block.block.y_1),  # type: ignore
-            (text_block.block.x_2, text_block.block.y_1),  # type: ignore
-            (text_block.block.x_2, text_block.block.y_2),  # type: ignore
-            (text_block.block.x_1, text_block.block.y_2),  # type: ignore
+            (text_block.block.x_1, text_block.block.y_1),
+            (text_block.block.x_2, text_block.block.y_1),
+            (text_block.block.x_2, text_block.block.y_2),
+            (text_block.block.x_1, text_block.block.y_2),
         ]
 
-        # Ignoring types below as this method will raise an error if any of these values are None above.
         return PDFTextBlock(
-            text=[text_block.text],  # type: ignore
-            text_block_id=text_block_id,  # e.g. p0_b3
-            coords=new_format_coordinates,  # type: ignore
-            type_confidence=text_block.score,  # type: ignore
-            type=text_block.type,  # type: ignore
+            text=[text_block.text],
+            text_block_id=text_block_id,
+            coords=new_format_coordinates,
+            type_confidence=text_block.score,
+            type=text_block.type,
             page_number=page_number,
         )
 
