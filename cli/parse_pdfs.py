@@ -16,7 +16,9 @@ import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
 from fitz.fitz import EmptyFileError
-from layoutparser import load_pdf, Layout, draw_box  # type: ignore
+from layoutparser.io import load_pdf
+from layoutparser.elements import Layout
+from layoutparser.visualization import draw_box
 from layoutparser.models import Detectron2LayoutModel
 from layoutparser.ocr import TesseractAgent, GCVAgent
 from tqdm import tqdm
