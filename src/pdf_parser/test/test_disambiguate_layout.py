@@ -4,11 +4,10 @@ from layoutparser import load_pdf, Layout, TextBlock, Rectangle, Detectron2Layou
 from shapely.geometry import Polygon
 
 from src.pdf_parser.pdf_utils.disambiguate_layout import (
-    split_layout,
-    unnest_boxes,
-    calculate_unexplained_fractions,
+    split_layout_on_box_confidence,
+    remove_nested_boxes,
+    get_permissive_area_fractions_not_in_restrictive,
     lp_coords_to_shapely_polygon,
-    LayoutWithFractions,
 )
 
 
@@ -115,21 +114,6 @@ def layout_permissive():
             ),
         ]
     )
-
-
-@pytest.fixture
-def layout_permissive_with_fractions(layout_permissive):
-    layout_permissive_with_fractions = LayoutWithFractions(
-        layout=layout_permissive,
-        unexplained_fractions=[
-            0.05624759027532935,
-            0.22591804660118936,
-            0.22530762135686025,
-            0.06766793428916226,
-            0.0660403820947893,
-        ],
-    )
-    return layout_permissive_with_fractions
 
 
 @pytest.fixture
@@ -295,7 +279,9 @@ def layout_restrictive():
 
 
 def test_split_layout(test_layout):
-    layout_restrictive, layout_permissive = split_layout(test_layout, 0.5)
+    layout_restrictive, layout_permissive = split_layout_on_box_confidence(
+        test_layout, 0.5
+    )
     # assert all scores in layout_restrictive are above 0.5 and all scores in layout_permissive are below 0.5
     assert all([b.score > 0.5 for b in layout_restrictive])
     assert all([b.score < 0.5 for b in layout_permissive])
@@ -309,10 +295,9 @@ def test_lp_coords_to_shapely_polygon(test_input, expected):
 
 
 def test_calculate_unexplained_fractions(layout_permissive, layout_restrictive):
-    permissive_layout_with_fractions = calculate_unexplained_fractions(
+    fractions = get_permissive_area_fractions_not_in_restrictive(
         layout_restrictive, layout_permissive
     )
-    fractions = permissive_layout_with_fractions.unexplained_fractions
     # must be a list of floats between 0 and 1
     assert all([0 <= f <= 1 for f in fractions])
     # must be the same length as the number of blocks
@@ -328,7 +313,7 @@ def test_unnest_boxes(test_layout):
         "left": pixel_margin,
         "right": pixel_margin,
     }
-    unnested_layout = unnest_boxes(test_layout, pixel_margin)
+    unnested_layout = remove_nested_boxes(test_layout, pixel_margin)
     # Make sure no box is within another box (soft margin).
     for box in unnested_layout:
         for other_box in unnested_layout:

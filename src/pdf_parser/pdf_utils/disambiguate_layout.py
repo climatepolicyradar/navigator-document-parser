@@ -2,27 +2,14 @@ from layoutparser import Layout, TextBlock, Rectangle, Detectron2LayoutModel  # 
 from PIL.PpmImagePlugin import PpmImageFile
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
-from typing import List, Tuple, Optional
-
-from pydantic import Field
-from src.pdf_parser.pdf_utils.utils import BaseModel
+from typing import List, Tuple, Optional, Any
 
 
-# TODO: I added this because I want to enforce that the unexplained fractions are in the same order as the boxes in
-#  the layout without adding it as page metadata, as this would require formally writing checks
-#   with assert. Is there a better way to do this or is this ok?
-class LayoutWithFractions(BaseModel):
-    """Layout with unexplained fractions added."""
-
-    layout: Layout
-    # unexplained fractions must be a list of floats between 0 and 1
-    unexplained_fractions: List[float] = Field(..., ge=0, le=1)
-
-
-def split_layout(
+def split_layout_on_box_confidence(
     layout: Layout, restrictive_model_threshold: float = 0.5
 ) -> Tuple[Layout, Layout]:
-    """Split layout into boxes above and below a given model confidence score.
+    """
+    Split layout into boxes above and below a given model confidence score.
 
     Args:
         layout: The layout to create polygons from.
@@ -31,13 +18,17 @@ def split_layout(
     Returns:
         A tuple of layouts, the first with boxes above the threshold and the second with boxes below the threshold.
     """
-    layout_restrictive = Layout(
-        [box for box in layout if box.score > restrictive_model_threshold]
-    )
-    layout_permissive = Layout(
-        [box for box in layout if box.score <= restrictive_model_threshold]
-    )
-    return layout_restrictive, layout_permissive
+    restrictive_boxes = []
+    permissive_boxes = []
+
+    [
+        restrictive_boxes.append(box)
+        if box.score > restrictive_model_threshold
+        else permissive_boxes.append(box)
+        for box in layout
+    ]
+
+    return Layout(restrictive_boxes), Layout(permissive_boxes)
 
 
 def lp_coords_to_shapely_polygon(coords: Tuple[float, float, float, float]) -> Polygon:
@@ -63,9 +54,14 @@ def lp_coords_to_shapely_polygon(coords: Tuple[float, float, float, float]) -> P
     return Polygon(shapely_coords)
 
 
-def calculate_unexplained_fractions(
+def get_not_covered_area(poly: Polygon, restrictive_polygons: List[Polygon]) -> float:
+    """Get the area of a polygon not captured by all the restrictive layout polygons."""
+    return poly.difference(unary_union(restrictive_polygons)).area
+
+
+def get_permissive_area_fractions_not_in_restrictive(
     restrictive_layout: Layout, permissive_layout: Layout
-) -> LayoutWithFractions:
+) -> List[float]:
     """Calculate the fraction of each box in the permissive layout not captured by boxes in the restrictive layout.
 
     This is useful because we want to find boxes that are not already accounted for by the strict model but that may
@@ -78,53 +74,45 @@ def calculate_unexplained_fractions(
     Returns:
         A LayoutWithFractions object containing a layout model.
     """
-
-    # Get the polygons for each box in the strict and unfiltered layouts.
     restrictive_polygons = [
         lp_coords_to_shapely_polygon(box.coordinates) for box in restrictive_layout
     ]
+
     permissive_polygons = [
         lp_coords_to_shapely_polygon(box.coordinates) for box in permissive_layout
     ]
-    unexplained_fractions = []
-    for poly in permissive_polygons:
-        poly_unexplained = poly.difference(unary_union(restrictive_polygons))
-        area_unexplained = poly_unexplained.area
-        area_total = poly.area
-        frac_unexplained = area_unexplained / area_total
-        unexplained_fractions.append(frac_unexplained)
-    permissive_layout_with_fractions = LayoutWithFractions(
-        layout=permissive_layout, unexplained_fractions=unexplained_fractions
-    )
-    return permissive_layout_with_fractions
+
+    return [
+        get_not_covered_area(poly, restrictive_polygons) / poly.area
+        for poly in permissive_polygons
+    ]
 
 
 def combine_layouts(
     layout_restrictive: Layout,
-    layout_permissive: LayoutWithFractions,
+    layout_permissive: Layout,
+    permissive_areas_not_covered_in_restrictive: List[float],
     combination_threshold: float,
 ) -> Layout:
     """Add unexplained text boxes to the strict layout to get a combined layout.
 
-    Args:
-        layout_restrictive: The layout with boxes above the restrictive threshold.
-        layout_permissive: The layout with boxes below the restrictive threshold.
-        combination_threshold: The threshold above which to include boxes from the permissive layout.
+    Args: layout_restrictive: The layout with boxes above the restrictive threshold. layout_permissive: The layout
+    with boxes below the restrictive threshold. permissive_areas_not_covered_in_restrictive: The fraction of each box
+    in the permissive layout not captured by the restrictive areas. combination_threshold: The threshold above which
+    to include boxes from the permissive layout.
 
-    Returns:
-        The layout with boxes from the unfiltered perspective added if their areas aren't already sufficiently accounted for..
+    Returns: The layout with boxes from the unfiltered perspective added if their areas aren't already sufficiently
+    accounted for.
     """
-    boxes_to_add = []
-    permissive_layout = layout_permissive.layout
-    for ix, box in enumerate(permissive_layout):
-        unexplained_fractions = layout_permissive.unexplained_fractions
-        # If the box's area is not "explained away" by the strict layout, add it to the combined layout with an
-        # ambiguous type tag. We can use heuristics to determine its type downstream.
-        if unexplained_fractions[ix] > combination_threshold:
-            box.type = "Ambiguous"
-            boxes_to_add.append(box)
-    layout_combined = layout_restrictive + Layout(boxes_to_add)
-    return layout_combined
+    boxes_to_add = [
+        box
+        for ix, box in enumerate(layout_permissive)
+        if permissive_areas_not_covered_in_restrictive[ix] > combination_threshold
+    ]
+    for box in boxes_to_add:
+        box.type = "Ambiguous"
+
+    return layout_restrictive + Layout(boxes_to_add)
 
 
 def reduce_overlapping_boxes(
@@ -286,56 +274,59 @@ def reduce_all_overlapping_boxes(
     return Layout(edited_blocks)
 
 
-def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
-    """
-    Loop through boxes, unnest them until there are no nested boxes left..
+def get_all_nested_block_indices(
+    layout: Layout, soft_margin: dict
+) -> List[Tuple[int, Any, int, Any]]:
+    """Get all nested blocks in the layout (blocks within other blocks)."""
+    nested_block_indices = []
+    for ix_1, box_1 in enumerate(layout):
+        for ix_2, box_2 in enumerate(layout):
+            if box_1 != box_2 and box_1.is_in(box_2, soft_margin):
+                nested_block_indices.append((ix_1, box_1, ix_2, box_2))
+    return nested_block_indices
 
-    Args: layout: The layout to unnest.
-    unnest_soft_margin: The number of pixels to inflate each box by in each direction
-    when checking for containment (i.e. a soft margin).
+
+def remove_contained_boxes(layout_to_un_nest: Layout, soft_margin: dict) -> Layout:
+    """
+    Remove all contained boxes from the layout.
+
+    Identify the indices of the contained blocks and remove the ones with lower confidence scores.
+    Continue this process recursively until there are no more contained blocks.
+    """
+    nested_indices = get_all_nested_block_indices(layout_to_un_nest, soft_margin)
+    if nested_indices is not []:
+        for ix1, box1, ix2, box2 in nested_indices:
+            if box1.score > box2.score:
+                layout_to_un_nest.pop(ix2)
+            else:
+                layout_to_un_nest.pop(ix1)
+        remove_contained_boxes(layout_to_un_nest, soft_margin)
+    return layout_to_un_nest
+
+
+def remove_nested_boxes(layout: Layout, un_nest_soft_margin: int = 15) -> Layout:
+    """
+    If a box is entirely or mostly contained within another box, remove the inner box.
+
+    Args:
+        layout: The layout to un nest.
+        un_nest_soft_margin: The number of pixels to inflate each box by in each direction
+        when checking for containment (i.e. a soft margin).
 
     Returns:
-        The unnested boxes.
+        The layout of un nested boxes.
     """
     if len(layout) == 0:
         return layout
-    else:
-        # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
-        soft_margin = {
-            "top": unnest_soft_margin,
-            "bottom": unnest_soft_margin,
-            "left": unnest_soft_margin,
-            "right": unnest_soft_margin,
-        }
-        # The loop checks each block for containment within other blocks.
-        # Contained blocks are removed if they have lower confidence scores than their parents;
-        # otherwise, the parent is removed. The process continues until there are no contained blocks.
-        # There are potentially nestings within nestings, hence the rather complicated loop.
-        # A recursion might be more elegant, leaving it as a TODO.
-        counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
-        # condition.
-        layout_length = len(layout)
-        ixs_to_remove = []
-        # TODO: this function runs the nested loops a number of times proportional to the number of blocks rather than checking for an end state. We should improve this.
-        while counter < layout_length:
-            counter += 1
-            for ix, box_1 in enumerate(layout):
-                for ix2, box_2 in enumerate(layout):
-                    if box_1 == box_2:
-                        continue
-                    else:
-                        if box_1.is_in(box_2, soft_margin):
-                            # Remove the box the model is less confident about.
-                            if box_1.score > box_2.score:
-                                remove_ix = ix2
-                            else:
-                                remove_ix = ix
-                            ixs_to_remove.append(remove_ix)
 
-        unnested_layout = Layout(
-            [box for index, box in enumerate(layout) if index not in ixs_to_remove]
-        )
-        return unnested_layout
+    soft_margin = {
+        "top": un_nest_soft_margin,
+        "bottom": un_nest_soft_margin,
+        "left": un_nest_soft_margin,
+        "right": un_nest_soft_margin,
+    }
+
+    return remove_contained_boxes(layout, soft_margin)
 
 
 # TODO: This is not part of the module and is for a CLI, but placing here for visibility before I edit the CLI.
@@ -343,7 +334,7 @@ def run_disambiguation_pipeline(
     image: PpmImageFile,
     model: Detectron2LayoutModel,
     restrictive_model_threshold: float,
-    unnest_soft_margin: int,
+    un_nest_soft_margin: int,
     min_overlapping_pixels_horizontal: int,
     min_overlapping_pixels_vertical: int,
     combination_threshold: float = 0.8,
@@ -354,29 +345,35 @@ def run_disambiguation_pipeline(
     Args: image: An image of a PDF page to perform object/block detection on. model: Object detection model.
     restrictive_model_threshold: Model confidence to separate blocks into two groups, a "restrictive" group and a
     "non-restrictive" group.
-    unnest_soft_margin: The number of pixels to inflate each box by in each direction when
+    un_nest_soft_margin: The number of pixels to inflate each box by in each direction when
     checking for containment (i.e. a soft margin).
     min_overlapping_pixels_vertical: The min number of overlapping pixels before reducing boxes in vertical direction.
     min_overlapping_pixels_horizontal: The min number of overlapping pixels before reducing boxes in horizontal direction.
 
     Returns:
-        A layout object containing only blocks from layoutparser with best effort disambiguation.
+        A layout object containing only blocks from layoutparser with the best effort disambiguation.
     """
-    layout_unfiltered = Layout([b for b in model.detect(image)])
-    layout_unnested = unnest_boxes(
-        layout_unfiltered, unnest_soft_margin=unnest_soft_margin
+    layout = Layout([b for b in model.detect(image)])
+
+    layout = remove_nested_boxes(layout=layout, un_nest_soft_margin=un_nest_soft_margin)
+
+    layout_restrictive, layout_permissive = split_layout_on_box_confidence(
+        layout=layout, restrictive_model_threshold=restrictive_model_threshold
     )
-    layout_restrictive, layout_permissive = split_layout(
-        layout_unnested, restrictive_model_threshold=restrictive_model_threshold
+
+    permissive_areas_not_in_restrictive = (
+        get_permissive_area_fractions_not_in_restrictive(
+            layout_restrictive, layout_permissive
+        )
     )
-    layout_permissive = calculate_unexplained_fractions(
-        layout_restrictive, layout_permissive
-    )
+
     layout_combined = combine_layouts(
-        layout_restrictive,
-        layout_permissive,
+        layout_permissive=layout_permissive,
+        layout_restrictive=layout_restrictive,
+        permissive_areas_not_covered_in_restrictive=permissive_areas_not_in_restrictive,
         combination_threshold=combination_threshold,
     )
+
     layout_vertically_reduced = reduce_all_overlapping_boxes(
         layout_combined,
         min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
@@ -387,4 +384,5 @@ def run_disambiguation_pipeline(
         min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
         reduction_direction="horizontal",
     )
+
     return layout_all_reduced
