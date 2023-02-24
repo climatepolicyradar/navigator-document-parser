@@ -255,14 +255,14 @@ def reduce_all_overlapping_boxes(
                                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                             )
                     elif reduction_direction == "horizontal":
-                        if box_1.coordinates[2] < box_2.coordinates[2]:
+                        if box_1.coordinates[0] < box_2.coordinates[0]:
                             rect_1, rect_2 = reduce_overlapping_boxes(
                                 box_1,
                                 box_2,
                                 direction=reduction_direction,
                                 min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
                             )
-                        elif box_1.coordinates[2] == box_2.coordinates[2]:
+                        elif box_1.coordinates[0] == box_2.coordinates[0]:
                             continue
                         else:
                             rect_1, rect_2 = reduce_overlapping_boxes(
