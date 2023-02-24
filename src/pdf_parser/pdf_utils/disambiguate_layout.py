@@ -6,7 +6,7 @@ from typing import List, Tuple, Optional, Any
 
 
 def split_layout_on_box_confidence(
-        layout: Layout, restrictive_model_threshold: float = 0.5
+    layout: Layout, restrictive_model_threshold: float = 0.5
 ) -> Tuple[Layout, Layout]:
     """
     Split layout into boxes above and below a given model confidence score.
@@ -60,7 +60,7 @@ def get_not_covered_area(poly: Polygon, restrictive_polygons: List[Polygon]) -> 
 
 
 def get_permissive_area_fractions_not_in_restrictive(
-        restrictive_layout: Layout, permissive_layout: Layout
+    restrictive_layout: Layout, permissive_layout: Layout
 ) -> List[float]:
     """Calculate the fraction of each box in the permissive layout not captured by boxes in the restrictive layout.
 
@@ -89,10 +89,10 @@ def get_permissive_area_fractions_not_in_restrictive(
 
 
 def combine_layouts(
-        layout_restrictive: Layout,
-        layout_permissive: Layout,
-        permissive_areas_not_covered_in_restrictive: List[float],
-        combination_threshold: float,
+    layout_restrictive: Layout,
+    layout_permissive: Layout,
+    permissive_areas_not_covered_in_restrictive: List[float],
+    combination_threshold: float,
 ) -> Layout:
     """Add unexplained text boxes to the strict layout to get a combined layout.
 
@@ -116,11 +116,11 @@ def combine_layouts(
 
 
 def reduce_overlapping_boxes(
-        box_1: TextBlock,
-        box_2: TextBlock,
-        direction: str = "vertical",
-        min_overlapping_pixels_vertical: Optional[int] = 5,
-        min_overlapping_pixels_horizontal: Optional[int] = 5,
+    box_1: TextBlock,
+    box_2: TextBlock,
+    direction: str = "vertical",
+    min_overlapping_pixels_vertical: Optional[int] = 5,
+    min_overlapping_pixels_horizontal: Optional[int] = 5,
 ) -> Tuple[TextBlock, TextBlock]:
     """Reduce the size of overlapping boxes to elimate overlaps.
 
@@ -143,7 +143,7 @@ def reduce_overlapping_boxes(
 
     if direction == "vertical":
         assert (
-                box_1.coordinates[1] < box_2.coordinates[1]
+            box_1.coordinates[1] < box_2.coordinates[1]
         ), "box_1 should be the upper box."
         intersection_height = box_1.intersect(box_2).height
         if intersection_height > min_overlapping_pixels_vertical:
@@ -164,7 +164,7 @@ def reduce_overlapping_boxes(
             rect_2 = box_2
     elif direction == "horizontal":
         assert (
-                box_1.coordinates[0] < box_2.coordinates[0]
+            box_1.coordinates[0] < box_2.coordinates[0]
         ), "box_1 should be the left box."
         intersection_width = box_1.intersect(box_2).width
         if intersection_width > min_overlapping_pixels_horizontal:
@@ -204,7 +204,7 @@ def reduce_vertically(box1, box2, min_overlapping_pixels_vertical):
         box1.box, box2.box = reduce_overlapping_boxes(
             box1,
             box2,
-            direction='vertical',
+            direction="vertical",
             min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
         )
     elif box1.coordinates[3] == box2.coordinates[3]:
@@ -213,7 +213,7 @@ def reduce_vertically(box1, box2, min_overlapping_pixels_vertical):
         box1.box, box2.box = reduce_overlapping_boxes(
             box2,
             box1,
-            direction='vertical',
+            direction="vertical",
             min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
         )
 
@@ -225,7 +225,7 @@ def reduce_horizontally(box1, box2, min_overlapping_pixels_horizontal):
         box1.box, box2.box = reduce_overlapping_boxes(
             box1,
             box2,
-            direction='horizontal',
+            direction="horizontal",
             min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
         )
     elif box1.coordinates[0] == box2.coordinates[0]:
@@ -234,16 +234,16 @@ def reduce_horizontally(box1, box2, min_overlapping_pixels_horizontal):
         box1.box, box2.box = reduce_overlapping_boxes(
             box2,
             box1,
-            direction='horizontal',
+            direction="horizontal",
             min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
         )
     return box1, box2
 
 
 def reduce_all_overlapping_boxes(
-        blocks: Layout,
-        min_overlapping_pixels_vertical: int = 5,
-        min_overlapping_pixels_horizontal: int = 5,
+    blocks: Layout,
+    min_overlapping_pixels_vertical: int = 5,
+    min_overlapping_pixels_horizontal: int = 5,
 ) -> Layout:
     """Eliminate all overlapping boxes by reducing their size by the minimal amount necessary.
 
@@ -279,7 +279,9 @@ def reduce_all_overlapping_boxes(
             edited_blocks.add(box2)
             edited_coords.add(box2.coordinates)
 
-            box1, box2 = reduce_horizontally(box1, box2, min_overlapping_pixels_horizontal)
+            box1, box2 = reduce_horizontally(
+                box1, box2, min_overlapping_pixels_horizontal
+            )
 
             edited_blocks.add(box1)
             edited_coords.add(box1.coordinates)
@@ -294,7 +296,7 @@ def reduce_all_overlapping_boxes(
 
 
 def get_all_nested_block_indices(
-        layout: Layout, soft_margin: dict
+    layout: Layout, soft_margin: dict
 ) -> List[Tuple[int, Any, int, Any]]:
     """Get all nested blocks in the layout (blocks within other blocks)."""
     nested_block_indices = []
@@ -350,13 +352,13 @@ def remove_nested_boxes(layout: Layout, un_nest_soft_margin: int = 15) -> Layout
 
 # TODO: This is not part of the module and is for a CLI, but placing here for visibility before I edit the CLI.
 def run_disambiguation_pipeline(
-        image: PpmImageFile,
-        model: Detectron2LayoutModel,
-        restrictive_model_threshold: float,
-        un_nest_soft_margin: int,
-        min_overlapping_pixels_horizontal: int,
-        min_overlapping_pixels_vertical: int,
-        combination_threshold: float = 0.8,
+    image: PpmImageFile,
+    model: Detectron2LayoutModel,
+    restrictive_model_threshold: float,
+    un_nest_soft_margin: int,
+    min_overlapping_pixels_horizontal: int,
+    min_overlapping_pixels_vertical: int,
+    combination_threshold: float = 0.8,
 ) -> Layout:
     """
     Initial output from layoutparser is ambiguous (overlapping boxes, nested boxes, etc). Disambiguate.
