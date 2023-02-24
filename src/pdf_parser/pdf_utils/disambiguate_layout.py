@@ -186,17 +186,21 @@ def reduce_overlapping_boxes(
     return rect_1, rect_2
 
 
-def get_all_intersections(blocks: Layout) -> List[Tuple[TextBlock, TextBlock]]:
+def get_all_intersections_and_permutations(
+    blocks: Layout,
+) -> Tuple[List[Tuple[TextBlock, TextBlock]], List[Tuple[TextBlock, TextBlock]]]:
     intersections = []
+    permutations = []
     for i, box_1 in enumerate(blocks):
         for j, box_2 in enumerate(blocks):
             if i == j:
                 continue
             else:
+                permutations.append((box_1, box_2))
                 intersection_area = box_1.intersect(box_2).area
                 if intersection_area > 0:
                     intersections.append((box_1, box_2))
-    return intersections
+    return intersections, permutations
 
 
 def reduce_vertically(box1, box2, min_overlapping_pixels_vertical):
@@ -265,23 +269,13 @@ def reduce_all_overlapping_boxes(
         The new layout with blocks having no overlapping coordinates.
     """
 
+    intersections, permutations = get_all_intersections_and_permutations(blocks)
     edited_blocks = set()
     edited_coords = set()
-    intersections = get_all_intersections(blocks)
 
-    for box1, box2 in blocks:
+    for box1, box2 in permutations:
         if (box1, box2) in intersections:
             box1, box2 = reduce_vertically(box1, box2, min_overlapping_pixels_vertical)
-
-            edited_blocks.add(box1)
-            edited_coords.add(box1.coordinates)
-
-            edited_blocks.add(box2)
-            edited_coords.add(box2.coordinates)
-
-            box1, box2 = reduce_horizontally(
-                box1, box2, min_overlapping_pixels_horizontal
-            )
 
             edited_blocks.add(box1)
             edited_coords.add(box1.coordinates)
@@ -292,7 +286,26 @@ def reduce_all_overlapping_boxes(
             edited_blocks.add(box1)
             edited_coords.add(box1.coordinates)
 
-    return Layout(edited_blocks)
+    intersections, permutations = get_all_intersections_and_permutations(
+        Layout(list(edited_blocks))
+    )
+    edited_blocks = set()
+    edited_coords = set()
+
+    for box1, box2 in permutations:
+        if (box1, box2) in intersections:
+            box1, box2 = reduce_vertically(box1, box2, min_overlapping_pixels_vertical)
+
+            edited_blocks.add(box1)
+            edited_coords.add(box1.coordinates)
+
+            edited_blocks.add(box2)
+            edited_coords.add(box2.coordinates)
+        else:
+            edited_blocks.add(box1)
+            edited_coords.add(box1.coordinates)
+
+    return Layout(list(edited_blocks))
 
 
 def get_all_nested_block_indices(
@@ -388,22 +401,16 @@ def run_disambiguation_pipeline(
         )
     )
 
-    layout_combined = combine_layouts(
+    layout = combine_layouts(
         layout_permissive=layout_permissive,
         layout_restrictive=layout_restrictive,
         permissive_areas_not_covered_in_restrictive=permissive_areas_not_in_restrictive,
         combination_threshold=combination_threshold,
     )
 
-    layout_vertically_reduced = reduce_all_overlapping_boxes(
-        layout_combined,
+    layout = reduce_all_overlapping_boxes(
+        layout,
         min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
-        reduction_direction="vertical",
-    )
-    layout_all_reduced = reduce_all_overlapping_boxes(
-        layout_vertically_reduced,
-        min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
-        reduction_direction="horizontal",
     )
 
-    return layout_all_reduced
+    return layout
