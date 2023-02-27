@@ -189,6 +189,7 @@ def reduce_overlapping_boxes(
 def get_all_intersections_and_permutations(
     blocks: Layout,
 ) -> Tuple[List[Tuple[TextBlock, TextBlock]], List[Tuple[TextBlock, TextBlock]]]:
+    """Identify all the boxes that intersect as well as all the combinations of box comparisons."""
     intersections = []
     permutations = []
     for i, box_1 in enumerate(blocks):
@@ -270,40 +271,30 @@ def reduce_all_overlapping_boxes(
     """
 
     intersections, permutations = get_all_intersections_and_permutations(blocks)
-    edited_blocks = set()
-    edited_coords = set()
 
+    edited_blocks = set()
     for box1, box2 in permutations:
         if (box1, box2) in intersections:
             box1, box2 = reduce_vertically(box1, box2, min_overlapping_pixels_vertical)
-
             edited_blocks.add(box1)
-            edited_coords.add(box1.coordinates)
-
             edited_blocks.add(box2)
-            edited_coords.add(box2.coordinates)
         else:
             edited_blocks.add(box1)
-            edited_coords.add(box1.coordinates)
 
     intersections, permutations = get_all_intersections_and_permutations(
         Layout(list(edited_blocks))
     )
-    edited_blocks = set()
-    edited_coords = set()
 
+    edited_blocks = set()
     for box1, box2 in permutations:
         if (box1, box2) in intersections:
-            box1, box2 = reduce_vertically(box1, box2, min_overlapping_pixels_vertical)
-
+            box1, box2 = reduce_vertically(
+                box1, box2, min_overlapping_pixels_horizontal
+            )
             edited_blocks.add(box1)
-            edited_coords.add(box1.coordinates)
-
             edited_blocks.add(box2)
-            edited_coords.add(box2.coordinates)
         else:
             edited_blocks.add(box1)
-            edited_coords.add(box1.coordinates)
 
     return Layout(list(edited_blocks))
 
@@ -329,11 +320,14 @@ def remove_contained_boxes(layout_to_un_nest: Layout, soft_margin: dict) -> Layo
     """
     nested_indices = get_all_nested_block_indices(layout_to_un_nest, soft_margin)
     if nested_indices is not []:
+        remove_indices = []
         for ix1, box1, ix2, box2 in nested_indices:
             if box1.score > box2.score:
-                layout_to_un_nest.pop(ix2)
+                remove_indices.append(ix2)
             else:
-                layout_to_un_nest.pop(ix1)
+                remove_indices.append(ix1)
+        [layout_to_un_nest.pop(ix) for ix in remove_indices]
+
         remove_contained_boxes(layout_to_un_nest, soft_margin)
     return layout_to_un_nest
 
@@ -411,6 +405,7 @@ def run_disambiguation_pipeline(
     layout = reduce_all_overlapping_boxes(
         layout,
         min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
+        min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
     )
 
     return layout
