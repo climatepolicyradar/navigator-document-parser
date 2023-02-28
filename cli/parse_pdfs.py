@@ -266,7 +266,7 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                 }
             },
         )
@@ -379,7 +379,7 @@ def parse_file(
             _LOGGER.info(
                 f"Running ocr at block level for unaccounted for blocks for page {page_idx}"
             )
-            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
+            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
 
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
@@ -441,7 +441,7 @@ def parse_file(
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -453,7 +453,7 @@ def parse_file(
                 "props": {
                     "document_id": input_task.document_id,
                     "output_path": output_path.name,
-                    "output_directory": output_dir,
+                    "output_directory": str(output_dir),
                 }
             },
         )
@@ -464,7 +464,7 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "local_document_path": pdf_path,
+                    "local_document_path": str(pdf_path),
                 }
             },
         )

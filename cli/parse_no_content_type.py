@@ -50,7 +50,7 @@ def process_documents_with_no_content_type(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -61,7 +61,7 @@ def process_documents_with_no_content_type(
             extra={
                 "props": {
                     "document_id": task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                 }
             },
         )

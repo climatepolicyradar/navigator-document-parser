@@ -121,7 +121,7 @@ def combine_layouts(
         # If the box's area is not "explained away" by the strict layout, add it to the combined layout with an
         # ambiguous type tag. We can use heuristics to determine its type downstream.
         if unexplained_fractions[ix] > combination_threshold:
-            box.block_1.type = "Ambiguous"
+            box.type = "Ambiguous"
             boxes_to_add.append(box)
     layout_combined = layout_restrictive + Layout(boxes_to_add)
     return layout_combined
@@ -252,7 +252,7 @@ def reduce_all_overlapping_boxes(
                             )
                     elif reduction_direction == "horizontal":
                         # check which box is left and which is right
-                        if box_1.coordinates[2] < box_2.coordinates[2]:
+                        if box_1.coordinates[0] < box_2.coordinates[0]:
                             rect_1, rect_2 = reduce_overlapping_boxes(
                                 box_1,
                                 box_2,
