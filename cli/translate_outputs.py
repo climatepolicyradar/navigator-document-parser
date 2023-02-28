@@ -125,7 +125,7 @@ def _translate_to_target_languages(
                 extra={
                     "props": {
                         "document_id": parser_output.document_id,
-                        "path": path,
+                        "path": str(path),
                         "target_language": target_language,
                     }
                 },
@@ -140,7 +140,7 @@ def _translate_to_target_languages(
                     extra={
                         "props": {
                             "document_id": parser_output.document_id,
-                            "Output Path": output_path,
+                            "Output Path": str(output_path),
                             "redo": redo,
                         }
                     },
@@ -155,7 +155,7 @@ def _translate_to_target_languages(
                 extra={
                     "props": {
                         "document_id": parser_output.document_id,
-                        "path": path,
+                        "path": str(path),
                         "target_language": target_language,
                     }
                 },
@@ -170,7 +170,7 @@ def _translate_to_target_languages(
                     extra={
                         "props": {
                             "document_id": parser_output.document_id,
-                            "output_path": output_path,
+                            "output_path": str(output_path),
                         }
                     },
                 )
@@ -181,7 +181,7 @@ def _translate_to_target_languages(
                     extra={
                         "props": {
                             "document_id": parser_output.document_id,
-                            "output_path": output_path,
+                            "output_path": str(output_path),
                             "error_message": str(e),
                         }
                     },

@@ -73,7 +73,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                     }
                 },
             )
@@ -83,7 +83,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -95,7 +95,7 @@ def copy_input_to_output_pdf(
             extra={
                 "props": {
                     "document_id": task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                     "error_message": str(e),
                 }
             },
@@ -212,8 +212,8 @@ def parse_file(
     model,
     model_threshold_restrictive: float,
     unnest_soft_margin: float,
-    min_overlapping_pixels_horizontal: int,
-    min_overlapping_pixels_vertical: int,
+    max_overlapping_pixels_vertical: int,
+    max_overlapping_pixels_horizontal: int,
     disambiguation_combination_threshold: float,
     ocr_agent: str,
     debug: bool,
@@ -228,9 +228,9 @@ def parse_file(
         model_threshold_restrictive (float): Threshold to use for parsing.
         unnest_soft_margin (int): Soft margin to use for unnesting (i.e. we expand a block by n pixels before
             performing is_in checks)
-        min_overlapping_pixels_horizontal (int): Minimum number of pixel overlaps before reducing size to
+        max_overlapping_pixels_horizontal (int): Maximum number of pixel overlaps before reducing size to
             avoid OCR conflicts.
-        min_overlapping_pixels_vertical (int): Minimum number of pixel overlaps before reducing size to
+        max_overlapping_pixels_vertical (int): Maximum number of pixel overlaps before reducing size to
             avoid OCR conflicts.
         disambiguation_combination_threshold (float): Threshold to use for disambiguation.
         debug (bool): Whether to save debug images.
@@ -341,8 +341,8 @@ def parse_file(
                 model,
                 restrictive_model_threshold=model_threshold_restrictive,
                 unnest_soft_margin=unnest_soft_margin,  # type: ignore
-                min_overlapping_pixels_horizontalzontal=min_overlapping_pixels_horizontal,
-                min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
+                max_overlapping_pixels_vertical=max_overlapping_pixels_vertical,
+                max_overlapping_pixels_horizontal=max_overlapping_pixels_horizontal,
                 combination_threshold=disambiguation_combination_threshold,
             )
             if len(layout_disambiguated) == 0:
@@ -568,8 +568,8 @@ def run_pdf_parser(
         model_threshold_restrictive=config.LAYOUTPARSER_MODEL_THRESHOLD_RESTRICTIVE,
         unnest_soft_margin=config.LAYOUTPARSER_UNNEST_SOFT_MARGIN,
         disambiguation_combination_threshold=config.LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD,
-        min_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
-        min_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
+        max_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
+        max_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
         redo=redo,
     )
     if parallel:
