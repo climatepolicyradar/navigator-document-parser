@@ -155,7 +155,7 @@ def reduce_overlapping_boxes(
 
     if direction == "vertical":
         assert (
-            box_1.coordinates[1] < box_2.coordinates[1]
+            box_1.coordinates[3] < box_2.coordinates[3]
         ), "box_1 should be the upper box."
         intersection_height = box_1.intersect(box_2).height
         if intersection_height > min_overlapping_pixels_vertical:
@@ -198,6 +198,21 @@ def reduce_overlapping_boxes(
     return rect_1, rect_2
 
 
+def check_line_contained(line_1: tuple, line_2: tuple) -> bool:
+    """Check if either line is contained in the other.
+
+    Args:
+        line_1: The first line to compare.
+        line_2: The second line to compare.
+
+    Returns:
+        True if either line is contained in the other, False otherwise.
+    """
+    return (line_1[0] >= line_2[0] and line_1[1] <= line_2[1]) or (
+        line_2[0] >= line_1[0] and line_2[1] <= line_1[1]
+    )
+
+
 def reduce_all_overlapping_boxes(
     blocks: Layout,
     min_overlapping_pixels_vertical: int = 5,
@@ -234,6 +249,19 @@ def reduce_all_overlapping_boxes(
         for j, box_2 in enumerate(blocks):
             if i == j:
                 continue
+            # Check if the boxes fully overlap in either direction. This handles edge cases
+            # where unnesting has not captured the overlap because there is a soft margin. In
+            # this case, we choose to keep both boxes, accepting the risk of duplicate text instead
+            # of poor text boxes.
+            line_1_horizontal = (box_1.coordinates[0], box_1.coordinates[2])
+            line_2_horizontal = (box_2.coordinates[0], box_2.coordinates[2])
+            line_1_vertical = (box_1.coordinates[1], box_1.coordinates[3])
+            line_2_vertical = (box_2.coordinates[1], box_2.coordinates[3])
+            if check_line_contained(
+                line_1_horizontal, line_2_horizontal
+            ) or check_line_contained(line_1_vertical, line_2_vertical):
+                edited_blocks.append(box_1)
+                edited_coords.append(box_2)
             else:
                 intersection_area = box_1.intersect(box_2).area
                 if intersection_area > 0:
