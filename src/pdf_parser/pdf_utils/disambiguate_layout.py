@@ -155,7 +155,7 @@ def reduce_overlapping_boxes(
 
     if direction == "vertical":
         assert (
-            box_1.coordinates[1] < box_2.coordinates[1]
+            box_1.coordinates[3] < box_2.coordinates[3]
         ), "box_1 should be the upper box."
         intersection_height = box_1.intersect(box_2).height
         if intersection_height > min_overlapping_pixels_vertical:
@@ -198,6 +198,54 @@ def reduce_overlapping_boxes(
     return rect_1, rect_2
 
 
+def check_line_contained(line_1: tuple, line_2: tuple) -> bool:
+    """Check if either line is fully contained in the other.
+
+    For example, line 1 might be from 0 to 10 and line 2 might be from 5 to 7.
+    Line 2 is contained in line 1 in this case. If, however, line 2 was from 15 to 17,
+    it would not be contained in line 1.
+
+    Args:
+        line_1: The first line to compare. The first element should be the leftmost or bottommost point.
+        line_2: The second line to compare. The first element should be the leftmost or bottommost point.
+
+    Returns:
+        True if either line is contained in the other, False otherwise.
+    """
+    line_1_start, line_1_end = line_1[0], line_1[1]
+    line_2_start, line_2_end = line_2[0], line_2[1]
+    return (line_1_start >= line_2_start and line_1_end <= line_2_end) or (
+        line_2_start >= line_1_start and line_2_end <= line_1_end
+    )
+
+
+def check_horizontal_or_vertical_overlap(box_1: TextBlock, box_2: TextBlock) -> bool:
+    """Keep overlapping boxes if there is 100% horizontal or vertical overlap.
+
+    This is used to handle edge cases where un-nesting with a soft margin leaves
+    ambiguously overlapping boxes. In this case, we choose to keep both boxes,
+    accepting the risk of duplicate text instead of the higher risk of low recall
+    text blocks that don't make sense.
+
+    Args:
+        box_1: The first box to compare.
+        box_2: The second box to compare.
+
+    Returns:
+        True if the boxes fully overlap horizontally or vertically, False otherwise.
+    """
+
+    line_1_horizontal_interval = (box_1.coordinates[0], box_1.coordinates[2])
+    line_2_horizontal_interval = (box_2.coordinates[0], box_2.coordinates[2])
+    line_1_vertical_interval = (box_1.coordinates[1], box_1.coordinates[3])
+    line_2_vertical_interval = (box_2.coordinates[1], box_2.coordinates[3])
+    if check_line_contained(
+        line_1_horizontal_interval, line_2_horizontal_interval
+    ) or check_line_contained(line_1_vertical_interval, line_2_vertical_interval):
+        return True
+    return False
+
+
 def reduce_all_overlapping_boxes(
     blocks: Layout,
     min_overlapping_pixels_vertical: int = 5,
@@ -234,6 +282,9 @@ def reduce_all_overlapping_boxes(
         for j, box_2 in enumerate(blocks):
             if i == j:
                 continue
+            if check_horizontal_or_vertical_overlap(box_1, box_2):
+                edited_blocks.append(box_1)
+                edited_coords.append(box_2)
             else:
                 intersection_area = box_1.intersect(box_2).area
                 if intersection_area > 0:
