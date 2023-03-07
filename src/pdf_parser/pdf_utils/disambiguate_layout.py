@@ -2,10 +2,13 @@ from layoutparser import Layout, TextBlock, Rectangle, Detectron2LayoutModel  # 
 from PIL.PpmImagePlugin import PpmImageFile
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
+import logging
 
 from pydantic import Field
 from src.pdf_parser.pdf_utils.utils import BaseModel
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # TODO: I added this because I want to enforce that the unexplained fractions are in the same order as the boxes in
@@ -337,56 +340,104 @@ def reduce_all_overlapping_boxes(
     return Layout(edited_blocks)
 
 
-def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
+def get_all_nested_blocks(
+    layout: Layout, soft_margin: dict
+) -> List[Tuple[int, TextBlock, int, TextBlock]]:
+    """Get all nested blocks in the layout (blocks within other blocks)."""
+    nested_block_indices = []
+    for ix_1, box_1 in enumerate(layout):
+        for ix_2, box_2 in enumerate(layout):
+            if box_1 != box_2 and box_1.is_in(box_2, soft_margin):
+                nested_block_indices.append((ix_1, box_1, ix_2, box_2))
+    return nested_block_indices
+
+
+def remove_contained_boxes(layout_: Layout, soft_margin: dict, counter: int) -> Layout:
     """
-    Loop through boxes, unnest them until there are no nested boxes left..
+    Remove all contained boxes from the layout.
 
-    Args: layout: The layout to unnest.
-    unnest_soft_margin: The number of pixels to inflate each box by in each direction
-    when checking for containment (i.e. a soft margin).
+    Identify the indices of the contained blocks and remove the ones with lower confidence scores.
+    Continue this process recursively until there are no more contained blocks.
+    """
+    _LOGGER.debug(
+        "Removing contained boxes.",
+        extra={
+            "props": {
+                "layout": layout_,
+                "soft_margin": soft_margin,
+                "counter": counter,
+            }
+        },
+    )
 
+    if counter == 2:
+        _LOGGER.debug(
+            "Max recursion depth reached.",
+            extra={
+                "props": {
+                    "counter": counter,
+                }
+            },
+        )
+        return layout_
+
+    nested_blocks = get_all_nested_blocks(layout_, soft_margin)
+    if nested_blocks == []:
+        _LOGGER.debug(
+            "No nested blocks found.",
+            extra={
+                "props": {
+                    "nested_indices": nested_blocks,
+                }
+            },
+        )
+        return layout_
+
+    indices_to_remove = []
+    for ix1, box1, ix2, box2 in nested_blocks:
+        if box1.score > box2.score:
+            indices_to_remove.append(box2)
+        else:
+            indices_to_remove.append(box1)
+
+    _LOGGER.debug(
+        "Filtering out the identified nested blocks.",
+        extra={
+            "props": {
+                "indices_to_remove": indices_to_remove,
+            }
+        },
+    )
+    layout_ = Layout(
+        [box for index, box in enumerate(layout_) if index not in indices_to_remove]
+    )
+
+    remove_contained_boxes(layout_, soft_margin, counter + 1)
+    return layout_
+
+
+def remove_nested_boxes(layout: Layout, un_nest_soft_margin: int = 15) -> Layout:
+    """
+    If a box is entirely or mostly contained within another box, remove the inner box.
+
+    Args:
+        layout: The layout to un nest.
+        un_nest_soft_margin: The number of pixels to inflate each box by in each direction
+        when checking for containment (i.e. a soft margin).
     Returns:
-        The unnested boxes.
+        The layout of un nested boxes.
     """
     if len(layout) == 0:
         return layout
-    else:
-        # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
-        soft_margin = {
-            "top": unnest_soft_margin,
-            "bottom": unnest_soft_margin,
-            "left": unnest_soft_margin,
-            "right": unnest_soft_margin,
-        }
-        # The loop checks each block for containment within other blocks.
-        # Contained blocks are removed if they have lower confidence scores than their parents;
-        # otherwise, the parent is removed. The process continues until there are no contained blocks.
-        # There are potentially nestings within nestings, hence the rather complicated loop.
-        # A recursion might be more elegant, leaving it as a TODO.
-        counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
-        # condition.
-        layout_length = len(layout)
-        ixs_to_remove = []
-        # TODO: this function runs the nested loops a number of times proportional to the number of blocks rather than checking for an end state. We should improve this.
-        while counter < layout_length:
-            counter += 1
-            for ix, box_1 in enumerate(layout):
-                for ix2, box_2 in enumerate(layout):
-                    if box_1 == box_2:
-                        continue
-                    else:
-                        if box_1.is_in(box_2, soft_margin):
-                            # Remove the box the model is less confident about.
-                            if box_1.score > box_2.score:
-                                remove_ix = ix2
-                            else:
-                                remove_ix = ix
-                            ixs_to_remove.append(remove_ix)
 
-        unnested_layout = Layout(
-            [box for index, box in enumerate(layout) if index not in ixs_to_remove]
-        )
-        return unnested_layout
+    soft_margin = {
+        "top": un_nest_soft_margin,
+        "bottom": un_nest_soft_margin,
+        "left": un_nest_soft_margin,
+        "right": un_nest_soft_margin,
+    }
+
+    return remove_contained_boxes(layout, soft_margin, 0)
 
 
 # TODO: This is not part of the module and is for a CLI, but placing here for visibility before I edit the CLI.
@@ -414,8 +465,8 @@ def run_disambiguation_pipeline(
         A layout object containing only blocks from layoutparser with best effort disambiguation.
     """
     layout_unfiltered = Layout([b for b in model.detect(image)])
-    layout_unnested = unnest_boxes(
-        layout_unfiltered, unnest_soft_margin=unnest_soft_margin
+    layout_unnested = remove_nested_boxes(
+        layout_unfiltered, un_nest_soft_margin=unnest_soft_margin
     )
     layout_restrictive, layout_permissive = split_layout(
         layout_unnested, restrictive_model_threshold=restrictive_model_threshold

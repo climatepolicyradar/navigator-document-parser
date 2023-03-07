@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 
 from src.pdf_parser.pdf_utils.disambiguate_layout import (
     split_layout,
-    unnest_boxes,
+    remove_nested_boxes,
     calculate_unexplained_fractions,
     lp_coords_to_shapely_polygon,
     LayoutWithFractions,
@@ -328,7 +328,7 @@ def test_unnest_boxes(test_layout):
         "left": pixel_margin,
         "right": pixel_margin,
     }
-    unnested_layout = unnest_boxes(test_layout, pixel_margin)
+    unnested_layout = remove_nested_boxes(test_layout, pixel_margin)
     # Make sure no box is within another box (soft margin).
     for box in unnested_layout:
         for other_box in unnested_layout:

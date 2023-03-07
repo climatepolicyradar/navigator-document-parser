@@ -30,7 +30,7 @@ from src.base import (  # noqa: E402
 )
 from src.pdf_parser.pdf_utils.disambiguate_layout import (
     run_disambiguation_pipeline,
-    unnest_boxes,
+    remove_nested_boxes,
 )
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
@@ -218,7 +218,7 @@ def parse_file(
     input_task: ParserInput,
     model,
     model_threshold_restrictive: float,
-    unnest_soft_margin: float,
+    unnest_soft_margin: int,
     min_overlapping_pixels_horizontal: int,
     min_overlapping_pixels_vertical: int,
     disambiguation_combination_threshold: float,
@@ -400,8 +400,8 @@ def parse_file(
                 _LOGGER.debug("Combined google and layoutparser layouts.")
 
                 # unnest the layout again because the google layout may have nested elements. Hack.
-                postprocessed_layout = unnest_boxes(
-                    postprocessed_layout, unnest_soft_margin=unnest_soft_margin
+                postprocessed_layout = remove_nested_boxes(
+                    postprocessed_layout, un_nest_soft_margin=unnest_soft_margin
                 )
                 _LOGGER.debug("Unnested boxes again.")
 
