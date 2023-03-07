@@ -1,3 +1,5 @@
+import itertools
+
 from layoutparser import Layout, TextBlock, Rectangle, Detectron2LayoutModel  # type: ignore
 from PIL.PpmImagePlugin import PpmImageFile
 from shapely.geometry import Polygon
@@ -340,6 +342,25 @@ def reduce_all_overlapping_boxes(
     return Layout(edited_blocks)
 
 
+def is_in(nested_box: TextBlock, box: TextBlock, soft_margin: dict) -> bool:
+    """
+    Identify if the nested box is in the main box.
+
+    Args:
+        nested_box: The box that may be contained within the main box.
+        box: The main box.
+        soft_margin: Allowing lee-way for the nested box to be contained within the main box.
+    """
+    if (
+        nested_box.block.x_1 > box.block.x_1 - soft_margin["left"]
+        and nested_box.block.x_2 < box.block.x_2 + soft_margin["right"]
+        and nested_box.block.y_1 > box.block.y_1 - soft_margin["top"]
+        and nested_box.block.y_2 < box.block.y_2 + soft_margin["bottom"]
+    ):
+        return True
+    return False
+
+
 def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
     """
     Loop through boxes, unnest them until there are no nested boxes left..
@@ -351,56 +372,54 @@ def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
     Returns:
         The unnested boxes.
     """
+    layout_length = len(layout)
     _LOGGER.info(
         "Unnesting boxes...",
         extra={
             "props": {
                 "unnest_soft_margin": unnest_soft_margin,
-                "layout_length": len(layout),
+                "layout_length": layout_length,
             }
         },
     )
     if len(layout) == 0:
         _LOGGER.info("No boxes to unnest.")
         return layout
-    else:
-        # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
-        soft_margin = {
-            "top": unnest_soft_margin,
-            "bottom": unnest_soft_margin,
-            "left": unnest_soft_margin,
-            "right": unnest_soft_margin,
-        }
-        # The loop checks each block for containment within other blocks.
-        # Contained blocks are removed if they have lower confidence scores than their parents;
-        # otherwise, the parent is removed. The process continues until there are no contained blocks.
-        # There are potentially nestings within nestings, hence the rather complicated loop.
-        # A recursion might be more elegant, leaving it as a TODO.
-        counter = 0  # count num contained blocks in every run through of all pair combinations to calculate stop
-        # condition.
-        layout_length = len(layout)
-        ixs_to_remove = []
-        # TODO: this function runs the nested loops a number of times proportional to the number of blocks rather than checking for an end state. We should improve this.
-        while counter < layout_length:
-            counter += 1
-            for ix, box_1 in enumerate(layout):
-                for ix2, box_2 in enumerate(layout):
-                    if box_1 == box_2:
-                        continue
-                    else:
-                        if box_1.is_in(box_2, soft_margin):
-                            # Remove the box the model is less confident about.
-                            if box_1.score > box_2.score:
-                                remove_ix = ix2
-                            else:
-                                remove_ix = ix
-                            ixs_to_remove.append(remove_ix)
 
-        unnested_layout = Layout(
-            [box for index, box in enumerate(layout) if index not in ixs_to_remove]
-        )
-        _LOGGER.info("Unnesting boxes completed: iteration %s", counter)
-        return unnested_layout
+    soft_margin = {
+        "top": unnest_soft_margin,
+        "bottom": unnest_soft_margin,
+        "left": unnest_soft_margin,
+        "right": unnest_soft_margin,
+    }
+
+    boxes_to_remove = []
+    for box1, box2 in itertools.combinations(layout, 2):
+        if box1.intersect(box2).area > 0:
+            if is_in(box1, box2, soft_margin):
+                if box1.score > box2.score:
+                    boxes_to_remove.append(box2)
+                else:
+                    boxes_to_remove.append(box1)
+            else:
+                if is_in(box2, box1, soft_margin):
+                    if box1.score > box2.score:
+                        boxes_to_remove.append(box2)
+                    else:
+                        boxes_to_remove.append(box1)
+
+    unnested_layout = Layout([box for box in layout if box not in boxes_to_remove])
+    _LOGGER.info(
+        "Unnested boxes.",
+        extra={
+            "props": {
+                "unnest_soft_margin": unnest_soft_margin,
+                "layout_length": layout_length,
+                "unnested_layout_length": len(unnested_layout),
+            }
+        },
+    )
+    return unnested_layout
 
 
 # TODO: This is not part of the module and is for a CLI, but placing here for visibility before I edit the CLI.
