@@ -376,7 +376,9 @@ def parse_file(
             _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
             if combine_google_vision:
                 # Add a step to use google vision instead of lists
-                _LOGGER.debug("Combining google vision results with layoutparser results.")
+                _LOGGER.debug(
+                    "Combining google vision results with layoutparser results."
+                )
 
                 layout_disambiguated = Layout(
                     [b for b in layout_disambiguated if b.type != "List"]
@@ -404,8 +406,10 @@ def parse_file(
                 _LOGGER.debug("Unnested boxes again.")
 
             else:
-                _LOGGER.debug("Not combining google vision results with layoutparser results, running postprocessing "
-                              "pipeline.")
+                _LOGGER.debug(
+                    "Not combining google vision results with layoutparser results, running postprocessing "
+                    "pipeline."
+                )
                 postprocessed_layout = postprocessing_pipline(
                     layout_disambiguated, page_dimensions[1]
                 )
