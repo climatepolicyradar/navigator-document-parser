@@ -8,7 +8,7 @@ from src.pdf_parser.pdf_utils.disambiguate_layout import (
     unnest_boxes,
     calculate_unexplained_fractions,
     lp_coords_to_shapely_polygon,
-    LayoutWithFractions,
+    LayoutWithFractions, reduce_all_overlapping_boxes,
 )
 
 
@@ -334,3 +334,54 @@ def test_unnest_boxes(test_layout):
         for other_box in unnested_layout:
             if box != other_box:
                 assert not box.is_in(other_box, soft_margin)
+
+
+def test_reduce_all_overlapping_boxes_horizontal():
+    """Test that all scenarios of overlapping boxes in the horizontal axis are handled correctly."""
+    for box_1_0 in [0, 1, 2]:
+        for box_1_3 in [4, 5, 6]:
+            layout = Layout(
+                [
+                    TextBlock(
+                        block=Rectangle(
+                            x_1=box_1_0,
+                            y_1=100,
+                            x_2=box_1_3,
+                            y_2=100,
+                        ),
+                        text=None,
+                        id=None,
+                        type="Figure",
+                        parent=None,
+                        next=None,
+                        score=0.4856751263141632,
+                    ),
+                    TextBlock(
+                        block=Rectangle(
+                            x_1=1,
+                            y_1=100,
+                            x_2=5,
+                            y_2=100,
+                        ),
+                        text=None,
+                        id=None,
+                        type="Figure",
+                        parent=None,
+                        next=None,
+                        score=0.26342472434043884,
+                    )
+                ]
+            )
+
+            layout_horizontally_reduced = reduce_all_overlapping_boxes(
+                layout,
+                min_overlapping_pixels_vertical=5,
+                reduction_direction="horizontal",
+            )
+
+            assert isinstance(layout_horizontally_reduced, Layout)
+            assert len(layout_horizontally_reduced._blocks) == 2
+
+            box_1 = layout_horizontally_reduced._blocks[0].block
+            box_2 = layout_horizontally_reduced._blocks[1].block
+            assert box_1.intersect(box_2).area == 0
