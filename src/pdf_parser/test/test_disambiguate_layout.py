@@ -8,7 +8,8 @@ from src.pdf_parser.pdf_utils.disambiguate_layout import (
     unnest_boxes,
     calculate_unexplained_fractions,
     lp_coords_to_shapely_polygon,
-    LayoutWithFractions, reduce_all_overlapping_boxes,
+    LayoutWithFractions,
+    reduce_all_overlapping_boxes,
 )
 
 
@@ -369,7 +370,7 @@ def test_reduce_all_overlapping_boxes_horizontal():
                         parent=None,
                         next=None,
                         score=0.26342472434043884,
-                    )
+                    ),
                 ]
             )
 
