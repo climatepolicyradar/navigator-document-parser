@@ -376,11 +376,17 @@ def parse_file(
             _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
             if combine_google_vision:
                 # Add a step to use google vision instead of lists
+                _LOGGER.debug("Combining google vision results with layoutparser results.")
+
                 layout_disambiguated = Layout(
                     [b for b in layout_disambiguated if b.type != "List"]
                 )
+                _LOGGER.debug("Filtered lists from disambiguated layout.")
+
                 google_layout = extract_google_layout(image)[1]
+                _LOGGER.debug("Extracted google layout.")
                 # Combine the Google text blocks with the layoutparser layout.
+
                 postprocessed_layout = combine_google_lp(
                     image,
                     google_layout,
@@ -389,17 +395,25 @@ def parse_file(
                     top_exclude=top_exclude_threshold,
                     bottom_exclude=bottom_exclude_threshold,
                 )
+                _LOGGER.debug("Combined google and layoutparser layouts.")
+
                 # unnest the layout again because the google layout may have nested elements. Hack.
                 postprocessed_layout = unnest_boxes(
                     postprocessed_layout, unnest_soft_margin=unnest_soft_margin
                 )
+                _LOGGER.debug("Unnested boxes again.")
+
             else:
+                _LOGGER.debug("Not combining google vision results with layoutparser results, running postprocessing "
+                              "pipeline.")
                 postprocessed_layout = postprocessing_pipline(
                     layout_disambiguated, page_dimensions[1]
                 )
             ocr_blocks = Layout(
                 [b for b in postprocessed_layout if b.type in config.OCR_BLOCKS]
             )
+            _LOGGER.debug("Filtered OCR blocks for only known types.")
+
             if len(ocr_blocks) == 0:
                 _LOGGER.info(f"No text found for page {page_idx}.")
                 all_pages_metadata.append(page_metadata)

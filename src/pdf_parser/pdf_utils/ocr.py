@@ -12,9 +12,12 @@ from google.protobuf.pyext._message import RepeatedCompositeContainer
 from layoutparser import TextBlock, Rectangle, Layout  # type: ignore
 from layoutparser.ocr import TesseractAgent, GCVAgent
 from shapely.geometry import Polygon
+import logging
 
 from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment
 from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def image_bytes(image: PpmImageFile) -> bytes:
@@ -395,27 +398,38 @@ def combine_google_lp(
         Layout object with google objects replacing layoutparser objects if they overlap sufficiently, plus any google
         specific blocks.
     """
+    _LOGGER.debug("Combining Google and LayoutParser layouts function called.")
+
     shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
+    _LOGGER.debug("Google layout converted to shapely objects.")
+
     shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
+    _LOGGER.debug("LayoutParser layout converted to shapely objects.")
+
     dd_intersection_over_union = calculate_intersection_over_unions(
         shapely_google, shapely_layout
     )
+    _LOGGER.debug("Intersection over unions calculated.")
 
     equivalent_block_mapping = find_equivalent_block_mapping(
         dd_intersection_over_union, threshold
     )
+    _LOGGER.debug("Equivalent block mapping found.")
 
     # New blocks to add to the layoutparser layout
     blocks_google_only = {
         k: v for k, v in dd_intersection_over_union.items() if max(v) == 0.0
     }
+    _LOGGER.debug("Google only blocks found.")
 
     # use the mapping to replace the text of the layoutparser block with the text of the google block
     lp_layout = replace_block_text(equivalent_block_mapping, lp_layout, google_layout)
+    _LOGGER.debug("LayoutParser blocks replaced with Google blocks.")
 
     lp_layout_with_google = add_google_specific_blocks(
         image, blocks_google_only, google_layout, lp_layout, top_exclude, bottom_exclude
     )
+    _LOGGER.debug("Google specific blocks added to LayoutParser layout.")
 
     return lp_layout_with_google
 
