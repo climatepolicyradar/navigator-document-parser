@@ -373,19 +373,15 @@ def test_reduce_all_overlapping_boxes_horizontal():
                 ]
             )
 
-            layout.blocks[0].block.x_1 = box_1_0
-
             layout_horizontally_reduced = reduce_all_overlapping_boxes(
                 layout,
                 min_overlapping_pixels_vertical=5,
                 reduction_direction="horizontal",
             )
 
-            # print(layout_horizontally_reduced.blocks)
-            #
-            # assert isinstance(layout_horizontally_reduced, Layout)
-            # assert len(layout_horizontally_reduced.blocks) == 2
-            #
-            # box_1 = layout_horizontally_reduced.blocks[0].block
-            # box_2 = layout_horizontally_reduced.blocks[1].block
-            # assert box_1.intersect(box_2).area == 0
+            assert isinstance(layout_horizontally_reduced, Layout)
+            assert len(layout_horizontally_reduced._blocks) == 2
+
+            box_1 = layout_horizontally_reduced._blocks[0].block
+            box_2 = layout_horizontally_reduced._blocks[1].block
+            assert box_1.intersect(box_2).area == 0
