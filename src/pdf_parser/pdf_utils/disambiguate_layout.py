@@ -3,9 +3,12 @@ from PIL.PpmImagePlugin import PpmImageFile
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from typing import List, Tuple, Optional
+import logging
 
 from pydantic import Field
 from src.pdf_parser.pdf_utils.utils import BaseModel
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # TODO: I added this because I want to enforce that the unexplained fractions are in the same order as the boxes in
@@ -348,7 +351,17 @@ def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
     Returns:
         The unnested boxes.
     """
+    _LOGGER.info(
+        "Unnesting boxes...",
+        extra={
+            "props": {
+                "unnest_soft_margin": unnest_soft_margin,
+                "layout_length": len(layout),
+            }
+        },
+    )
     if len(layout) == 0:
+        _LOGGER.info("No boxes to unnest.")
         return layout
     else:
         # Add a soft-margin for the is_in function to allow for some leeway in the containment check.
@@ -386,6 +399,7 @@ def unnest_boxes(layout: Layout, unnest_soft_margin: int = 15) -> Layout:
         unnested_layout = Layout(
             [box for index, box in enumerate(layout) if index not in ixs_to_remove]
         )
+        _LOGGER.info("Unnesting boxes completed: iteration %s", counter)
         return unnested_layout
 
 
