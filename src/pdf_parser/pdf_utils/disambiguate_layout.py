@@ -352,7 +352,9 @@ def get_all_nested_blocks(
     return nested_block_indices
 
 
-def remove_contained_boxes(layout_: Layout, soft_margin: dict, counter: int) -> Layout:
+def remove_contained_boxes(
+    layout_: Layout, soft_margin: dict, max_recursion_count: int, counter: int
+) -> Layout:
     """
     Remove all contained boxes from the layout.
 
@@ -370,7 +372,7 @@ def remove_contained_boxes(layout_: Layout, soft_margin: dict, counter: int) -> 
         },
     )
 
-    if counter == 2:
+    if counter == max_recursion_count:
         _LOGGER.debug(
             "Max recursion depth reached.",
             extra={
@@ -412,7 +414,7 @@ def remove_contained_boxes(layout_: Layout, soft_margin: dict, counter: int) -> 
         [box for index, box in enumerate(layout_) if index not in indices_to_remove]
     )
 
-    remove_contained_boxes(layout_, soft_margin, counter + 1)
+    remove_contained_boxes(layout_, soft_margin, max_recursion_count, counter + 1)
     return layout_
 
 
@@ -437,7 +439,7 @@ def remove_nested_boxes(layout: Layout, un_nest_soft_margin: int = 15) -> Layout
         "right": un_nest_soft_margin,
     }
 
-    return remove_contained_boxes(layout, soft_margin, 0)
+    return remove_contained_boxes(layout, soft_margin, len(layout), 0)
 
 
 # TODO: This is not part of the module and is for a CLI, but placing here for visibility before I edit the CLI.
