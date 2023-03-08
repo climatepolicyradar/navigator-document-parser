@@ -65,6 +65,7 @@ def get_text_annotation(image_):
 
     Retry once after 1 min if the API returns an error.
     """
+    _LOGGER.info("Getting text annotation function called.")
     client = vision.ImageAnnotatorClient()
     response = client.document_text_detection(image=image_)
     if response.error.code == 503:
