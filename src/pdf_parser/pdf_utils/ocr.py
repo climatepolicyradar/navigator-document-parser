@@ -112,12 +112,15 @@ def extract_google_layout(
     Returns:
         List of GoogleBlocks, List of GoogleTextSegments, List of GoogleTextSegments, List of GoogleTextSegments
     """
+    _LOGGER.info("Extracting Google layout from image.")
 
     content = image_bytes(image)
     image = types.Image(content=content)  # type: ignore
 
     # # TODO: Handle errors. Hit a 503.
+    _LOGGER.info("Getting text annotation from Google OCR API.")
     response = get_text_annotation(image)
+    _LOGGER.info("Got text annotation from Google OCR API.")
     document = response.full_text_annotation
 
     breaks = vision.enums.TextAnnotation.DetectedBreak.BreakType
@@ -125,6 +128,18 @@ def extract_google_layout(
     fully_structured_blocks = []
     paragraph_text_segments = []
     block_text_segments = []
+    _LOGGER.info(
+        "Iterating over Google OCR response.",
+        extra={
+            "props": {
+                "total_num_pages": len(document.pages),
+                "total_num_blocks": sum([len(i.blocks) for i in document.pages]),
+                "total_num_paragraphs": sum(
+                    [len(i.paragraphs) for i in document.pages[0].blocks]
+                ),
+            },
+        },
+    )
     for page in document.pages:
         for block in page.blocks:
             block_languages = []
@@ -165,6 +180,16 @@ def extract_google_layout(
                         language=para_lang,
                     )
                 )
+                _LOGGER.info(
+                    "GoogleTextSegment Appended to paragraph_text_segments",
+                    extra={
+                        "props": {
+                            "paragraph_text_segments_length": len(
+                                paragraph_text_segments
+                            )
+                        }
+                    },
+                )
                 default_dict["block_paragraphs"].append(para)
                 default_dict["block_paragraph_coords"].append(paragraph.bounding_box)
 
@@ -182,6 +207,12 @@ def extract_google_layout(
                     language=block_lang,
                 )
             )
+            _LOGGER.info(
+                "GoogleTextSegment Appended to block_text_segments",
+                extra={
+                    "props": {"block_text_segments_length": len(block_text_segments)}
+                },
+            )
 
             # For every block, create a block object (contains paragraph metadata).
             block_list = [
@@ -197,6 +228,14 @@ def extract_google_layout(
                 coordinates=block.bounding_box, text_blocks=block_list
             )
             fully_structured_blocks.append(google_block)
+            _LOGGER.info(
+                "GoogleTextSegment Appended to fully_structured_blocks",
+                extra={
+                    "props": {
+                        "fully_structured_blocks_length": len(fully_structured_blocks)
+                    }
+                },
+            )
 
     # look for duplicates in block_texts and paragraph_texts and create a list of full blocks
     text_blocks_to_keep = [
@@ -204,6 +243,19 @@ def extract_google_layout(
     ]
 
     combined_text_segments = text_blocks_to_keep + paragraph_text_segments
+    _LOGGER.info(
+        "Finished iterating over Google OCR response.",
+        extra={
+            "props": {
+                "fully_structured_blocks": len(fully_structured_blocks),
+                "combined_text_segments_length": len(combined_text_segments),
+                "text_blocks_to_keep_length": len(text_blocks_to_keep),
+                "paragraph_text_segments_length": len(paragraph_text_segments),
+                "block_text_segments_length": len(block_text_segments),
+                "paragragh_text_segments_length": len(paragraph_text_segments),
+            }
+        },
+    )
 
     return (
         fully_structured_blocks,
