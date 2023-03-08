@@ -18,6 +18,7 @@ from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment
 from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
 
 _LOGGER = logging.getLogger(__name__)
+_LOGGER.setLevel(logging.DEBUG)
 
 
 def image_bytes(image: PpmImageFile) -> bytes:
@@ -434,6 +435,8 @@ def combine_google_lp(
             "lp_layout_length": len(lp_layout),
         },
     )
+    _LOGGER.debug("Length of google layout: %s", len(google_layout))
+    _LOGGER.debug("Length of layoutparser layout: %s", len(lp_layout))
 
     shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
     _LOGGER.debug(
