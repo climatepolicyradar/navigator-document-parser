@@ -181,16 +181,6 @@ def extract_google_layout(
                         language=para_lang,
                     )
                 )
-                _LOGGER.info(
-                    "GoogleTextSegment Appended to paragraph_text_segments",
-                    extra={
-                        "props": {
-                            "paragraph_text_segments_length": len(
-                                paragraph_text_segments
-                            )
-                        }
-                    },
-                )
                 default_dict["block_paragraphs"].append(para)
                 default_dict["block_paragraph_coords"].append(paragraph.bounding_box)
 
@@ -208,12 +198,6 @@ def extract_google_layout(
                     language=block_lang,
                 )
             )
-            _LOGGER.info(
-                "GoogleTextSegment Appended to block_text_segments",
-                extra={
-                    "props": {"block_text_segments_length": len(block_text_segments)}
-                },
-            )
 
             # For every block, create a block object (contains paragraph metadata).
             block_list = [
@@ -229,14 +213,6 @@ def extract_google_layout(
                 coordinates=block.bounding_box, text_blocks=block_list
             )
             fully_structured_blocks.append(google_block)
-            _LOGGER.info(
-                "GoogleTextSegment Appended to fully_structured_blocks",
-                extra={
-                    "props": {
-                        "fully_structured_blocks_length": len(fully_structured_blocks)
-                    }
-                },
-            )
 
     # look for duplicates in block_texts and paragraph_texts and create a list of full blocks
     text_blocks_to_keep = [
@@ -451,38 +427,71 @@ def combine_google_lp(
         Layout object with google objects replacing layoutparser objects if they overlap sufficiently, plus any google
         specific blocks.
     """
-    _LOGGER.debug("Combining Google and LayoutParser layouts function called.")
+    _LOGGER.debug(
+        "Combining Google and LayoutParser layouts function called.",
+        extra={
+            "google_layout_length": len(google_layout),
+            "lp_layout_length": len(lp_layout),
+        },
+    )
 
     shapely_google = [google_vertex_to_shapely(b.coordinates) for b in google_layout]
-    _LOGGER.debug("Google layout converted to shapely objects.")
+    _LOGGER.debug(
+        "Google layout converted to shapely objects.",
+        extra={"props": {"shapely_google_length": len(shapely_google)}},
+    )
 
     shapely_layout = [lp_coords_to_shapely_polygon(b.coordinates) for b in lp_layout]
-    _LOGGER.debug("LayoutParser layout converted to shapely objects.")
+    _LOGGER.debug(
+        "LayoutParser layout converted to shapely objects.",
+        extra={"props": {"shapely_layout_length": len(shapely_layout)}},
+    )
 
     dd_intersection_over_union = calculate_intersection_over_unions(
         shapely_google, shapely_layout
     )
-    _LOGGER.debug("Intersection over unions calculated.")
+    _LOGGER.debug(
+        "Intersection over unions calculated.",
+        extra={
+            "props": {
+                "dd_intersection_over_union_length": len(dd_intersection_over_union)
+            }
+        },
+    )
 
     equivalent_block_mapping = find_equivalent_block_mapping(
         dd_intersection_over_union, threshold
     )
-    _LOGGER.debug("Equivalent block mapping found.")
+    _LOGGER.debug(
+        "Equivalent block mapping found.",
+        extra={
+            "props": {"equivalent_block_mapping_length": len(equivalent_block_mapping)}
+        },
+    )
 
     # New blocks to add to the layoutparser layout
     blocks_google_only = {
         k: v for k, v in dd_intersection_over_union.items() if max(v) == 0.0
     }
-    _LOGGER.debug("Google only blocks found.")
+    _LOGGER.debug(
+        "Google only blocks found.",
+        extra={"props": {"blocks_google_only_length": len(blocks_google_only)}},
+    )
 
     # use the mapping to replace the text of the layoutparser block with the text of the google block
     lp_layout = replace_block_text(equivalent_block_mapping, lp_layout, google_layout)
-    _LOGGER.debug("LayoutParser blocks replaced with Google blocks.")
+    _LOGGER.debug(
+        "LayoutParser blocks replaced with Google blocks.",
+        extra={"props": {"lp_layout_length": len(lp_layout)}},
+    )
 
     lp_layout_with_google = add_google_specific_blocks(
         image, blocks_google_only, google_layout, lp_layout, top_exclude, bottom_exclude
     )
-    _LOGGER.debug("Google specific blocks added to LayoutParser layout.")
+    _LOGGER.debug(
+        "Google specific blocks added to LayoutParser layout.",
+        extra={"props": {"lp_layout_with_google_length": len(lp_layout_with_google)}},
+    )
 
     return lp_layout_with_google
 
