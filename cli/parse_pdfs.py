@@ -21,16 +21,14 @@ from layoutparser.visualization import draw_box
 from tqdm import tqdm
 from typing import List, Optional, Union
 
-from src import config  # noqa: E402
-from src.base import (  # noqa: E402
+from src import config
+from src.base import (
     ParserInput,
     ParserOutput,
     PDFData,
     PDFPageMetadata,
 )
-from src.pdf_parser.pdf_utils.disambiguate_layout import (
-    unnest_boxes,
-)
+from src.pdf_parser.pdf_utils.disambiguator.nested import remove_nested_boxes
 from src.pdf_parser.pdf_utils.disambiguator.pipeline import run_disambiguation
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
@@ -396,7 +394,7 @@ def parse_file(
                 _LOGGER.debug("Combined google and layoutparser layouts.")
 
                 # unnest the layout again because the google layout may have nested elements. Hack.
-                postprocessed_layout = unnest_boxes(
+                postprocessed_layout = remove_nested_boxes(
                     postprocessed_layout, unnest_soft_margin=unnest_soft_margin
                 )
                 _LOGGER.debug("Unnested boxes again.")
