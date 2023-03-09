@@ -15,7 +15,9 @@ from shapely.geometry import Polygon
 import logging
 
 from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment
-from src.pdf_parser.pdf_utils.disambiguate_layout import lp_coords_to_shapely_polygon
+from src.pdf_parser.pdf_utils.disambiguator.unexplained import (
+    lp_coords_to_shapely_polygon,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
