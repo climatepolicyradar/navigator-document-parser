@@ -1,6 +1,6 @@
 import logging
 
-from layoutparser import Layout, TextBlock, Rectangle
+from layoutparser import Layout
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from typing import Tuple
