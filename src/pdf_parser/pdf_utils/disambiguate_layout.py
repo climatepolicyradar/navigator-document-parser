@@ -11,7 +11,6 @@ from pydantic import Field
 from src.pdf_parser.pdf_utils.utils import BaseModel
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.DEBUG)
 
 
 # TODO: I added this because I want to enforce that the unexplained fractions are in the same order as the boxes in
@@ -507,35 +506,5 @@ def run_disambiguation_pipeline(
             }
         },
     )
-
-    # TODO this is where we are ballooning: example showed 5 -> 20 layout length
-    # layout_vertically_reduced = reduce_all_overlapping_boxes(
-    #     layout_combined,
-    #     min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
-    #     reduction_direction="vertical",
-    # )
-    # _LOGGER.debug(
-    #     "Layout vertically reduced.",
-    #     extra={
-    #         "props": {
-    #             "layout_vertically_reduced_length": len(layout_vertically_reduced),
-    #         }
-    #     },
-    # )
-
-    # TODO this is where we are really ballooning: example showed 20 -> 380 layout length
-    # layout_all_reduced = reduce_all_overlapping_boxes(
-    #     layout_vertically_reduced,
-    #     min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
-    #     reduction_direction="horizontal",
-    # )
-    # _LOGGER.debug(
-    #     "Layout all reduced.",
-    #     extra={
-    #         "props": {
-    #             "layout_all_reduced_length": len(layout_all_reduced),
-    #         }
-    #     },
-    # )
 
     return layout_combined
