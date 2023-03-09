@@ -1,6 +1,6 @@
 import itertools
 
-from layoutparser import Layout, Box
+from layoutparser import Layout
 import logging
 
 from src.pdf_parser.pdf_utils.disambiguator.utils import is_in

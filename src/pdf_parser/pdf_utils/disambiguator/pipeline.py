@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def run_disambiguation(
     layout: Layout,
-    restrictive_model_threshold: float,
+    restrictive_model_threshold,
     unnest_soft_margin: int,
     min_overlapping_pixels_horizontal: int,
     min_overlapping_pixels_vertical: int,

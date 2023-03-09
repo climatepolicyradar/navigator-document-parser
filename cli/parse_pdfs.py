@@ -8,18 +8,18 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
 import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
-from layoutparser.io import load_pdf
 from layoutparser.elements import Layout
-from layoutparser.visualization import draw_box
+from layoutparser.io import load_pdf
 from layoutparser.models import Detectron2LayoutModel
 from layoutparser.ocr import TesseractAgent, GCVAgent
+from layoutparser.visualization import draw_box
 from tqdm import tqdm
+from typing import List, Optional, Union
 
 from src import config  # noqa: E402
 from src.base import (  # noqa: E402
@@ -29,9 +29,9 @@ from src.base import (  # noqa: E402
     PDFPageMetadata,
 )
 from src.pdf_parser.pdf_utils.disambiguate_layout import (
-    run_disambiguation_pipeline,
     unnest_boxes,
 )
+from src.pdf_parser.pdf_utils.disambiguator.pipeline import run_disambiguation
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
     extract_google_layout,
@@ -158,10 +158,7 @@ def download_pdf(
         )
 
         return None
-    elif (
-        response.headers["Content-Type"] != "application/pdf"
-        and response.headers["Content-Type"] != "binary/octet-stream"
-    ):
+    elif response.headers["Content-Type"] != "application/pdf":
         _LOGGER.exception(
             "Failed to save downloaded file locally. Content-Type is not application/pdf.",
             extra={
@@ -218,7 +215,7 @@ def parse_file(
     input_task: ParserInput,
     model,
     model_threshold_restrictive: float,
-    unnest_soft_margin: float,
+    unnest_soft_margin: int,
     min_overlapping_pixels_horizontal: int,
     min_overlapping_pixels_vertical: int,
     disambiguation_combination_threshold: float,
@@ -358,11 +355,10 @@ def parse_file(
                     continue
             # Maybe we should always pass a layout object into the PageParser class.
             _LOGGER.info(f"Running layout_disambiguator for page {page_idx}")
-            layout_disambiguated = run_disambiguation_pipeline(
-                image,
-                model,
+            layout_disambiguated = run_disambiguation(
+                layout=Layout([b for b in model.detect(image)]),
                 restrictive_model_threshold=model_threshold_restrictive,
-                unnest_soft_margin=unnest_soft_margin,  # type: ignore
+                unnest_soft_margin=unnest_soft_margin,
                 min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                 combination_threshold=disambiguation_combination_threshold,

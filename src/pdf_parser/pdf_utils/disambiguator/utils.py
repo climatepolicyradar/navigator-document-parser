@@ -33,13 +33,16 @@ def split_layout(
     Returns:
         A tuple of layouts, the first with boxes above the threshold and the second with boxes below the threshold.
     """
-    layout_restrictive = Layout(
-        [box for box in layout if box.score > restrictive_model_threshold]
-    )
-    layout_permissive = Layout(
-        [box for box in layout if box.score <= restrictive_model_threshold]
-    )
-    return layout_restrictive, layout_permissive
+    restrictive_boxes = []
+    permissive_boxes = []
+
+    for box in layout:
+        if box.score > restrictive_model_threshold:
+            restrictive_boxes.append(box)
+        else:
+            permissive_boxes.append(box)
+
+    return Layout(restrictive_boxes), Layout(permissive_boxes)
 
 
 def combine_layouts(
@@ -59,12 +62,13 @@ def combine_layouts(
     Returns:
         The layout with boxes from the unfiltered perspective added if their areas aren't already sufficiently accounted for..
     """
-    boxes_to_add = []
-    for ix, box in enumerate(layout_permissive):
-        # If the box's area is not "explained away" by the strict layout, add it to the combined layout with an
-        # ambiguous type tag. We can use heuristics to determine its type downstream.
-        if unexplained_fractions[ix] > combination_threshold:
-            box.type = "Ambiguous"
-            boxes_to_add.append(box)
-    layout_combined = layout_restrictive + Layout(boxes_to_add)
+    boxes_above_combination_threshold = [
+        box
+        for indx, box in enumerate(layout_permissive)
+        if unexplained_fractions[indx] > combination_threshold
+    ]
+    for box in boxes_above_combination_threshold:
+        box.type = "Ambiguous"
+
+    layout_combined = layout_restrictive + Layout(boxes_above_combination_threshold)
     return layout_combined
