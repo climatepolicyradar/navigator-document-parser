@@ -11,9 +11,6 @@ install:
 run_local:
 	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed
 
-run_local_gst:
-    LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.dev.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed --use-google-document-ai
-
 test_local:
 	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
 
@@ -42,4 +39,4 @@ run_on_specific_files_env:
 
 run_local_against_s3:
 	docker build -t html-parser .
-	docker run -e LOGGING_LEVEL="DEBUG" -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -e PARSER_INPUT_PREFIX="${PARSER_INPUT_PREFIX}" -e EMBEDDINGS_INPUT_PREFIX="${EMBEDDINGS_INPUT_PREFIX}" -it html-parser
+	docker run -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -e PARSER_INPUT_PREFIX="${PARSER_INPUT_PREFIX}" -e EMBEDDINGS_INPUT_PREFIX="${EMBEDDINGS_INPUT_PREFIX}" -it html-parser
