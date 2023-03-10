@@ -136,10 +136,6 @@ def extract_google_layout(
         extra={
             "props": {
                 "total_num_pages": len(document.pages),
-                "total_num_blocks": sum([len(i.blocks) for i in document.pages]),
-                "total_num_paragraphs": sum(
-                    [len(i.paragraphs) for i in document.pages[0].blocks]
-                ),
             },
         },
     )

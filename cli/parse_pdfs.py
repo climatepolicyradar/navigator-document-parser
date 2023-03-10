@@ -30,6 +30,7 @@ from src.base import (
 )
 from src.pdf_parser.pdf_utils.disambiguator.nested import remove_nested_boxes
 from src.pdf_parser.pdf_utils.disambiguator.pipeline import run_disambiguation
+from src.pdf_parser.pdf_utils.layout_parser_layout import get_layout_parser_layout
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
     extract_google_layout,
@@ -352,9 +353,17 @@ def parse_file(
                 if not select_page:
                     continue
             # Maybe we should always pass a layout object into the PageParser class.
-            _LOGGER.info(f"Running layout_disambiguator for page {page_idx}")
+            _LOGGER.info(
+                "Running layout_disambiguator.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "page_index": page_idx,
+                    }
+                },
+            )
             layout_disambiguated = run_disambiguation(
-                layout=Layout([b for b in model.detect(image)]),
+                layout=get_layout_parser_layout(model=model, image=image),
                 restrictive_model_threshold=model_threshold_restrictive,
                 unnest_soft_margin=unnest_soft_margin,
                 min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
@@ -363,24 +372,55 @@ def parse_file(
             )
             if len(layout_disambiguated) == 0:
                 _LOGGER.info(
-                    f"The layoutparser model has found no layout elements of any type for page {page_idx}. Continuing to next page."
+                    f"The layoutparser model has found no layout elements of any type for page {page_idx}."
+                    f"Continuing to next page.",
+                    extra={
+                        "props": {
+                            "layout_disambiguated_length": len(layout_disambiguated),
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                        }
+                    },
                 )
                 all_pages_metadata.append(page_metadata)
                 continue
-            _LOGGER.info(f"Running google document structure OCR for page {page_idx}")
             if combine_google_vision:
-                # Add a step to use google vision instead of lists
-                _LOGGER.debug(
-                    "Combining google vision results with layoutparser results."
+                # TODO Add a step to use google vision instead of lists
+                _LOGGER.info(
+                    "Combining google vision results with layoutparser results.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                        }
+                    },
                 )
 
                 layout_disambiguated = Layout(
                     [b for b in layout_disambiguated if b.type != "List"]
                 )
-                _LOGGER.debug("Filtered lists from disambiguated layout.")
+                _LOGGER.info(
+                    "Filtered lists from disambiguated layout.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "layout_disambiguated_length": len(layout_disambiguated),
+                        }
+                    },
+                )
 
                 google_layout = extract_google_layout(image)[1]
-                _LOGGER.debug("Extracted google layout.")
+                _LOGGER.info(
+                    "Extracted google layout.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "google_layout_length": len(google_layout),
+                        }
+                    },
+                )
                 # Combine the Google text blocks with the layoutparser layout.
 
                 postprocessed_layout = combine_google_lp(
@@ -391,26 +431,72 @@ def parse_file(
                     top_exclude=top_exclude_threshold,
                     bottom_exclude=bottom_exclude_threshold,
                 )
-                _LOGGER.debug("Combined google and layoutparser layouts.")
+                _LOGGER.info(
+                    "Combined google and layoutparser layouts.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "postprocessed_layout_length": len(postprocessed_layout),
+                        }
+                    },
+                )
 
                 # unnest the layout again because the google layout may have nested elements. Hack.
                 postprocessed_layout = remove_nested_boxes(
                     postprocessed_layout, unnest_soft_margin=unnest_soft_margin
                 )
-                _LOGGER.debug("Unnested boxes again.")
+                _LOGGER.info(
+                    "Unnested boxes again.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "postprocessed_layout_length": len(postprocessed_layout),
+                        }
+                    },
+                )
 
             else:
-                _LOGGER.debug(
+                _LOGGER.info(
                     "Not combining google vision results with layoutparser results, running postprocessing "
-                    "pipeline."
+                    "pipeline.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                        }
+                    },
                 )
+
                 postprocessed_layout = postprocessing_pipline(
                     layout_disambiguated, page_dimensions[1]
                 )
+                _LOGGER.info(
+                    "Ran postprocessing pipeline.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "postprocessed_layout_length": len(postprocessed_layout),
+                        }
+                    },
+                )
+
             ocr_blocks = Layout(
                 [b for b in postprocessed_layout if b.type in config.OCR_BLOCKS]
             )
-            _LOGGER.debug("Filtered OCR blocks for only known types.")
+            _LOGGER.debug(
+                "Filtered OCR blocks for only known types.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "page_index": page_idx,
+                        "ocr_blocks_length_pre_filter": len(postprocessed_layout),
+                        "ocr_blocks_length_post_filter": len(ocr_blocks),
+                    }
+                },
+            )
 
             if len(ocr_blocks) == 0:
                 _LOGGER.info(f"No text found for page {page_idx}.")
