@@ -55,7 +55,7 @@ def copy_input_to_output_html(
         extra={
             "props": {
                 "document_id": task.document_id,
-                "output_path": output_path,
+                "output_path": str(output_path),
             }
         },
     )
@@ -96,7 +96,7 @@ def run_html_parser(
                     "Skipping already parsed html document.",
                     extra={
                         "props": {
-                            "output_path": output_path,
+                            "output_path": str(output_path),
                             "document_id": task.document_id,
                             "redo": redo,
                         }
@@ -114,7 +114,7 @@ def run_html_parser(
                     extra={
                         "props": {
                             "document_id": task.document_id,
-                            "output_path": output_path,
+                            "output_path": str(output_path),
                             "error_message": str(e),
                         }
                     },
@@ -124,7 +124,7 @@ def run_html_parser(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                     }
                 },
             )

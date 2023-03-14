@@ -1,6 +1,8 @@
 # Navigator Document Parser
 
 Parsers for web pages and PDFs containing laws and policies.
+
+Please see config.py for configuration options and their explanations. There are many hyperparameters that can be tuned to improve the performance of the parser.
 ## Setup
 
 - `make install` - install dependencies using Poetry and set up playwright and pre-commit

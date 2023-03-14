@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import List
 
 import pandas as pd
-from layoutparser import Layout, TextBlock, Rectangle
+from layoutparser import Layout, TextBlock, Rectangle  # type: ignore
 
 
 def ocr_blocks(layout: Layout) -> Layout:

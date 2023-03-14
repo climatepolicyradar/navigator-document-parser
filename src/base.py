@@ -7,18 +7,44 @@ from collections import Counter
 from datetime import date
 from enum import Enum
 from typing import Optional, Sequence, Tuple, List
+from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
 
 import layoutparser.elements as lp_elements
 from langdetect import DetectorFactory
 from langdetect import detect
 from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
 
-_LOGGER = logging.getLogger(__name__)
 
 _LOGGER = logging.getLogger(__name__)
 
 CONTENT_TYPE_HTML = "text/html"
 CONTENT_TYPE_PDF = "application/pdf"
+
+
+class GoogleTextSegment(BaseModel):
+    """A segment of text from Google OCR."""
+
+    class Config:
+        """Pydantic config."""
+
+        arbitrary_types_allowed = True
+
+    text: str
+    coordinates: BoundingPoly
+    confidence: float
+    language: Optional[str]
+
+
+class GoogleBlock(BaseModel):
+    """A fully structured block from google OCR. Can contain multiple segments."""
+
+    class Config:
+        """Pydantic config."""
+
+        arbitrary_types_allowed = True
+
+    coordinates: BoundingPoly
+    text_blocks: List[GoogleTextSegment]
 
 
 class BlockType(str, Enum):
@@ -134,13 +160,12 @@ class PDFTextBlock(TextBlock):
             (text_block.block.x_1, text_block.block.y_2),
         ]
 
-        # Ignoring types below as this method will raise an error if any of these values are None above.
         return PDFTextBlock(
-            text=[text_block.text],  # type: ignore
-            text_block_id=text_block_id,  # e.g. p0_b3
-            coords=new_format_coordinates,  # type: ignore
-            type_confidence=text_block.score,  # type: ignore
-            type=text_block.type,  # type: ignore
+            text=[text_block.text],
+            text_block_id=text_block_id,
+            coords=new_format_coordinates,
+            type_confidence=text_block.score,
+            type=text_block.type,
             page_number=page_number,
         )
 

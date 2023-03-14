@@ -8,29 +8,33 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union
 
 import cloudpathlib.exceptions
-import fitz
 import numpy as np
 import requests
 from cloudpathlib import CloudPath, S3Path
-from fitz.fitz import EmptyFileError
-from layoutparser import load_pdf, Layout, draw_box
+from layoutparser.elements import Layout
+from layoutparser.io import load_pdf
 from layoutparser.models import Detectron2LayoutModel
 from layoutparser.ocr import TesseractAgent, GCVAgent
+from layoutparser.visualization import draw_box
 from tqdm import tqdm
+from typing import List, Optional, Union
 
-from src import config  # noqa: E402
-from src.base import (  # noqa: E402
+from src import config
+from src.base import (
     ParserInput,
     ParserOutput,
     PDFData,
     PDFPageMetadata,
 )
-from src.pdf_parser.pdf_utils.disambiguate_layout import run_disambiguation_pipeline
+from src.pdf_parser.pdf_utils.disambiguator.nested import remove_nested_boxes
+from src.pdf_parser.pdf_utils.disambiguator.pipeline import run_disambiguation
+from src.pdf_parser.pdf_utils.layout_parser_layout import get_layout_parser_layout
 from src.pdf_parser.pdf_utils.ocr import (
     OCRProcessor,
+    extract_google_layout,
+    combine_google_lp,
 )
 from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 
@@ -73,7 +77,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                     }
                 },
             )
@@ -83,7 +87,7 @@ def copy_input_to_output_pdf(
                 extra={
                     "props": {
                         "document_id": task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -95,7 +99,7 @@ def copy_input_to_output_pdf(
             extra={
                 "props": {
                     "document_id": task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                     "error_message": str(e),
                 }
             },
@@ -151,11 +155,11 @@ def download_pdf(
                 }
             },
         )
-        return None
 
+        return None
     elif response.headers["Content-Type"] != "application/pdf":
         _LOGGER.exception(
-            "Content-Type is not application/pdf.",
+            "Failed to save downloaded file locally. Content-Type is not application/pdf.",
             extra={
                 "props": {
                     "document_id": parser_input.document_id,
@@ -165,7 +169,6 @@ def download_pdf(
             },
         )
         return None
-
     else:
         _LOGGER.info(
             "Saving downloaded file locally.",
@@ -183,16 +186,16 @@ def download_pdf(
         return output_path
 
 
-def select_page_at_random(num_pages: int) -> bool:
+def select_page_at_random(num_pages: int, rng: float) -> bool:
     """Determine whether to include a page using a random number generator. Used for debugging.
 
     Args:
         num_pages: The number of pages in the PDF.
+        rng: A random number between 0 and 1.
 
     Returns:
         The page number to include.
     """
-    rng = np.random.random()
     if num_pages in range(1, 10):
         # Only include pages at random for debugging to dramatically speed up processing (some PDFs have 100s
         # of pages)
@@ -211,13 +214,17 @@ def parse_file(
     input_task: ParserInput,
     model,
     model_threshold_restrictive: float,
-    unnest_soft_margin: float,
+    unnest_soft_margin: int,
     min_overlapping_pixels_horizontal: int,
     min_overlapping_pixels_vertical: int,
     disambiguation_combination_threshold: float,
-    ocr_agent: str,
+    ocr_agent: Union[TesseractAgent, GCVAgent],
     debug: bool,
     output_dir: Union[Path, S3Path],
+    combine_google_vision: bool,
+    top_exclude_threshold: float,
+    bottom_exclude_threshold: float,
+    replace_threshold: float,
     redo: bool = False,
 ):
     """Parse an individual pdf file.
@@ -234,10 +241,18 @@ def parse_file(
             avoid OCR conflicts.
         disambiguation_combination_threshold (float): Threshold to use for disambiguation.
         debug (bool): Whether to save debug images.
-        ocr_agent (src.pdf_utils.parsing_utils.OCRProcessor): OCR agent to use for parsing.
+        ocr_agent (Union[TesseractAgent, GCVAgent]): OCR agent to use for parsing.
         output_dir (Path): Path to the output directory.
         device (str): Device to use for parsing.
         redo (bool): Whether to redo the parsing even if the output file already exists.
+        bottom_exclude_threshold (float): Percentage of page to ignore at the bottom of the page when adding blocks
+            to the page from google (e.g. to ignore footers).
+        top_exclude_threshold (float): Percentage of page to ignore at the top of the page when adding blocks to the
+            page from google (e.g. to ignore headers).
+        replace_threshold (float): Threshold for replacing blocks from google with blocks from the model. e.g.
+            if a block from layoutparser is 95% covered by a block from google, as measured by intersection over
+            union, then the block from layoutparser will be replaced by the block from google.
+        combine_google_vision (bool): Whether to combine the results from google document API with the results from the model.
     """
 
     _LOGGER.info(
@@ -266,7 +281,7 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "output_path": output_path,
+                    "output_path": str(output_path),
                 }
             },
         )
@@ -293,6 +308,8 @@ def parse_file(
             document_md5sum = hashlib.md5(pdf_path.read_bytes()).hexdigest()
 
         num_pages = len(pdf_images)
+
+        random_numbers = np.random.RandomState(42).random(num_pages)
 
         all_pages_metadata = []
         all_text_blocks = []
@@ -331,55 +348,167 @@ def parse_file(
             # If running in visual debug mode and the pdf is large, randomly select pages to save images for to avoid
             # excessive redundancy and processing time
             if debug:
-                select_page = select_page_at_random(num_pages)
+                rng = random_numbers[page_idx]
+                select_page = select_page_at_random(num_pages, rng)
                 if not select_page:
                     continue
             # Maybe we should always pass a layout object into the PageParser class.
-            _LOGGER.info(f"Running layout_disambiguator for page {page_idx}")
-            layout_disambiguated = run_disambiguation_pipeline(
-                image,
-                model,
+            _LOGGER.info(
+                "Running layout_disambiguator.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "page_index": page_idx,
+                    }
+                },
+            )
+            layout_disambiguated = run_disambiguation(
+                layout=get_layout_parser_layout(model=model, image=image),
                 restrictive_model_threshold=model_threshold_restrictive,
-                unnest_soft_margin=unnest_soft_margin,  # type: ignore
-                min_overlapping_pixels_horizontalzontal=min_overlapping_pixels_horizontal,
+                unnest_soft_margin=unnest_soft_margin,
+                min_overlapping_pixels_horizontal=min_overlapping_pixels_horizontal,
                 min_overlapping_pixels_vertical=min_overlapping_pixels_vertical,
                 combination_threshold=disambiguation_combination_threshold,
             )
             if len(layout_disambiguated) == 0:
                 _LOGGER.info(
-                    f"The layoutparser model has found no layout elements of any type for page {page_idx}. Continuing to next page."
+                    f"The layoutparser model has found no layout elements of any type for page {page_idx}."
+                    f"Continuing to next page.",
+                    extra={
+                        "props": {
+                            "layout_disambiguated_length": len(layout_disambiguated),
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                        }
+                    },
                 )
                 all_pages_metadata.append(page_metadata)
                 continue
-            _LOGGER.info(f"Running postprocessing for page {page_idx}")
-            postprocessed_layout = postprocessing_pipline(
-                layout_disambiguated, page_dimensions[1]
-            )
+            if combine_google_vision:
+                # TODO Add a step to use google vision instead of lists
+                _LOGGER.info(
+                    "Combining google vision results with layoutparser results.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                        }
+                    },
+                )
+
+                layout_disambiguated = Layout(
+                    [b for b in layout_disambiguated if b.type != "List"]
+                )
+                _LOGGER.info(
+                    "Filtered lists from disambiguated layout.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "layout_disambiguated_length": len(layout_disambiguated),
+                        }
+                    },
+                )
+
+                google_layout = extract_google_layout(image)[1]
+                _LOGGER.info(
+                    "Extracted google layout.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "google_layout_length": len(google_layout),
+                        }
+                    },
+                )
+                # Combine the Google text blocks with the layoutparser layout.
+
+                postprocessed_layout = combine_google_lp(
+                    image,
+                    google_layout,
+                    layout_disambiguated,
+                    threshold=replace_threshold,
+                    top_exclude=top_exclude_threshold,
+                    bottom_exclude=bottom_exclude_threshold,
+                )
+                _LOGGER.info(
+                    "Combined google and layoutparser layouts.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "postprocessed_layout_length": len(postprocessed_layout),
+                        }
+                    },
+                )
+
+                # unnest the layout again because the google layout may have nested elements. Hack.
+                postprocessed_layout = remove_nested_boxes(
+                    postprocessed_layout, unnest_soft_margin=unnest_soft_margin
+                )
+                _LOGGER.info(
+                    "Unnested boxes again.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "postprocessed_layout_length": len(postprocessed_layout),
+                        }
+                    },
+                )
+
+            else:
+                _LOGGER.info(
+                    "Not combining google vision results with layoutparser results, running postprocessing "
+                    "pipeline.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                        }
+                    },
+                )
+
+                postprocessed_layout = postprocessing_pipline(
+                    layout_disambiguated, page_dimensions[1]
+                )
+                _LOGGER.info(
+                    "Ran postprocessing pipeline.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "page_index": page_idx,
+                            "postprocessed_layout_length": len(postprocessed_layout),
+                        }
+                    },
+                )
+
             ocr_blocks = Layout(
-                [
-                    b
-                    for b in postprocessed_layout
-                    if b.type
-                    in [
-                        "Text",
-                        "List",
-                        "Title",
-                        "Ambiguous",
-                        "Inferred from gaps",
-                    ]
-                ]
+                [b for b in postprocessed_layout if b.type in config.OCR_BLOCKS]
             )
+            _LOGGER.debug(
+                "Filtered OCR blocks for only known types.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "page_index": page_idx,
+                        "ocr_blocks_length_pre_filter": len(postprocessed_layout),
+                        "ocr_blocks_length_post_filter": len(ocr_blocks),
+                    }
+                },
+            )
+
             if len(ocr_blocks) == 0:
                 _LOGGER.info(f"No text found for page {page_idx}.")
                 all_pages_metadata.append(page_metadata)
                 continue
             ocr_processor = OCRProcessor(
-                np.array(image), page_idx, postprocessed_layout, ocr_agent
+                np.array(image), page_idx, ocr_blocks, ocr_agent
             )
             _LOGGER.info(
                 f"Running ocr at block level for unaccounted for blocks for page {page_idx}"
             )
-            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()[0]
+            page_text_blocks, page_layout_blocks = ocr_processor.process_layout()
 
             # If running in visual debug mode, save images of the final layout to check how the model is performing.
             if debug:
@@ -394,13 +523,14 @@ def parse_file(
                     image,
                     page_layout,
                     show_element_type=True,
-                    box_alpha=0.2,
+                    box_alpha=0.1,
                     color_map={
                         "Inferred from gaps": "red",
                         "Ambiguous": "green",
                         "Text": "orange",
                         "Title": "blue",
                         "List": "brown",
+                        "Google Text Block": "purple",
                     },
                 ).save(image_output_path)
             all_text_blocks += page_text_blocks
@@ -441,7 +571,7 @@ def parse_file(
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
-                        "output_path": output_path,
+                        "output_path": str(output_path),
                         "error_message": str(e),
                     }
                 },
@@ -453,7 +583,7 @@ def parse_file(
                 "props": {
                     "document_id": input_task.document_id,
                     "output_path": output_path.name,
-                    "output_directory": output_dir,
+                    "output_directory": str(output_dir),
                 }
             },
         )
@@ -464,18 +594,10 @@ def parse_file(
             extra={
                 "props": {
                     "document_id": input_task.document_id,
-                    "local_document_path": pdf_path,
+                    "local_document_path": str(pdf_path),
                 }
             },
         )
-
-
-def _pdf_num_pages(file: str):
-    """Get the number of pages in a pdf file."""
-    try:
-        return fitz.open(file).page_count
-    except EmptyFileError:
-        return 0
 
 
 # TODO: We may want to make this an option, but for now just use Detectron by default as we are unlikely
@@ -489,17 +611,17 @@ def _get_detectron_model(model: str, device: str) -> Detectron2LayoutModel:
 
 
 def get_model(
-    model: str,
-    ocr_agent: str,
+    model_name: str,
+    ocr_agent_name: str,
     device: str,
-):
+) -> tuple[Detectron2LayoutModel, Union[TesseractAgent, GCVAgent]]:
     """Get the model for the parser."""
     _LOGGER.info(
         "Model Configuration",
         extra={
             "props": {
-                "model": model,
-                "ocr_agent": ocr_agent,
+                "model": model_name,
+                "ocr_agent": ocr_agent_name,
                 "device": device,
             }
         },
@@ -509,12 +631,13 @@ def get_model(
             "THIS IS COSTING MONEY/CREDITS!!!! - BE CAREFUL WHEN TESTING. SWITCH TO TESSERACT (FREE) FOR TESTING."
         )
 
-    # FIXME: handle EmptyFileError here using _pdf_num_pages
-    model = _get_detectron_model(model, device)
-    if ocr_agent == "tesseract":
+    model = _get_detectron_model(model_name, device)
+    if ocr_agent_name == "tesseract":
         ocr_agent = TesseractAgent()
-    elif ocr_agent == "gcv":
+    elif ocr_agent_name == "gcv":
         ocr_agent = GCVAgent()
+    else:
+        raise RuntimeError(f"Uknown OCR agent type: '{ocr_agent_name}'")
 
     return model, ocr_agent
 
@@ -524,6 +647,7 @@ def run_pdf_parser(
     output_dir: Union[Path, S3Path],
     parallel: bool,
     debug: bool,
+    use_google_document_ai: bool,
     device: str = "cpu",
     redo: bool = False,
 ) -> None:
@@ -537,19 +661,20 @@ def run_pdf_parser(
         debug: Whether to run in debug mode (puts images of resulting layouts in output_dir).
         device: The device to use for the document AI model.
         redo: Whether to redo the parsing even if the output file already exists.
+        use_google_document_ai: Whether to use Google Document AI to help parse the PDFs.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
 
     model, ocr_agent = get_model(
-        model=config.LAYOUTPARSER_MODEL,
-        ocr_agent=config.PDF_OCR_AGENT,
+        model_name=config.LAYOUTPARSER_MODEL,
+        ocr_agent_name=config.PDF_OCR_AGENT,
         device=device,
     )
 
     _LOGGER.info(
-        "Running pdf parser.",
+        "Iterating through files and parsing pdf content from pages.",
         extra={
             "props": {
                 "parallel": parallel,
@@ -562,6 +687,7 @@ def run_pdf_parser(
     file_parser = partial(
         parse_file,
         model=model,
+        combine_google_vision=use_google_document_ai,
         ocr_agent=ocr_agent,
         output_dir=output_dir,
         debug=debug,
@@ -570,6 +696,9 @@ def run_pdf_parser(
         disambiguation_combination_threshold=config.LAYOUTPARSER_DISAMBIGUATION_COMBINATION_THRESHOLD,
         min_overlapping_pixels_vertical=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_VERTICAL,
         min_overlapping_pixels_horizontal=config.LAYOUTPARSER_MIN_OVERLAPPING_PIXELS_HORIZONTAL,
+        top_exclude_threshold=config.LAYOUTPARSER_TOP_EXCLUDE_THRESHOLD,
+        bottom_exclude_threshold=config.LAYOUTPARSER_BOTTOM_EXCLUDE_THRESHOLD,
+        replace_threshold=config.LAYOUTPARSER_REPLACE_THRESHOLD,
         redo=redo,
     )
     if parallel:
