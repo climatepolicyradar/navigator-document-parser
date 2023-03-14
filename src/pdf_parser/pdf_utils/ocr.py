@@ -15,9 +15,7 @@ from shapely.geometry import Polygon
 import logging
 
 from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment
-from src.pdf_parser.pdf_utils.disambiguator.unexplained import (
-    lp_coords_to_shapely_polygon,
-)
+from src.pdf_parser.pdf_utils.disambiguator.utils import lp_coords_to_shapely_polygon
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -598,7 +596,8 @@ class OCRProcessor:
         if len(block.text) == 0:
             return False
         # Heuristic to get rid of blocks with no text or text that is too short.
-        if block.type == "Inferred from gaps":
+        # TODO make these types an enum
+        if block.type == "Inferred from gaps" or block.type == "Google Text Block":
             if len(block.text.split(" ")) < 3:
                 return False
         return True

@@ -24,14 +24,19 @@ def generate_text_block(coordinates: tuple, score: float) -> TextBlock:
 @pytest.fixture(scope="function")
 def test_layout_random(request) -> Layout:
     """Returns a layout with the given number of text blocks."""
+    x0 = random.random() * 100
+    y0 = random.random() * 100
+    x1 = x0 + random.random() * 100
+    y1 = y0 + random.random() * 100
+
     return Layout(
         [
             generate_text_block(
                 coordinates=(
-                    random.random() * 100,
-                    random.random() * 100,
-                    random.random() * 100,
-                    random.random() * 100,
+                    x0,
+                    y0,
+                    x1,
+                    y1,
                 ),
                 score=random.random(),
             )

@@ -7,7 +7,12 @@ from src.pdf_parser.pdf_utils.disambiguator.utils import is_in
 
 
 def horizontal_overlap(box_1: TextBlock, box_2: TextBlock) -> bool:
-    """Check if the boxes overlap horizontally."""
+    """
+    Check if the boxes overlap horizontally.
+
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
+    """
     if (
         box_1.coordinates[0] < box_2.coordinates[2]
         and box_1.coordinates[2] > box_2.coordinates[0]
@@ -17,7 +22,12 @@ def horizontal_overlap(box_1: TextBlock, box_2: TextBlock) -> bool:
 
 
 def vertical_overlap(box_1: TextBlock, box_2: TextBlock) -> bool:
-    """Check if the boxes overlap vertically."""
+    """
+    Check if the boxes overlap vertically.
+
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
+    """
     if (
         box_1.coordinates[1] < box_2.coordinates[3]
         and box_1.coordinates[3] > box_2.coordinates[1]
@@ -31,7 +41,20 @@ def reduce_overlapping_boxes_vertical(
     bottom_box: TextBlock,
     min_pixel_overlap_vertical: Optional[int] = 5,
 ) -> Tuple[TextBlock, TextBlock]:
-    """Reduce the size of overlapping boxes to eliminate overlaps in the vertical axis."""
+    """
+    Reduce the size of overlapping boxes to eliminate overlaps in the vertical axis.
+
+    Steps:
+    - Assert that there is an intersection in the vertical axis that is greater than the minimum pixel overlap.
+    - If the top box is vertically nested in the bottom box, reduce the top box to the bottom of the bottom box.
+    - If the bottom box is vertically nested in the top box, reduce the bottom box to the top of the top box.
+
+    Horizontally nested boxes are boxes that are nested within the other box in the horizontal axis.
+    I.e. (1,1,2,2) is horizontally nested within (0,1,3,2) as the entire range of x values lie within the other box.
+
+    Returns:
+    - The reduced boxes.
+    """
     intersection_height = top_box.intersect(bottom_box).height
     if intersection_height > min_pixel_overlap_vertical:
         if horizontally_nested(top_box, bottom_box):
@@ -74,7 +97,20 @@ def reduce_overlapping_boxes_horizontal(
     right_box: TextBlock,
     min_pixel_overlap_horizontal: Optional[int] = 5,
 ) -> Tuple[TextBlock, TextBlock]:
-    """Reduce the size of overlapping boxes to eliminate overlaps in the horizontal axis."""
+    """
+    Reduce the size of overlapping boxes to eliminate overlaps in the horizontal axis.
+
+    Steps:
+    - Assert that there is an intersection in the horizontal axis that is greater than the minimum pixel overlap.
+    - If the left box is vertically nested in the right box, reduce the left box to the right of the right box.
+    - If the right box is vertically nested in the left box, reduce the right box to the left of the left box.
+
+    Horizontally nested boxes are boxes that are nested within the other box in the horizontal axis.
+    I.e. (1,1,2,2) is horizontally nested within (1,0,2,3) as the entire range of y values lie within the other box.
+
+    Returns:
+    - The reduced boxes.
+    """
     intersection_width = left_box.intersect(right_box).width
     if intersection_width > min_pixel_overlap_horizontal:
         if vertically_nested(left_box, right_box):
@@ -112,14 +148,24 @@ def reduce_overlapping_boxes_horizontal(
 
 
 def is_on_top(box1: TextBlock, box2: TextBlock) -> bool:
-    """Identify if box1 is on top of the bottom box."""
+    """
+    Identify if box1 is on top of the bottom box.
+
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
+    """
     if box1.coordinates[1] > box2.coordinates[1]:
         return True
     return False
 
 
 def is_on_left(box1: TextBlock, box2: TextBlock) -> bool:
-    """Identify if box1 is on the left of the right box."""
+    """
+    Identify if box1 is on the left of the right box.
+
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
+    """
     if box1.coordinates[0] < box2.coordinates[0]:
         return True
     return False
@@ -128,6 +174,9 @@ def is_on_left(box1: TextBlock, box2: TextBlock) -> bool:
 def vertically_nested(box1: TextBlock, box2: TextBlock) -> bool:
     """
     Identify if box1 is vertically nested in box2 or if box2 is vertically nested in box1.
+
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
 
     I.e. (0,1,2,3) is vertically nested within (1,0,2,5) as the entire range of y values lie within the other box.
     """
@@ -145,6 +194,9 @@ def horizontally_nested(box1: TextBlock, box2: TextBlock) -> bool:
     """
     Identify if box1 is horizontally nested in box2 or if box2 is horizontally nested in box1.
 
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
+
     I.e. (2,0,4,100) is nested horizontally within (0,0,10,10) as the entire range of x values lie within the other box.
     """
     if (
@@ -160,6 +212,9 @@ def horizontally_nested(box1: TextBlock, box2: TextBlock) -> bool:
 def overlap_in_both_axis(box1: TextBlock, box2: TextBlock) -> bool:
     """
     Identify if the boxes overlap in both axis.
+
+    The boxes are defined by a bottom left and top right co-ordinate. These relate to the indices of the co-ordinates
+    array as follows: Coordinates: (0, 1, 2, 3) -> (x0, y0; x1, y1) -> (bottom left coord; top right coord)
 
     I.e. (0,0,10,10) and (5,5,15,15) overlap in both axis.
     """

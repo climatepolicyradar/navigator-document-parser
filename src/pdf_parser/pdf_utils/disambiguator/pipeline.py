@@ -3,10 +3,11 @@ import logging
 
 from src.pdf_parser.pdf_utils.disambiguator.nested import remove_nested_boxes
 from src.pdf_parser.pdf_utils.disambiguator.overlapping import reduce_overlapping_boxes
-from src.pdf_parser.pdf_utils.disambiguator.unexplained import (
+from src.pdf_parser.pdf_utils.disambiguator.utils import (
+    split_layout,
+    combine_layouts,
     calculate_unexplained_fractions,
 )
-from src.pdf_parser.pdf_utils.disambiguator.utils import split_layout, combine_layouts
 
 _LOGGER = logging.getLogger(__name__)
 
