@@ -116,7 +116,9 @@ def download_pdf(
     :param: directory to save the PDF to
     :return: path to PDF file in output_dir
     """
-    document_url = f"https://{CDN_DOMAIN}/{parser_input.document_cdn_object}"
+    document_url = os.path.join(
+        *["https://", CDN_DOMAIN, "navigator", parser_input.document_cdn_object]
+    )
 
     try:
         _LOGGER.info(
