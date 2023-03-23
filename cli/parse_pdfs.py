@@ -39,6 +39,7 @@ from src.pdf_parser.pdf_utils.ocr import (
 from src.pdf_parser.pdf_utils.postprocess_layout import postprocessing_pipline
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
+DOCUMENT_BUCKET_PREFIX = os.getenv("DOCUMENT_BUCKET_PREFIX", "navigator")
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
@@ -117,7 +118,12 @@ def download_pdf(
     :return: path to PDF file in output_dir
     """
     document_url = os.path.join(
-        *["https://", CDN_DOMAIN, "navigator", parser_input.document_cdn_object]
+        *[
+            "https://",
+            CDN_DOMAIN,
+            DOCUMENT_BUCKET_PREFIX,
+            parser_input.document_cdn_object,
+        ]
     )
 
     try:
