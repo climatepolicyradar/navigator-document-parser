@@ -24,6 +24,8 @@ OCR_BLOCKS = [
     "Title",
     "Ambiguous",
     "Inferred from gaps",
+    "Table",
+    "Figure",
 ]
 
 # This is the number of pixels in the soft margin for a box to be considered nested within another box.

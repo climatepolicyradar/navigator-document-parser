@@ -491,6 +491,15 @@ def parse_file(
                     },
                 )
 
+            # FIXME remove after testing
+            _LOGGER.info(
+                "postprocessed_layout",
+                extra={
+                    "props": {
+                        "postprocessed_layout": [b.type for b in postprocessed_layout]
+                    }
+                },
+            )
             ocr_blocks = Layout(
                 [b for b in postprocessed_layout if b.type in config.OCR_BLOCKS]
             )
