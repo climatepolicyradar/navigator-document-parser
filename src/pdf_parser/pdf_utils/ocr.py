@@ -14,7 +14,12 @@ from layoutparser.ocr import TesseractAgent, GCVAgent
 from shapely.geometry import Polygon
 import logging
 
-from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment, convert_coordinate_format
+from src.base import (
+    PDFTextBlock,
+    GoogleBlock,
+    GoogleTextSegment,
+    convert_coordinate_format,
+)
 from src.pdf_parser.pdf_utils.disambiguator.utils import lp_coords_to_shapely_polygon
 
 _LOGGER = logging.getLogger(__name__)
@@ -622,7 +627,7 @@ class OCRProcessor:
                 elif block.type in ["Table", "Figure"]:
                     text_blocks.append(
                         PDFTextBlock(
-                            text=[''],
+                            text=[""],
                             text_block_id=text_block_id,
                             coords=convert_coordinate_format(block),
                             type_confidence=block.score,
