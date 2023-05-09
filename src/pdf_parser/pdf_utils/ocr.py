@@ -14,7 +14,7 @@ from layoutparser.ocr import TesseractAgent, GCVAgent
 from shapely.geometry import Polygon
 import logging
 
-from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment
+from src.base import PDFTextBlock, GoogleBlock, GoogleTextSegment, convert_coordinate_format
 from src.pdf_parser.pdf_utils.disambiguator.utils import lp_coords_to_shapely_polygon
 
 _LOGGER = logging.getLogger(__name__)
@@ -612,12 +612,27 @@ class OCRProcessor:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for block_idx, block in enumerate(self.layout):
                 text_block_id = f"p_{self.page_number}_b_{block_idx}"
-                # Skip blocks that already have text (likely because we used google's structure detection)
+
                 if block.text is not None:
                     block_with_text = block
                     block_language = block.language
                     if not self._is_block_valid(block):
                         continue
+
+                elif block.type in ["Table", "Figure"]:
+                    text_blocks.append(
+                        PDFTextBlock(
+                            text=[''],
+                            text_block_id=text_block_id,
+                            coords=convert_coordinate_format(block),
+                            type_confidence=block.score,
+                            type=block.type,
+                            page_number=self.page_number,
+                        )
+                    )
+                    text_layout.append(block)
+                    continue
+
                 else:
                     future = executor.submit(self._perform_ocr, self.image, block)
                     block_with_text, block_language = future.result()

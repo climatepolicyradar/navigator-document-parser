@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import date
 from enum import Enum
-from typing import Optional, Sequence, Tuple, List
+from typing import Optional, Sequence, Tuple, List, Any
 from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
 
 import layoutparser.elements as lp_elements
@@ -100,6 +100,22 @@ class HTMLTextBlock(TextBlock):
     type_confidence: float = 1.0
 
 
+# TODO move this to a utils module
+def convert_coordinate_format(text_block: TextBlock) -> list[tuple[Any, Any]]:
+    """
+    Convert from a potentially not rectangular quadrilateral to a rectangle.
+    This method does nothing if the text block is already a rectangle.
+    """
+    text_block = text_block.to_rectangle()
+
+    return [
+        (text_block.block.x_1, text_block.block.y_1),
+        (text_block.block.x_2, text_block.block.y_1),
+        (text_block.block.x_2, text_block.block.y_2),
+        (text_block.block.x_1, text_block.block.y_2),
+    ]
+
+
 class PDFTextBlock(TextBlock):
     """
     Text block parsed from a PDF document.
@@ -149,21 +165,10 @@ class PDFTextBlock(TextBlock):
                 f"LayoutParser TextBlock has null values: {null_values_of_lp_block}"
             )
 
-        # Convert from a potentially not rectangular quadrilateral to a rectangle.
-        # This method does nothing if the text block is already a rectangle.
-        text_block = text_block.to_rectangle()
-
-        new_format_coordinates = [
-            (text_block.block.x_1, text_block.block.y_1),
-            (text_block.block.x_2, text_block.block.y_1),
-            (text_block.block.x_2, text_block.block.y_2),
-            (text_block.block.x_1, text_block.block.y_2),
-        ]
-
         return PDFTextBlock(
             text=[text_block.text],
             text_block_id=text_block_id,
-            coords=new_format_coordinates,
+            coords=convert_coordinate_format(text_block),
             type_confidence=text_block.score,
             type=text_block.type,
             page_number=page_number,
