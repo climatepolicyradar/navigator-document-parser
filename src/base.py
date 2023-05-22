@@ -12,7 +12,7 @@ from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
 import layoutparser.elements as lp_elements
 from langdetect import DetectorFactory
 from langdetect import detect
-from pydantic import BaseModel, AnyHttpUrl, Field, root_validator
+from pydantic import BaseModel, Field, root_validator
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ class ParserInput(BaseModel):
     document_metadata: dict
     document_name: str
     document_description: str
-    document_source_url: Optional[AnyHttpUrl]
+    document_source_url: Optional[str]
     document_cdn_object: Optional[str]
     document_content_type: Optional[str]
     document_md5_sum: Optional[str]
@@ -226,7 +226,7 @@ class ParserOutput(BaseModel):
     document_metadata: dict
     document_name: str
     document_description: str
-    document_source_url: Optional[AnyHttpUrl]
+    document_source_url: Optional[str]
     document_cdn_object: Optional[str]
     document_content_type: Optional[str]
     document_md5_sum: Optional[str]
