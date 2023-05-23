@@ -28,5 +28,9 @@ COPY ./cli ./cli
 COPY ./.git ./.git
 COPY ./.pre-commit-config.yaml ./.flake8 ./.gitignore ./
 
+# Pre-download the model
+RUN python '/app/cli/warm_up_model.py'
+
+
 # Run the parser on the input s3 directory
 CMD [ "sh", "./cli/run.sh" ]
