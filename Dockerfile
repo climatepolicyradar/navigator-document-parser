@@ -29,6 +29,7 @@ COPY ./.git ./.git
 COPY ./.pre-commit-config.yaml ./.flake8 ./.gitignore ./
 
 # Pre-download the model
+ENV PYTHONPATH "${PYTHONPATH}:/app"
 RUN python '/app/cli/warm_up_model.py'
 
 
