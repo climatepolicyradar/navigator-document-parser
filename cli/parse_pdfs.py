@@ -19,6 +19,11 @@ from src.base import (
     PDFData,
 )
 
+from src.config import PROJECT_ID, LOCATION, PROCESSOR_ID, MIME_TYPE
+from src.pdf_parser.combine import assign_block_type
+from src.pdf_parser.google_ai import GoogleAIAPIWrapper
+from src.pdf_parser.layout import LayoutParserWrapper
+
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 DOCUMENT_BUCKET_PREFIX = os.getenv("DOCUMENT_BUCKET_PREFIX", "navigator")
 
@@ -176,6 +181,8 @@ def download_pdf(
 
 
 def parse_file(
+    google_ai_client: GoogleAIAPIWrapper,
+    lp_obj: LayoutParserWrapper,
     input_task: ParserInput,
     output_dir: Union[Path, S3Path],
     redo: bool = False,
@@ -183,6 +190,7 @@ def parse_file(
     """Parse an individual pdf file.
 
     Args:
+        google_ai_client (GoogleAIAPIWrapper): Client for interacting with Google's AI services.
         input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         output_dir (Path): Path to the output directory.
         redo (bool): Whether to redo the parsing even if the output file already exists.
@@ -239,6 +247,14 @@ def parse_file(
         else:
 
         # TODO FROM HERE
+
+        with open(pdf_path, "rb") as document:
+            document_content = document.read()
+        googled_parsed_document = google_ai_client.extract_document_text(document_content)
+
+        input_task, all_pages_metadata, document_md5_sum, all_text_blocks = assign_block_type(googled_parsed_document, lp_obj)
+
+
 
         # TODO TO HERE
         _LOGGER.info(
@@ -325,6 +341,9 @@ def run_pdf_parser(
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
 
+    google_ai_client = GoogleAIAPIWrapper(PROJECT_ID, LOCATION, PROCESSOR_ID, MIME_TYPE)
+    lp_obj = LayoutParserWrapper()
+
     _LOGGER.info(
         "Iterating through files and parsing pdf content from pages.",
         extra={
@@ -340,6 +359,8 @@ def run_pdf_parser(
         parse_file,
         output_dir=output_dir,
         redo=redo,
+        google_ai_client=google_ai_client,
+        lp_obj=lp_obj,
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
