@@ -24,8 +24,11 @@ PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() /
 FILES_TO_PARSE = os.getenv("files_to_parse")
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG").upper()
 
-# FIXME can we set default values here as you still need the creds to do anything?
 PROJECT_ID = os.getenv("PROJECT_ID")
-LOCATION = os.getenv("LOCATION", "eu")
 PROCESSOR_ID = os.getenv("PROCESSOR_ID")
+LOCATION = os.getenv("LOCATION", "eu")
 MIME_TYPE = os.getenv("MIME_TYPE", "application/pdf")
+BLOCK_OVERLAP_THRESHOLD = float(os.getenv("OVERLAP_THRESHOLD", "0.7"))
+LAYOUTPARSER_BOX_DETECTION_THRESHOLD = float(
+    os.getenv("LAYOUTPARSER_BOX_DETECTION_THRESHOLD", "0.8")
+)

@@ -8,6 +8,8 @@ from PIL import Image
 from layoutparser.elements import Rectangle
 from layoutparser.elements.layout import Layout
 
+from src.config import LAYOUTPARSER_BOX_DETECTION_THRESHOLD
+
 
 def create_image_from_jpeg_bytes(jpeg_bytes: bytes) -> np.ndarray:
     """Converts a JPEG byte array into a numpy array and then decodes using cv2."""
@@ -29,7 +31,10 @@ class LayoutParserWrapper:
     def __init__(self):
         self.model = lp.Detectron2LayoutModel(
             "lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
-            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
+            extra_config=[
+                "MODEL.ROI_HEADS.SCORE_THRESH_TEST",
+                LAYOUTPARSER_BOX_DETECTION_THRESHOLD,
+            ],
             label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
         )
 

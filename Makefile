@@ -23,7 +23,7 @@ pre-commit-checks-all-files:
 
 test:
 	docker build -t navigator-document-parser .
-	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
+	docker run -e PROJECT_ID="${PROJECT_ID}" -e PROCESSOR_ID="${PROCESSOR_ID}" -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
 
 run_docker:
 	docker build -t html-parser .
@@ -31,12 +31,12 @@ run_docker:
 
 run_on_specific_files_flag:
 	docker build -t html-parser .
-	docker run -it -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3 --files "${FILES_TO_PARSE_FLAG}"
+	docker run -it -e PROJECT_ID="${PROJECT_ID}" -e PROCESSOR_ID="${PROCESSOR_ID}" -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3 --files "${FILES_TO_PARSE_FLAG}"
 
 run_on_specific_files_env:
 	docker build -t html-parser .
-	docker run -it -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e files_to_parse="${FILES_TO_PARSE}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3
+	docker run -it -e PROJECT_ID="${PROJECT_ID}" -e PROCESSOR_ID="${PROCESSOR_ID}" -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e files_to_parse="${FILES_TO_PARSE}" html-parser python -m cli.run_parser "${PARSER_INPUT_PREFIX}" "${EMBEDDINGS_INPUT_PREFIX}" --s3
 
 run_local_against_s3:
 	docker build -t html-parser .
-	docker run -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -e PARSER_INPUT_PREFIX="${PARSER_INPUT_PREFIX}" -e EMBEDDINGS_INPUT_PREFIX="${EMBEDDINGS_INPUT_PREFIX}" -it html-parser
+	docker run -e PROJECT_ID="${PROJECT_ID}" -e PROCESSOR_ID="${PROCESSOR_ID}" -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -e PARSER_INPUT_PREFIX="${PARSER_INPUT_PREFIX}" -e EMBEDDINGS_INPUT_PREFIX="${EMBEDDINGS_INPUT_PREFIX}" -it html-parser

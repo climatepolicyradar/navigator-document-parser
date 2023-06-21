@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Install dependencies for pdf2image and tesseract
 RUN apt-get update
+RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev git
 
 # Install pip and poetry
 RUN pip install --upgrade pip
@@ -24,10 +25,6 @@ COPY ./src ./src
 COPY ./cli ./cli
 COPY ./.git ./.git
 COPY ./.pre-commit-config.yaml ./.flake8 ./.gitignore ./
-
-# Pre-download the model
-ENV PYTHONPATH "${PYTHONPATH}:/app"
-RUN python '/app/cli/warm_up_model.py'
 
 # Run the parser on the input s3 directory
 CMD [ "sh", "./cli/run.sh" ]

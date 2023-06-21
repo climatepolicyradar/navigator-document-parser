@@ -5,6 +5,7 @@ from google.cloud import documentai
 from layoutparser import Rectangle
 
 from src.base import PDFData, BlockType, PDFTextBlock, PDFPageMetadata
+from src.config import BLOCK_OVERLAP_THRESHOLD
 from src.pdf_parser.google_ai import get_google_ai_layout_coords
 from src.pdf_parser.layout import LayoutParserWrapper, get_layout_parser_coords
 
@@ -61,14 +62,13 @@ def assign_block_type(
                 block_confidence = 0.0
                 if (
                     layout_block.intersect(google_ai_block).area / layout_block.area
-                    > 0.7
+                    > BLOCK_OVERLAP_THRESHOLD
                 ):
                     block_type = BlockType(layout_block.type)
                     block_confidence = layout_block.score
 
                 # FIXME The type for languages is a string so will take the first.
                 #   [lang.language_code for lang in page.detected_languages]
-                # FIXME: Set threshold from env vars or config
 
                 document_text_blocks.append(
                     PDFTextBlock(

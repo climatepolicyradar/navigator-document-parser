@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+env:
+  PROJECT_ID=${{ secrets.PROJECT_ID }}
+  PROCESSOR_ID=${{ secrets.PROCESSOR_ID }}
+
 jobs:
   build-start-test:
     runs-on: ubuntu-latest
