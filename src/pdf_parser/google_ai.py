@@ -1,5 +1,6 @@
 import google
 from google.api_core.client_options import ClientOptions
+from google.cloud import documentai_v1
 from google.cloud import documentai  # type: ignore
 from layoutparser.elements import Rectangle
 
@@ -35,7 +36,7 @@ class GoogleAIAPIWrapper:
 
 
 def get_google_ai_layout_coords(
-    page: google.cloud.documentai_v1.Page,
+    page: documentai_v1.Document.Page,
 ) -> list[Rectangle]:
     """Converts Google AI layout coordinates to layoutparser coordinates.
 
