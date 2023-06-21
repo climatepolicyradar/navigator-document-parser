@@ -191,6 +191,7 @@ def parse_file(
 
     Args:
         google_ai_client (GoogleAIAPIWrapper): Client for interacting with Google's AI services.
+        lp_obj (LayoutParserWrapper): Client for interacting with Layout Parser.
         input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         output_dir (Path): Path to the output directory.
         redo (bool): Whether to redo the parsing even if the output file already exists.
@@ -234,8 +235,8 @@ def parse_file(
         _LOGGER.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             _LOGGER.info(
-                "PDF path is None for document as the document either couldn't be downloaded, isn't content-type pdf "
-                "or the response status code is not 200.",
+                "PDF path is None for document as the document either couldn't be downloaded, isn't content-type "
+                "pdf or the response status code is not 200.",
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
@@ -244,19 +245,13 @@ def parse_file(
                 },
             )
             return None
-        else:
-
-        # TODO FROM HERE
 
         with open(pdf_path, "rb") as document:
             document_content = document.read()
         googled_parsed_document = google_ai_client.extract_document_text(document_content)
 
-        input_task, all_pages_metadata, document_md5_sum, all_text_blocks = assign_block_type(googled_parsed_document, lp_obj)
+        pdf_data: PDFData = assign_block_type(googled_parsed_document, lp_obj)
 
-
-
-        # TODO TO HERE
         _LOGGER.info(
             "Setting parser output for document.",
             extra={
@@ -276,11 +271,7 @@ def parse_file(
             document_md5_sum=input_task.document_md5_sum,
             document_slug=input_task.document_slug,
             document_metadata=input_task.document_metadata,
-            pdf_data=PDFData(
-                page_metadata=all_pages_metadata,
-                md5sum=document_md5sum,
-                text_blocks=all_text_blocks,
-            ),
+            pdf_data=pdf_data,
         ).set_document_languages_from_text_blocks(min_language_proportion=0.4)
 
         try:
