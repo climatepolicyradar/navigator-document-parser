@@ -5,6 +5,7 @@ import layoutparser as lp
 import cv2
 import numpy as np
 from PIL import Image
+from layoutparser.elements import Rectangle
 from layoutparser.elements.layout import Layout
 
 
@@ -36,3 +37,11 @@ class LayoutParserWrapper:
         return self.model.detect(
             create_image_from_jpeg_bytes(convert_bytes_to_jpeg(image_content))
         )
+
+
+def get_layout_parser_coords(
+    image_content: bytes, lp_obj: LayoutParserWrapper
+) -> list[Rectangle]:
+    """Returns a list of coordinates for each block in the layout."""
+    layout = lp_obj.get_layout(image_content)
+    return [block.block for block in layout._blocks]

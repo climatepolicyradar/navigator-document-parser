@@ -248,7 +248,9 @@ def parse_file(
 
         with open(pdf_path, "rb") as document:
             document_content = document.read()
-        googled_parsed_document = google_ai_client.extract_document_text(document_content)
+        googled_parsed_document = google_ai_client.extract_document_text(
+            document_content
+        )
 
         pdf_data: PDFData = assign_block_type(googled_parsed_document, lp_obj)
 
