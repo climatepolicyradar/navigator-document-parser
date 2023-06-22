@@ -181,7 +181,7 @@ def download_pdf(
 
 
 def parse_file(
-    google_ai_client: GoogleAIAPIWrapper,
+    google_ai_client_: GoogleAIAPIWrapper,
     lp_obj: LayoutParserWrapper,
     input_task: ParserInput,
     output_dir: Union[Path, S3Path],
@@ -190,7 +190,7 @@ def parse_file(
     """Parse an individual pdf file.
 
     Args:
-        google_ai_client (GoogleAIAPIWrapper): Client for interacting with Google's AI services.
+        google_ai_client_ (GoogleAIAPIWrapper): Client for interacting with Google's AI services.
         lp_obj (LayoutParserWrapper): Client for interacting with Layout Parser.
         input_task (ParserInput): Class specifying location of the PDF and other data about the task.
         output_dir (Path): Path to the output directory.
@@ -248,7 +248,7 @@ def parse_file(
 
         with open(pdf_path, "rb") as document:
             document_content = document.read()
-        googled_parsed_document = google_ai_client.extract_document_text(
+        googled_parsed_document = google_ai_client_.extract_document_text(
             document_content
         )
 
@@ -352,7 +352,7 @@ def run_pdf_parser(
         parse_file,
         output_dir=output_dir,
         redo=redo,
-        google_ai_client=google_ai_client,
+        google_ai_client_=google_ai_client,
         lp_obj=lp_obj,
     )
     if parallel:
@@ -394,7 +394,7 @@ def run_pdf_parser(
         for task in input_tasks:
             _LOGGER.info("Running in series.")
             try:
-                file_parser(task)
+                file_parser(input_task=task)
             except Exception as e:
                 _LOGGER.exception(
                     "Failed to successfully parse PDF due to a raised exception",
