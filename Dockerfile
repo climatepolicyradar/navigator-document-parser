@@ -1,11 +1,11 @@
-FROM python:3.9
+FROM python:3.9-slim
 
 RUN mkdir /app
 WORKDIR /app
 
 # Install dependencies for pdf2image and tesseract
 RUN apt-get update
-RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev git
+RUN apt-get install -y build-essential ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev git
 
 # Install pip and poetry
 RUN pip install --upgrade pip
