@@ -6,11 +6,11 @@ from layoutparser import Rectangle
 
 from src.base import PDFData, BlockType, PDFTextBlock, PDFPageMetadata
 from src.config import BLOCK_OVERLAP_THRESHOLD
-from src.pdf_parser.google_ai import get_google_ai_layout_coords
+from src.pdf_parser.google_ai import get_google_ai_layout_coords, PDFPage
 from src.pdf_parser.layout import LayoutParserWrapper, get_layout_parser_coords
 
 
-def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> str:
+def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> list[str]:
     """
     Document AI identifies text in different parts of the document by their offsets in the entirety of the
     document's text. This function converts offsets to a string.
@@ -22,7 +22,7 @@ def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> str:
         start_index = int(segment.start_index)
         end_index = int(segment.end_index)
         response += text[start_index:end_index]
-    return response
+    return [response]
 
 
 def rectangle_to_coord(rectangle: Rectangle) -> List[Tuple[float, float]]:
@@ -35,7 +35,7 @@ def rectangle_to_coord(rectangle: Rectangle) -> List[Tuple[float, float]]:
 
 
 def assign_block_type(
-    document: google.cloud.documentai_v1.Document, lp_obj: LayoutParserWrapper
+    parsed_document_pages: list[PDFPage], lp_obj: LayoutParserWrapper
 ) -> PDFData:
     """The google document ai api has many good features, however it does not support text block type detection.
 
@@ -47,13 +47,14 @@ def assign_block_type(
     """
     document_text_blocks = []
     document_pages_metadata = []
-    document_md5sum = document.md5_checksum
+    # FIXME: Generate this for the document
+    document_md5sum = "1123123"  # document.md5_checksum
 
-    for page in document.pages:
+    for page in parsed_document_pages:
         layout_parser_layout_coords = get_layout_parser_coords(
-            page.image.content, lp_obj
+            page.extracted_content.image.content, lp_obj
         )
-        google_ai_layout_coords = get_google_ai_layout_coords(page)
+        google_ai_layout_coords = get_google_ai_layout_coords(page.extracted_content)
 
         for layout_block in layout_parser_layout_coords:
             for google_ai_block in google_ai_layout_coords:
@@ -70,15 +71,24 @@ def assign_block_type(
                 # FIXME The type for languages is a string so will take the first.
                 #   [lang.language_code for lang in page.detected_languages]
 
+                try:
+                    block_text = layout_to_text(
+                        page.extracted_content.layout, page.extracted_content.text
+                    )
+                except AttributeError:
+                    block_text = [""]
+
                 document_text_blocks.append(
                     PDFTextBlock(
                         coords=rectangle_to_coord(google_ai_block),
                         page_number=page.page_number,
-                        block_id=len(document_text_blocks) + 1,
-                        block_type=block_type,
-                        block_confidence=block_confidence,
-                        block_text=layout_to_text(page.layout, page.text),
-                        block_language=page.detected_languages[0].language_code,
+                        text_block_id=len(document_text_blocks) + 1,
+                        type=block_type,
+                        type_confidence=block_confidence,
+                        text=block_text,
+                        language=page.extracted_content.detected_languages[
+                            0
+                        ].language_code,
                     )
                 )
 
@@ -86,8 +96,8 @@ def assign_block_type(
             PDFPageMetadata(
                 page_number=page.page_number,
                 page_width=(
-                    page.layout.bounding_poly.vertices[2].x,
-                    page.layout.bounding_poly.vertices[2].y,
+                    page.extracted_content.pages[0].layout.bounding_poly.vertices[2].x,
+                    page.extracted_content.pages[0].layout.bounding_poly.vertices[2].y,
                 ),
             )
         )

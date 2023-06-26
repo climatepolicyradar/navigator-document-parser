@@ -44,6 +44,7 @@ class LayoutParserWrapper:
         )
 
 
+# TODO need to return the type here as well
 def get_layout_parser_coords(
     image_content: bytes, lp_obj: LayoutParserWrapper
 ) -> list[Rectangle]:

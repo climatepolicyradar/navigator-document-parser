@@ -1,14 +1,28 @@
-import google
+import io
+from typing import Any
+
+from PyPDF2 import PdfReader, PdfWriter
 from google.api_core.client_options import ClientOptions
-from google.cloud import documentai_v1
 from google.cloud import documentai  # type: ignore
+from google.cloud import documentai_v1
 from layoutparser.elements import Rectangle
+from pydantic import BaseModel
+
+
+class PDFPage(BaseModel):
+    """Represents a batch of pages from a PDF document."""
+
+    page_number: int
+    extracted_content: Any
 
 
 class GoogleAIAPIWrapper:
+    """Wrapper for the Google AI API."""
+
     def __init__(
         self, project_id: str, location: str, processor_id: str, mime_type: str
     ) -> None:
+        """Initializes the Google AI API client."""
         self.project_id = project_id
         self.location = location
         self.processor_id = processor_id
@@ -23,16 +37,37 @@ class GoogleAIAPIWrapper:
             self.project_id, self.location, self.processor_id
         )
 
-    def extract_document_text(
-        self, image_content: str
-    ) -> google.cloud.documentai_v1.Document:
+    def call_ai_api(self, page_content: bytes) -> Any:
+        """Calls the Google AI API to extract text from a PDF page."""
         raw_document = documentai.RawDocument(
-            content=image_content, mime_type=self.mime_type
+            content=page_content, mime_type=self.mime_type
         )
 
         request = documentai.ProcessRequest(name=self.name, raw_document=raw_document)
 
-        return self.client.process_document(request=request)
+        return self.client.process_document(request=request).document
+
+    def extract_document_text(self, pdf_path: str) -> list[PDFPage]:
+        """Extracts text from a PDF document using the Google AI API."""
+        pdf = PdfReader(pdf_path)
+
+        pages_dict = {}
+        total_pages = len(pdf.pages)
+        for page_num in range(total_pages):
+            writer = PdfWriter()
+            writer.add_page(pdf.pages[page_num])
+            pdf_bytes = io.BytesIO()
+            writer.write(pdf_bytes)
+            pdf_bytes.seek(0)
+            pages_dict[page_num + 1] = pdf_bytes.read()
+
+        return [
+            PDFPage(
+                page_number=page_num,
+                extracted_content=self.call_ai_api(page_bytes).pages[0],
+            )
+            for page_num, page_bytes in pages_dict.items()
+        ]
 
 
 def get_google_ai_layout_coords(

@@ -21,7 +21,7 @@ from src.base import (
 
 from src.config import PROJECT_ID, LOCATION, PROCESSOR_ID, MIME_TYPE
 from src.pdf_parser.combine import assign_block_type
-from src.pdf_parser.google_ai import GoogleAIAPIWrapper
+from src.pdf_parser.google_ai import GoogleAIAPIWrapper, PDFPage
 from src.pdf_parser.layout import LayoutParserWrapper
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
@@ -246,13 +246,11 @@ def parse_file(
             )
             return None
 
-        with open(pdf_path, "rb") as document:
-            document_content = document.read()
-        googled_parsed_document = google_ai_client_.extract_document_text(
-            document_content
-        )
+        googled_parsed_document_pages: list[
+            PDFPage
+        ] = google_ai_client_.extract_document_text(str(pdf_path))
 
-        pdf_data: PDFData = assign_block_type(googled_parsed_document, lp_obj)
+        pdf_data: PDFData = assign_block_type(googled_parsed_document_pages, lp_obj)
 
         _LOGGER.info(
             "Setting parser output for document.",
