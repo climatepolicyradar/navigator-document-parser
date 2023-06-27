@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import date
 from enum import Enum
-from typing import Optional, Sequence, Tuple, List
+from typing import Optional, Sequence, Tuple, List, Any
 from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
 
 import layoutparser.elements as lp_elements

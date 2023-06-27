@@ -64,7 +64,7 @@ class GoogleAIAPIWrapper:
         return [
             PDFPage(
                 page_number=page_num,
-                extracted_content=self.call_ai_api(page_bytes).pages[0],
+                extracted_content=self.call_ai_api(page_bytes),
             )
             for page_num, page_bytes in pages_dict.items()
         ]

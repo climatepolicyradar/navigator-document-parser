@@ -1,13 +1,15 @@
 from typing import List, Tuple
 
-import google
+import logging
 from google.cloud import documentai
 from layoutparser import Rectangle
 
 from src.base import PDFData, BlockType, PDFTextBlock, PDFPageMetadata
 from src.config import BLOCK_OVERLAP_THRESHOLD
 from src.pdf_parser.google_ai import get_google_ai_layout_coords, PDFPage
-from src.pdf_parser.layout import LayoutParserWrapper, get_layout_parser_coords
+from src.pdf_parser.layout import LayoutParserWrapper, get_layout_parser_blocks
+
+_LOGGER = logging.getLogger(__file__)
 
 
 def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> list[str]:
@@ -51,18 +53,21 @@ def assign_block_type(
     document_md5sum = "1123123"  # document.md5_checksum
 
     for page in parsed_document_pages:
-        layout_parser_layout_coords = get_layout_parser_coords(
-            page.extracted_content.image.content, lp_obj
+        layout_parser_blocks: list = get_layout_parser_blocks(
+            page.extracted_content.pages[0].image.content, lp_obj
         )
-        google_ai_layout_coords = get_google_ai_layout_coords(page.extracted_content)
+        google_ai_layout_coords: list[Rectangle] = get_google_ai_layout_coords(
+            page.extracted_content.pages[0]
+        )
 
-        for layout_block in layout_parser_layout_coords:
+        for layout_block in layout_parser_blocks:
             for google_ai_block in google_ai_layout_coords:
 
                 block_type = BlockType.AMBIGUOUS
                 block_confidence = 0.0
                 if (
-                    layout_block.intersect(google_ai_block).area / layout_block.area
+                    layout_block.block.intersect(google_ai_block).area
+                    / layout_block.block.area
                     > BLOCK_OVERLAP_THRESHOLD
                 ):
                     block_type = BlockType(layout_block.type)
@@ -71,13 +76,6 @@ def assign_block_type(
                 # FIXME The type for languages is a string so will take the first.
                 #   [lang.language_code for lang in page.detected_languages]
 
-                try:
-                    block_text = layout_to_text(
-                        page.extracted_content.layout, page.extracted_content.text
-                    )
-                except AttributeError:
-                    block_text = [""]
-
                 document_text_blocks.append(
                     PDFTextBlock(
                         coords=rectangle_to_coord(google_ai_block),
@@ -85,17 +83,20 @@ def assign_block_type(
                         text_block_id=len(document_text_blocks) + 1,
                         type=block_type,
                         type_confidence=block_confidence,
-                        text=block_text,
-                        language=page.extracted_content.detected_languages[
-                            0
-                        ].language_code,
+                        text=layout_to_text(
+                            page.extracted_content.pages[0].layout,
+                            page.extracted_content.text,
+                        ),
+                        language=page.extracted_content.pages[0]
+                        .detected_languages[0]
+                        .language_code,
                     )
                 )
 
         document_pages_metadata.append(
             PDFPageMetadata(
                 page_number=page.page_number,
-                page_width=(
+                dimensions=(
                     page.extracted_content.pages[0].layout.bounding_poly.vertices[2].x,
                     page.extracted_content.pages[0].layout.bounding_poly.vertices[2].y,
                 ),

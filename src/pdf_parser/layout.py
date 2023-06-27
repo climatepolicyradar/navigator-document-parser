@@ -45,9 +45,6 @@ class LayoutParserWrapper:
 
 
 # TODO need to return the type here as well
-def get_layout_parser_coords(
-    image_content: bytes, lp_obj: LayoutParserWrapper
-) -> list[Rectangle]:
+def get_layout_parser_blocks(image_content: bytes, lp_obj: LayoutParserWrapper) -> list:
     """Returns a list of coordinates for each block in the layout."""
-    layout = lp_obj.get_layout(image_content)
-    return [block.block for block in layout._blocks]
+    return lp_obj.get_layout(image_content)._blocks
