@@ -1,5 +1,5 @@
 import io
-from typing import Any
+from typing import Any, Optional
 
 from PyPDF2 import PdfReader, PdfWriter
 from google.api_core.client_options import ClientOptions
@@ -14,6 +14,14 @@ class PDFPage(BaseModel):
 
     page_number: int
     extracted_content: Any
+
+
+class GoogleTextBlockContent(BaseModel):
+    """Represents a text block from the Google AI API."""
+
+    layout: Any
+    text: Optional[str] = None
+    coordinates: Optional[Any] = None
 
 
 class GoogleAIAPIWrapper:
@@ -70,32 +78,52 @@ class GoogleAIAPIWrapper:
         ]
 
 
-def get_google_ai_layout_coords(
+def get_google_ai_text_blocks(
     page: documentai_v1.Document.Page,
-) -> list[Rectangle]:
-    """Converts Google AI layout coordinates to layoutparser coordinates.
+    document_text: str,
+) -> list[GoogleTextBlockContent]:
+    """Converts Google AI layout coordinates to a GoogleTextBlockContent.
 
-    It is also necessary to scale the coordinates to the size of the page as they are initially normalized.
+    This object contains layoutparser coordinates, text and the layout itself.
+    It is necessary to scale the coordinates to the size of the page as they are initially normalized.
     """
     page_vertices = page.layout.bounding_poly.vertices[2]
 
-    google_ai_blocks = [
-        block.layout.bounding_poly.normalized_vertices for block in page.blocks
-    ]
+    page_block_content = []
 
-    google_ai_coords = [
-        Rectangle(x_1=block[0].x, y_1=block[0].y, x_2=block[2].x, y_2=block[2].y)
-        for block in google_ai_blocks
-    ]
+    for paragraph in page.paragraphs:
+        text = layout_to_text(layout=paragraph.layout, text=document_text)
 
-    google_ai_coords_scaled = [
-        Rectangle(
-            x_1=block.x_1 * page_vertices.x,
-            y_1=block.y_1 * page_vertices.y,
-            x_2=block.x_2 * page_vertices.x,
-            y_2=block.y_2 * page_vertices.y,
+        blocks = paragraph.layout.bounding_poly.normalized_vertices
+
+        rectangle_scaled = Rectangle(
+            x_1=blocks[0].x * page_vertices.x,
+            y_1=blocks[0].y * page_vertices.y,
+            x_2=blocks[2].x * page_vertices.x,
+            y_2=blocks[2].y * page_vertices.y,
         )
-        for block in google_ai_coords
-    ]
 
-    return google_ai_coords_scaled
+        page_block_content.append(
+            GoogleTextBlockContent(
+                layout=paragraph.layout,
+                text=text,
+                coordinates=rectangle_scaled,
+            )
+        )
+
+    return page_block_content
+
+
+def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> str:
+    """
+    This function converts offsets to a string.
+
+    Document AI identifies text in different parts of the document by their offsets in the entirety of the
+    document's text. If a text segment spans several lines, it will be stored in different text segments.
+    """
+    response = ""
+    for segment in layout.text_anchor.text_segments:
+        start_index = int(segment.start_index)
+        end_index = int(segment.end_index)
+        response += text[start_index:end_index]
+    return response
