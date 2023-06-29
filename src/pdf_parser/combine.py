@@ -25,7 +25,9 @@ def rectangle_to_coord(rectangle: Rectangle) -> List[Tuple[float, float]]:
 
 
 def assign_block_type(
-    parsed_document_pages: list[PDFPage], lp_obj: LayoutParserWrapper
+    parsed_document_pages: list[PDFPage],
+    lp_obj: LayoutParserWrapper,
+    document_md5sum: str,
 ) -> PDFData:
     """The google document ai api has many good features, however it does not support text block type detection.
 
@@ -37,13 +39,13 @@ def assign_block_type(
     """
     document_text_blocks = []
     document_pages_metadata = []
-    # FIXME: Generate this for the document
-    document_md5sum = "1123123"  # document.md5_checksum
 
     for page in parsed_document_pages:
         layout_parser_blocks: list = get_layout_parser_blocks(
             page.extracted_content.pages[0].image.content, lp_obj
         )
+
+        # FIXME: We need to extract tables and figures as well, do we want to auto assign paragraphs as text?
         google_ai_layout_coords: list[
             GoogleTextBlockContent
         ] = get_google_ai_text_blocks(
