@@ -8,6 +8,7 @@ import warnings
 from functools import partial
 from pathlib import Path
 from typing import List, Optional, Union
+import hashlib
 
 import cloudpathlib.exceptions
 import requests
@@ -180,6 +181,14 @@ def download_pdf(
         return output_path
 
 
+def calculate_pdf_md5sum(file_path: str) -> str:
+    """Calculate the md5sum of a pdf file."""
+    with open(file_path, "rb") as file:
+        pdf_data = file.read()
+        md5_hash = hashlib.md5(pdf_data).hexdigest()
+    return md5_hash
+
+
 def parse_file(
     google_ai_client_: GoogleAIAPIWrapper,
     lp_obj: LayoutParserWrapper,
@@ -250,7 +259,9 @@ def parse_file(
             PDFPage
         ] = google_ai_client_.extract_document_text(str(pdf_path))
 
-        pdf_data: PDFData = assign_block_type(googled_parsed_document_pages, lp_obj)
+        pdf_data: PDFData = assign_block_type(
+            googled_parsed_document_pages, lp_obj, calculate_pdf_md5sum(str(pdf_path))
+        )
 
         _LOGGER.info(
             "Setting parser output for document.",

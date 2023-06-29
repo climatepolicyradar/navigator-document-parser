@@ -1,30 +1,18 @@
 from typing import List, Tuple
 
 import logging
-from google.cloud import documentai
 from layoutparser import Rectangle
 
 from src.base import PDFData, BlockType, PDFTextBlock, PDFPageMetadata
 from src.config import BLOCK_OVERLAP_THRESHOLD
-from src.pdf_parser.google_ai import get_google_ai_layout_coords, PDFPage
+from src.pdf_parser.google_ai import (
+    get_google_ai_text_blocks,
+    PDFPage,
+    GoogleTextBlockContent,
+)
 from src.pdf_parser.layout import LayoutParserWrapper, get_layout_parser_blocks
 
 _LOGGER = logging.getLogger(__file__)
-
-
-def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> list[str]:
-    """
-    Document AI identifies text in different parts of the document by their offsets in the entirety of the
-    document's text. This function converts offsets to a string.
-
-    If a text segment spans several lines, it will be stored in different text segments.
-    """
-    response = ""
-    for segment in layout.text_anchor.text_segments:
-        start_index = int(segment.start_index)
-        end_index = int(segment.end_index)
-        response += text[start_index:end_index]
-    return [response]
 
 
 def rectangle_to_coord(rectangle: Rectangle) -> List[Tuple[float, float]]:
@@ -37,7 +25,9 @@ def rectangle_to_coord(rectangle: Rectangle) -> List[Tuple[float, float]]:
 
 
 def assign_block_type(
-    parsed_document_pages: list[PDFPage], lp_obj: LayoutParserWrapper
+    parsed_document_pages: list[PDFPage],
+    lp_obj: LayoutParserWrapper,
+    document_md5sum: str,
 ) -> PDFData:
     """The google document ai api has many good features, however it does not support text block type detection.
 
@@ -49,24 +39,25 @@ def assign_block_type(
     """
     document_text_blocks = []
     document_pages_metadata = []
-    # FIXME: Generate this for the document
-    document_md5sum = "1123123"  # document.md5_checksum
 
     for page in parsed_document_pages:
         layout_parser_blocks: list = get_layout_parser_blocks(
             page.extracted_content.pages[0].image.content, lp_obj
         )
-        google_ai_layout_coords: list[Rectangle] = get_google_ai_layout_coords(
-            page.extracted_content.pages[0]
+
+        google_ai_layout_coords: list[
+            GoogleTextBlockContent
+        ] = get_google_ai_text_blocks(
+            page=page.extracted_content.pages[0],
+            document_text=page.extracted_content.text,
         )
 
         for layout_block in layout_parser_blocks:
             for google_ai_block in google_ai_layout_coords:
-
                 block_type = BlockType.AMBIGUOUS
                 block_confidence = 0.0
                 if (
-                    layout_block.block.intersect(google_ai_block).area
+                    layout_block.block.intersect(google_ai_block.coordinates).area
                     / layout_block.block.area
                     > BLOCK_OVERLAP_THRESHOLD
                 ):
@@ -78,15 +69,12 @@ def assign_block_type(
 
                 document_text_blocks.append(
                     PDFTextBlock(
-                        coords=rectangle_to_coord(google_ai_block),
+                        coords=rectangle_to_coord(google_ai_block.coordinates),
                         page_number=page.page_number,
-                        text_block_id=len(document_text_blocks) + 1,
+                        text_block_id=int(len(document_text_blocks)) + 1,
                         type=block_type,
                         type_confidence=block_confidence,
-                        text=layout_to_text(
-                            page.extracted_content.pages[0].layout,
-                            page.extracted_content.text,
-                        ),
+                        text=[google_ai_block.text],
                         language=page.extracted_content.pages[0]
                         .detected_languages[0]
                         .language_code,
