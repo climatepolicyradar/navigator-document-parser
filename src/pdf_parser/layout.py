@@ -1,11 +1,9 @@
-import os
 from io import BytesIO
 
-import layoutparser as lp
 import cv2
+import layoutparser as lp
 import numpy as np
 from PIL import Image
-from layoutparser.elements import Rectangle
 from layoutparser.elements.layout import Layout
 
 from src.config import LAYOUTPARSER_BOX_DETECTION_THRESHOLD

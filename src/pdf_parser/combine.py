@@ -45,7 +45,6 @@ def assign_block_type(
             page.extracted_content.pages[0].image.content, lp_obj
         )
 
-        # FIXME: We need to extract tables and figures as well, do we want to auto assign paragraphs as text?
         google_ai_layout_coords: list[
             GoogleTextBlockContent
         ] = get_google_ai_text_blocks(

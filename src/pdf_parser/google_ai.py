@@ -1,5 +1,5 @@
 import io
-from typing import Any, Optional
+from typing import Any
 
 from PyPDF2 import PdfReader, PdfWriter
 from google.api_core.client_options import ClientOptions
