@@ -94,13 +94,13 @@ def get_google_ai_text_blocks(
     for paragraph in page.paragraphs:
         text = layout_to_text(layout=paragraph.layout, text=document_text)
 
-        blocks = paragraph.layout.bounding_poly.normalized_vertices
+        box_vertices = paragraph.layout.bounding_poly.normalized_vertices
 
         rectangle_scaled = Rectangle(
-            x_1=blocks[0].x * page_vertices.x,
-            y_1=blocks[0].y * page_vertices.y,
-            x_2=blocks[2].x * page_vertices.x,
-            y_2=blocks[2].y * page_vertices.y,
+            x_1=box_vertices[0].x * page_vertices.x,
+            y_1=box_vertices[0].y * page_vertices.y,
+            x_2=box_vertices[2].x * page_vertices.x,
+            y_2=box_vertices[2].y * page_vertices.y,
         )
 
         page_block_content.append(
