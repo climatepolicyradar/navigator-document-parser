@@ -19,9 +19,11 @@ class PDFPage(BaseModel):
 class GoogleTextBlockContent(BaseModel):
     """Represents a text block from the Google AI API."""
 
-    layout: Any
-    text: Optional[str] = None
-    coordinates: Optional[Any] = None
+    text: str
+    coordinates: Any
+    # TODO add Enum for type
+    # TODO we aren't currently using or persisting this information, should we?
+    google_type: str
 
 
 class GoogleAIAPIWrapper:
@@ -78,6 +80,24 @@ class GoogleAIAPIWrapper:
         ]
 
 
+def layout_to_scaled_rectangle(
+    normalized_vertices: list[Any],
+    page_vertices: Any,
+) -> Rectangle:
+    """Converts Google AI layout coordinates to a layoutparser Rectangle.
+
+    This object contains layoutparser coordinates, text and the layout itself.
+    It is necessary to scale the coordinates to the size of the page as they are initially normalized.
+    """
+
+    return Rectangle(
+        x_1=normalized_vertices[0].x * page_vertices.x,
+        y_1=normalized_vertices[0].y * page_vertices.y,
+        x_2=normalized_vertices[2].x * page_vertices.x,
+        y_2=normalized_vertices[2].y * page_vertices.y,
+    )
+
+
 def get_google_ai_text_blocks(
     page: documentai_v1.Document.Page,
     document_text: str,
@@ -96,18 +116,43 @@ def get_google_ai_text_blocks(
 
         box_vertices = paragraph.layout.bounding_poly.normalized_vertices
 
-        rectangle_scaled = Rectangle(
-            x_1=box_vertices[0].x * page_vertices.x,
-            y_1=box_vertices[0].y * page_vertices.y,
-            x_2=box_vertices[2].x * page_vertices.x,
-            y_2=box_vertices[2].y * page_vertices.y,
+        page_block_content.append(
+            GoogleTextBlockContent(
+                text=text,
+                coordinates=layout_to_scaled_rectangle(
+                    normalized_vertices=box_vertices, page_vertices=page_vertices
+                ),
+                google_type="paragraph",
+            )
         )
+
+    for table in page.tables:
+        text = layout_to_text(layout=table.layout, text=document_text)
+
+        box_vertices = table.layout.bounding_poly.normalized_vertices
 
         page_block_content.append(
             GoogleTextBlockContent(
-                layout=paragraph.layout,
                 text=text,
-                coordinates=rectangle_scaled,
+                coordinates=layout_to_scaled_rectangle(
+                    normalized_vertices=box_vertices, page_vertices=page_vertices
+                ),
+                google_type="table",
+            )
+        )
+
+    for visual_element in page.visual_elements:
+        text = layout_to_text(layout=visual_element.layout, text=document_text)
+
+        box_vertices = visual_element.layout.bounding_poly.normalized_vertices
+
+        page_block_content.append(
+            GoogleTextBlockContent(
+                text=text,
+                coordinates=layout_to_scaled_rectangle(
+                    normalized_vertices=box_vertices, page_vertices=page_vertices
+                ),
+                google_type="visual_element",
             )
         )
 
