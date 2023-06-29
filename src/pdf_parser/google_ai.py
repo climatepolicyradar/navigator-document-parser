@@ -7,6 +7,15 @@ from google.cloud import documentai  # type: ignore
 from google.cloud import documentai_v1
 from layoutparser.elements import Rectangle
 from pydantic import BaseModel
+from enum import Enum
+
+
+class GoogleTypes(str, Enum):
+    """Enum for Google AI block types."""
+
+    VISUAL_ELEMENT = "VISUAL_ELEMENT"
+    PARAGRAPH = "PARAGRAPH"
+    TABLE = "TABLE"
 
 
 class PDFPage(BaseModel):
@@ -21,9 +30,8 @@ class GoogleTextBlockContent(BaseModel):
 
     text: str
     coordinates: Any
-    # TODO add Enum for type
     # TODO we aren't currently using or persisting this information, should we?
-    google_type: str
+    google_type: GoogleTypes
 
 
 class GoogleAIAPIWrapper:
@@ -122,7 +130,7 @@ def get_google_ai_text_blocks(
                 coordinates=layout_to_scaled_rectangle(
                     normalized_vertices=box_vertices, page_vertices=page_vertices
                 ),
-                google_type="paragraph",
+                google_type=GoogleTypes.PARAGRAPH,
             )
         )
 
@@ -137,7 +145,7 @@ def get_google_ai_text_blocks(
                 coordinates=layout_to_scaled_rectangle(
                     normalized_vertices=box_vertices, page_vertices=page_vertices
                 ),
-                google_type="table",
+                google_type=GoogleTypes.TABLE,
             )
         )
 
@@ -152,7 +160,7 @@ def get_google_ai_text_blocks(
                 coordinates=layout_to_scaled_rectangle(
                     normalized_vertices=box_vertices, page_vertices=page_vertices
                 ),
-                google_type="visual_element",
+                google_type=GoogleTypes.VISUAL_ELEMENT,
             )
         )
 
