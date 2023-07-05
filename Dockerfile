@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install dependencies for pdf2image and tesseract
 RUN apt-get update
-RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev git build-essential
+RUN apt-get install -y ffmpeg libsm6 libxext6 poppler-utils tesseract-ocr libtesseract-dev git pre-commit build-essential
 
 # Install pip and poetry
 RUN pip install --upgrade pip
