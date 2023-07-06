@@ -10,7 +10,7 @@ from src.html_parser.combined import CombinedParser
     "url",
     [
         # "https://www.legislation.gov.au/Details/F2020L00552",
-        "https://www.bopa.ad/bopa/030040/Pagines/GD20180622_09_07_48.aspx",
+        "https://www.york.ac.uk/teaching/cws/wws/webpage1.html",
     ],
 )
 @pytest.mark.parametrize(
