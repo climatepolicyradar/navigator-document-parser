@@ -16,7 +16,7 @@ COPY ./poetry.lock ./pyproject.toml ./
 
 # Install python dependencies using poetry
 RUN poetry config virtualenvs.create false
-RUN poetry export > requirements.txt
+RUN poetry export --with dev > requirements.txt
 RUN pip3 install --no-cache -r requirements.txt
 RUN pip3 install --no-cache "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 RUN playwright install
