@@ -1,57 +1,30 @@
 """Base classes for parsing."""
-
-import logging
 import logging.config
-from abc import ABC, abstractmethod
 from collections import Counter
 from datetime import date
 from enum import Enum
-from typing import Optional, Sequence, Tuple, List
-from google.cloud.vision_v1.types import BoundingPoly  # type: ignore
+from typing import Optional, Sequence, Tuple, List, Any
 
-import layoutparser.elements as lp_elements
-from langdetect import DetectorFactory
-from langdetect import detect
+from azure.ai.formrecognizer import DocumentTable, Point
+from langdetect import DetectorFactory, detect
 from pydantic import BaseModel, Field, root_validator
 
-
-_LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 CONTENT_TYPE_HTML = "text/html"
 CONTENT_TYPE_PDF = "application/pdf"
 
 
-class GoogleTextSegment(BaseModel):
-    """A segment of text from Google OCR."""
+class PDFPage(BaseModel):
+    """Represents a batch of pages from a PDF document."""
 
-    class Config:
-        """Pydantic config."""
-
-        arbitrary_types_allowed = True
-
-    text: str
-    coordinates: BoundingPoly
-    confidence: float
-    language: Optional[str]
-
-
-class GoogleBlock(BaseModel):
-    """A fully structured block from google OCR. Can contain multiple segments."""
-
-    class Config:
-        """Pydantic config."""
-
-        arbitrary_types_allowed = True
-
-    coordinates: BoundingPoly
-    text_blocks: List[GoogleTextSegment]
+    page_number: int
+    extracted_content: Any
 
 
 class BlockType(str, Enum):
     """
-    List of possible block types from the PubLayNet model.
-
-    https://layout-parser.readthedocs.io/en/latest/notes/modelzoo.html#model-label-map
+    List of possible block types.
     """
 
     TEXT = "Text"
@@ -60,14 +33,13 @@ class BlockType(str, Enum):
     TABLE = "Table"
     FIGURE = "Figure"
     INFERRED = "Inferred from gaps"
-    GOOGLE = "Google Text Block"
-    AMBIGUOUS = "Ambiguous"  # TODO: remove this when OCRProcessor._infer_block_type is implemented
+    AMBIGUOUS = "Ambiguous"
+    GOOGLE_BLOCK = "Google Text Block"
 
 
 class TextBlock(BaseModel):
     """
     Base class for a text block.
-
     :attribute text: list of text lines contained in the text block
     :attribute text_block_id: unique identifier for the text block
     :attribute language: language of the text block. 2-letter ISO code, optional.
@@ -79,8 +51,9 @@ class TextBlock(BaseModel):
     text_block_id: str
     language: Optional[
         str
-    ] = None  # TODO: validate this against a list of language ISO codes
-    type: BlockType
+    ] = None
+    # FIXME: Setting as string for now as we don't have a types for all the new options
+    type: str  # BlockType
     type_confidence: float = Field(ge=0, le=1)
 
     def to_string(self) -> str:
@@ -91,9 +64,8 @@ class TextBlock(BaseModel):
 
 class HTMLTextBlock(TextBlock):
     """
-    Text block parsed from an HTML document.
-
-    Type is set to "Text" with a confidence of 1.0 by default, as we do not predict types for text blocks parsed from HTML.
+    Text block parsed from an HTML document. Type is set to "Text" with a confidence of 1.0 by default,
+    as we do not predict types for text blocks parsed from HTML.
     """
 
     type: BlockType = BlockType.TEXT
@@ -103,9 +75,7 @@ class HTMLTextBlock(TextBlock):
 class PDFTextBlock(TextBlock):
     """
     Text block parsed from a PDF document.
-
     Stores the text and positional information for a single text block extracted from a document.
-
     :attribute coords: list of coordinates of the vertices defining the boundary of the text block.
         Each coordinate is a tuple in the format (x, y). (0, 0) is at the top left corner of
         the page, and the positive x- and y- directions are right and down.
@@ -119,55 +89,6 @@ class PDFTextBlock(TextBlock):
         """Returns the lines in a text block as a string with the lines separated by spaces."""
 
         return " ".join([line.strip() for line in self.text])
-
-    @classmethod
-    def from_layoutparser(
-        cls, text_block: lp_elements.TextBlock, text_block_id: str, page_number: int
-    ) -> "PDFTextBlock":
-        """
-        Create a TextBlock from a LayoutParser TextBlock.
-
-        :param text_block: LayoutParser TextBlock
-        :param text_block_id: ID to use for the resulting TextBlock.
-        :param page_number: Page number of the text block.
-        :raises ValueError: if the LayoutParser TextBlock does not have all of the properties `text`, `coordinates`, `score` and `type`.
-        :return TextBlock:
-        """
-
-        null_values_of_lp_block = [
-            k
-            for k, v in {
-                "text": text_block.text,
-                "coordinates": text_block.coordinates,
-                "score": text_block.score,
-                "type": text_block.type,
-            }.items()
-            if v is None
-        ]
-        if len(null_values_of_lp_block) > 0:
-            raise ValueError(
-                f"LayoutParser TextBlock has null values: {null_values_of_lp_block}"
-            )
-
-        # Convert from a potentially not rectangular quadrilateral to a rectangle.
-        # This method does nothing if the text block is already a rectangle.
-        text_block = text_block.to_rectangle()
-
-        new_format_coordinates = [
-            (text_block.block.x_1, text_block.block.y_1),
-            (text_block.block.x_2, text_block.block.y_1),
-            (text_block.block.x_2, text_block.block.y_2),
-            (text_block.block.x_1, text_block.block.y_2),
-        ]
-
-        return PDFTextBlock(
-            text=[text_block.text],
-            text_block_id=text_block_id,
-            coords=new_format_coordinates,
-            type_confidence=text_block.score,
-            type=text_block.type,
-            page_number=page_number,
-        )
 
 
 class ParserInput(BaseModel):
@@ -194,29 +115,50 @@ class HTMLData(BaseModel):
 
 
 class PDFPageMetadata(BaseModel):
-    """
-    Set of metadata for a single page of a PDF document.
-
-    :attribute dimensions: (width, height) of the page in pixels
-    """
+    """Set of metadata for a single page of a PDF document."""
 
     page_number: int = Field(ge=0)
     dimensions: Tuple[float, float]
 
 
-class PDFData(BaseModel):
-    """
-    Set of metadata unique to PDF documents.
+class BoundingRegion(BaseModel):
+    """Region of a cell in a table."""
 
-    :attribute pages: List of pages contained in the document
-    :attribute filename: Name of the PDF file, without extension
-    :attribute md5sum: md5sum of PDF content
-    :attribute language: list of 2-letter ISO language codes, optional. If null, the OCR processor didn't support language detection
+    page_number: int
+    polygon: List[Point]
+
+
+class TableCell(BaseModel):
+    """Cell of a table."""
+    # TODO create cell type enum
+    # TODO potentially enforce bounding regions to be one region per page
+    cell_type: str
+    row_index: int
+    column_index: int
+    row_span: int
+    column_span: int
+    content: str
+    bounding_regions: List[BoundingRegion]
+
+
+class PDFTableBlock(BaseModel):
+    """Table block parsed form a PDF document.
+    Stores the text and positional information for a single table block extracted from a document.
     """
+
+    table_id: str
+    row_count: int
+    column_count: int
+    cells: List[TableCell]
+
+
+class PDFData(BaseModel):
+    """Set of metadata unique to PDF documents."""
 
     page_metadata: Sequence[PDFPageMetadata]
     md5sum: str
-    text_blocks: Sequence[PDFTextBlock]
+    text_blocks: Optional[Sequence[PDFTextBlock]] = None
+    table_blocks: Optional[Sequence[PDFTableBlock]] = None
 
 
 class ParserOutput(BaseModel):
@@ -262,19 +204,18 @@ class ParserOutput(BaseModel):
         return values
 
     @property
-    def text_blocks(self) -> Sequence[TextBlock]:  # type: ignore
+    def text_blocks(self) -> Sequence[TextBlock]:
         """
         Return the text blocks in the document. These could differ in format depending on the content type.
-
         :return: Sequence[TextBlock]
         """
 
         if self.document_content_type == CONTENT_TYPE_HTML:
-            return self.html_data.text_blocks  # type: ignore
+            return self.html_data.text_blocks
         elif self.document_content_type == CONTENT_TYPE_PDF:
-            return self.pdf_data.text_blocks  # type: ignore
+            return self.pdf_data.text_blocks
 
-    def to_string(self) -> str:  # type: ignore
+    def to_string(self) -> str:
         """Return the text blocks in the parser output as a string"""
 
         return " ".join(
@@ -288,9 +229,11 @@ class ParserOutput(BaseModel):
         Assumes that a document only has one language.
         """
 
+        # FIXME: We can remove this now as this api doesn't support language detection
         if self.document_content_type != CONTENT_TYPE_HTML:
-            _LOGGER.warning(
-                "Language detection should not be required for non-HTML documents, but it has been run on one. This will overwrite any document languages detected via other means, e.g. OCR."
+            logger.warning(
+                "Language detection should not be required for non-HTML documents, but it has been run on one. "
+                "This will overwrite any document languages detected via other means, e.g. OCR. "
             )
 
         # language detection is not deterministic, so we need to set a seed
@@ -308,9 +251,9 @@ class ParserOutput(BaseModel):
         self, min_language_proportion: float = 0.4
     ):
         """
-        Store the document languages attribute as part of the object by getting all languages with proportion above `min_language_proportion`.
-
-        :attribute min_language_proportion: Minimum proportion of text blocks in a language for it to be considered a language of the document.
+        Store the document languages attribute as part of the object by getting all languages with proportion
+        above `min_language_proportion`. :attribute min_language_proportion: Minimum proportion of text blocks
+        in a language for it to be considered a language of the document.
         """
 
         all_text_block_languages = [
@@ -331,43 +274,3 @@ class ParserOutput(BaseModel):
             ]
 
         return self
-
-
-class HTMLParser(ABC):
-    """Base class for an HTML parser."""
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Identifier for the parser. Can be used if we want to identify the parser that parsed a web page."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def parse_html(self, html: str, url: str) -> ParserOutput:
-        """Parse an HTML string directly."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def parse(self, input: ParserInput) -> ParserOutput:
-        """Parse a web page, by fetching the HTML and then parsing it. Implementations will often call `parse_html`."""
-        raise NotImplementedError()
-
-    def _get_empty_response(self, input: ParserInput) -> ParserOutput:
-        """Return ParsedHTML object with empty fields."""
-        return ParserOutput(
-            document_id=input.document_id,
-            document_metadata=input.document_metadata,
-            document_content_type=input.document_content_type,
-            document_name=input.document_name,
-            document_description=input.document_description,
-            document_source_url=input.document_source_url,
-            document_cdn_object=input.document_cdn_object,
-            document_md5_sum=input.document_md5_sum,
-            document_slug=input.document_slug,
-            html_data=HTMLData(
-                text_blocks=[],
-                detected_date=None,
-                detected_title="",
-                has_valid_text=False,
-            ),
-        )

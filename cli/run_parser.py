@@ -95,13 +95,6 @@ def _get_files_to_parse(
 @click.argument("input_dir", type=str)
 @click.argument("output_dir", type=str)
 @click.option(
-    "--device",
-    type=click.Choice(["cuda", "cpu"]),
-    help="Device to use for PDF parsing",
-    required=True,
-    default="cpu",
-)
-@click.option(
     "--parallel",
     help="Whether to run PDF parsing over multiple processes",
     is_flag=True,
@@ -110,41 +103,36 @@ def _get_files_to_parse(
 @click.option(
     "--files",
     "-f",
-    help="Pass in a list of filenames to parse, relative to the input directory. Used to optionally specify a subset of files to parse.",
+    help="Pass in a list of filenames to parse, relative to the input directory. Used to optionally specify a "
+         "subset of files to parse.",
     multiple=True,
 )
 @click.option(
     "--redo",
     "-r",
-    help="Redo parsing for files that have already been parsed. By default, files with IDs that already exist in the output directory are skipped.",
+    help="Redo parsing for files that have already been parsed. By default, files with IDs that already exist in "
+         "the output directory are skipped.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--s3",
-    help="Input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.",
+    help="Input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, "
+         "and upload the results to S3.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
 )
-@click.option(
-    "--use-google-document-ai",
-    help="Use Google Document AI to parse PDFs",
-    is_flag=True,
-    default=True,
-)
 def main(
     input_dir: str,
     output_dir: str,
     parallel: bool,
-    device: str,
     files: Optional[tuple[str]],
     redo: bool,
     s3: bool,
     debug: bool,
-    use_google_document_ai: bool = False,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
@@ -152,12 +140,10 @@ def main(
     :param input_dir: directory of input JSON files (task specifications)
     :param output_dir: directory of output JSON files (results)
     :param parallel: whether to run PDF parsing over multiple processes
-    :param device: device to use for PDF parsing
     :param files: list of filenames to parse, relative to the input directory. Can be used to select a subset of files to parse.
     :param redo: redo parsing for files that have already been parsed. Defaults to False.
     :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
     :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
-    :param use_google_document_ai: whether to use Google Document AI to help parse PDFs. Defaults to False.
     """
 
     if s3:
@@ -244,8 +230,6 @@ def main(
             pdf_tasks,
             output_dir_as_path,
             parallel=parallel,
-            device=device,
-            use_google_document_ai=use_google_document_ai,
             debug=debug,
             redo=redo,
         )
