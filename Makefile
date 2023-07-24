@@ -2,11 +2,8 @@
 include .env
 
 install:
-	poetry install
-	poetry run pre-commit install
-	poetry run playwright install
-	poetry run pip install "git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
-	cp .env.example .env
+	poetry export --with dev > requirements.txt
+	pip3 install --no-cache -r requirements.txt
 
 run_local:
 	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed

@@ -2,7 +2,7 @@ import io
 import sys
 from io import BytesIO
 import time
-from typing import Tuple, Sequence, Union
+from typing import Tuple, Sequence, Union, Optional
 import logging
 import requests as requests
 
@@ -52,7 +52,7 @@ class AzureApiWrapper:
             endpoint=endpoint, credential=AzureKeyCredential(key),
         )
 
-    def analyze_document_from_url(self, doc_url: str, timeout: int | None = None) -> AnalyzeResult:
+    def analyze_document_from_url(self, doc_url: str, timeout: Optional[Union[int, None]] = None) -> AnalyzeResult:
         """Analyze a pdf document accessible by an endpoint."""
         logger.info('Analyzing document from url...', extra={"props": {"url": doc_url}})
         poller = self.document_analysis_client.begin_analyze_document_from_url(
@@ -63,7 +63,7 @@ class AzureApiWrapper:
 
         return poller.result(timeout=timeout)
 
-    def analyze_document_from_bytes(self, doc_bytes: bytes, timeout: int | None = None) -> AnalyzeResult:
+    def analyze_document_from_bytes(self, doc_bytes: bytes, timeout: Optional[Union[int, None]] = None) -> AnalyzeResult:
         """Analyze a pdf document in the form of bytes."""
         logger.info('Analyzing document from bytes...', extra={"props": {"bytes_size": sys.getsizeof(doc_bytes)}})
         poller = self.document_analysis_client.begin_analyze_document(
@@ -75,7 +75,7 @@ class AzureApiWrapper:
         return poller.result(timeout=timeout)
 
     def analyze_large_document_from_url_split(
-            self, doc_url: str, timeout: int | None = None) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
+            self, doc_url: str, timeout: Optional[Union[int, None]] = None) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
         """Analyze a large pdf document accessible by an endpoint by splitting into individual pages."""
         logger.info(
             'Analyzing large document from url by splitting into individual pages...',
@@ -110,7 +110,7 @@ class AzureApiWrapper:
             raise e
 
     def analyze_large_document_from_bytes_split(
-            self, doc_bytes: bytes, timeout: int | None = None) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
+            self, doc_bytes: bytes, timeout: Optional[Union[int, None]] = None) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
         """Analyze a large pdf document in the bytes form by splitting into individual pages."""
         logger.info(
             'Analyzing large document from bytes by splitting into individual pages...',

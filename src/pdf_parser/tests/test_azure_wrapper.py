@@ -1,19 +1,5 @@
-import unittest
-from mock import call, patch
+def test_analyze_document_from_url(mock_azure_client, mock_response_analyse_document_from_url):
+    response = mock_azure_client.analyze_document_from_url("https://example.com/test.pdf")
 
-from src.pdf_parser.azure_wrapper import AzureApiWrapper
-
-
-class AzureApiWrapperApiTest(unittest.TestCase):
-
-    @patch('src.pdf_parser.azure_wrapper.AzureApiWrapper.analyze_document_from_url')
-    def test_analyze_document_from_url(self, mocked_api_func):
-
-        response = AzureApiWrapper('user', 'pass').analyze_document_from_url("https://example.com/test.pdf")
-
-        self.assertTrue(mocked_api_func.called)
-        self.assertEqual(
-            mocked_api_func.call_args_list,
-            [call('user', 'pass')]
-        )
-        self.assertEqual(mocked_api_func.return_value, response)
+    assert mock_azure_client.analyze_document_from_url.call_count is 1
+    assert response == mock_response_analyse_document_from_url

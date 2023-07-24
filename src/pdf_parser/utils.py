@@ -9,7 +9,7 @@ from src.base import ParserOutput, PDFTextBlock, PDFData, \
     PDFPageMetadata, PDFPage, TableCell, BoundingRegion, PDFTableBlock, ParserInput
 
 
-def polygon_to_coords(polygon: list[Point]) -> list[tuple[float, float]]:
+def polygon_to_coords(polygon: Sequence[Point]) -> list[tuple[float, float]]:
     """Converts a polygon (four x,y co-ordinates) to a list of co-ordinates (two x,y points).
     The co-ordinates represent the box as (x1, y1), (x2, y2).
 
