@@ -130,7 +130,7 @@ def merge_responses(pages: Sequence[PDFPage]) -> AnalyzeResult:
     page_merged = pages[0].extracted_content
 
     [
-        page_merged.paragraphs.append(page.extracted_content.paragrahs)
+        page_merged.paragraphs.append(page.extracted_content.paragraphs)
         for page in pages[1:]
     ]
 

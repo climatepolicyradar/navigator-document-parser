@@ -1,5 +1,4 @@
-import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from azure.ai.formrecognizer import AnalyzeResult
 
@@ -61,20 +60,11 @@ def test_analyze_document_from_bytes(mock_azure_client, one_page_mock_analyse_re
     assert response == one_page_mock_analyse_result
 
 
-def test_document_split_one_page(mock_azure_client, one_page_mock_analyse_result, one_page_pdf_bytes):
+def test_document_split_one_page(mock_azure_client, one_page_mock_analyse_result, mock_document_download_response_one_page):
     """Test that processing a document via url with the multi page function returns the correct response."""
     # TODO can this go in a pytest fixture
     with patch('requests.get') as mock_get:
-        # Create a mock Response object
-        mock_response = unittest.mock.Mock()
-        mock_response.content = one_page_pdf_bytes
-
-        # Set the status code and other attributes as needed for your test
-        mock_response.status_code = 200
-        mock_response.headers = {'content-type': 'application/pdf'}
-
-        # Configure the mock get method to return the mock Response
-        mock_get.return_value = mock_response
+        mock_get.return_value = mock_document_download_response_one_page
 
         page_api_responses, merged_page_api_responses = mock_azure_client.analyze_large_document_from_url_split(
             "https://example.com/test.pdf"
@@ -85,5 +75,24 @@ def test_document_split_one_page(mock_azure_client, one_page_mock_analyse_result
         assert isinstance(page_api_responses[0], PDFPage)
         assert page_api_responses[0].page_number is 1
         assert page_api_responses[0].extracted_content is one_page_mock_analyse_result
+
         assert isinstance(merged_page_api_responses, AnalyzeResult)
 
+
+def test_document_split_two_page(mock_azure_client, one_page_mock_analyse_result, mock_document_download_response_two_page):
+    """Test that processing a document via url with the multi page function returns the correct response."""
+    with patch('requests.get') as mock_get:
+        mock_get.return_value = mock_document_download_response_two_page
+
+        page_api_responses, merged_page_api_responses = mock_azure_client.analyze_large_document_from_url_split(
+            "https://example.com/test.pdf"
+        )
+
+        assert isinstance(page_api_responses, list)
+        assert len(page_api_responses) is 2
+        for i, page_response in enumerate(page_api_responses):
+            assert isinstance(page_response, PDFPage)
+            assert page_response.page_number is i+1
+            assert page_response.extracted_content is one_page_mock_analyse_result
+
+        assert isinstance(merged_page_api_responses, AnalyzeResult)

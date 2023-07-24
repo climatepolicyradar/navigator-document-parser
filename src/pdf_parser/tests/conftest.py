@@ -1,3 +1,4 @@
+import unittest
 from unittest.mock import MagicMock
 
 import pytest
@@ -29,6 +30,12 @@ def one_page_pdf_bytes() -> bytes:
 
 
 @pytest.fixture()
+def two_page_pdf_bytes() -> bytes:
+    """Content for the sample two page pdf"""
+    return read_pdf_to_bytes("data/sample-two-page.pdf")
+
+
+@pytest.fixture()
 def one_page_mock_analyse_result() -> AnalyzeResult:
     """Mock response for the analyse document from url endpoint."""
     data = read_local_json_file("data/sample-one-page.json")
@@ -42,3 +49,31 @@ def mock_azure_client(one_page_mock_analyse_result) -> AzureApiWrapper:
     azure_client.analyze_document_from_url = MagicMock(return_value=one_page_mock_analyse_result)
     azure_client.analyze_document_from_bytes = MagicMock(return_value=one_page_mock_analyse_result)
     return azure_client
+
+
+@pytest.fixture
+def mock_document_download_response_one_page(one_page_pdf_bytes) -> unittest.mock.Mock:
+    """Create a mock response to a download request for a pdf document with one page."""
+    # Create a mock Response object
+    mock_response = unittest.mock.Mock()
+    mock_response.content = one_page_pdf_bytes
+
+    # Set the status code and other attributes as needed for your test
+    mock_response.status_code = 200
+    mock_response.headers = {'content-type': 'application/pdf'}
+
+    return mock_response
+
+
+@pytest.fixture
+def mock_document_download_response_two_page(two_page_pdf_bytes) -> unittest.mock.Mock:
+    """Create a mock response to a download request for a pdf document with two page."""
+    # Create a mock Response object
+    mock_response = unittest.mock.Mock()
+    mock_response.content = two_page_pdf_bytes
+
+    # Set the status code and other attributes as needed for your test
+    mock_response.status_code = 200
+    mock_response.headers = {'content-type': 'application/pdf'}
+
+    return mock_response
