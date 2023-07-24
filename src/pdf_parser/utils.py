@@ -59,8 +59,7 @@ def convert_to_parser_output(parser_input: ParserInput, md5sum: str, api_respons
                 )
                 for page in api_response.pages
             ],
-            # FIXME: add proper md5sum
-            md5sum='',
+            md5sum=md5sum,
             text_blocks=[
                 convert_to_text_block(paragraph_id=index, paragraph=paragraph)
                 for index, paragraph in enumerate(api_response.paragraphs)
