@@ -15,15 +15,30 @@ def read_local_json_file(file_path: str) -> list[dict[dict]]:
     return data
 
 
+def read_pdf_to_bytes(file_path: str) -> bytes:
+    """Read a pdf to bytes from a local path."""
+    with open(file_path, 'rb') as file:
+        pdf_bytes = file.read()
+    return pdf_bytes
+
+
 @pytest.fixture()
-def mock_response_analyse_document_from_url() -> AnalyzeResult:
+def one_page_pdf_bytes() -> bytes:
+    """Content for the sample one page pdf"""
+    return read_pdf_to_bytes("data/sample-one-page.pdf")
+
+
+@pytest.fixture()
+def one_page_mock_analyse_result() -> AnalyzeResult:
     """Mock response for the analyse document from url endpoint."""
-    data = read_local_json_file("./data/sample-layout.json")
+    data = read_local_json_file("data/sample-one-page.json")
     return AnalyzeResult.from_dict(data[0])
 
 
 @pytest.fixture()
-def mock_azure_client(mock_response_analyse_document_from_url) -> AzureApiWrapper:
+def mock_azure_client(one_page_mock_analyse_result) -> AzureApiWrapper:
+    """A mock client to the azure form recognizer api with mocked responses from the api endpoints."""
     azure_client = AzureApiWrapper('user', 'pass')
-    azure_client.analyze_document_from_url = MagicMock(return_value=mock_response_analyse_document_from_url)
+    azure_client.analyze_document_from_url = MagicMock(return_value=one_page_mock_analyse_result)
+    azure_client.analyze_document_from_bytes = MagicMock(return_value=one_page_mock_analyse_result)
     return azure_client

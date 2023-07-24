@@ -2,7 +2,7 @@ import io
 import sys
 from io import BytesIO
 import time
-from typing import Tuple, Sequence, Union, Optional
+from typing import Tuple, Sequence, Union, Optional, Any
 import logging
 import requests as requests
 
@@ -31,7 +31,7 @@ def poller_loop(
     logger.info(f"Poller status {poller.status()}...")
 
 
-def call_api_with_error_handling(retries: int, func, *args, **kwargs) -> None:
+def call_api_with_error_handling(retries: int, func, *args, **kwargs) -> Any:
     """Call an API function with retries and error handling."""
     logger.info(
         "Calling API function with retries...", extra={"props": {"retries": retries}}
@@ -101,7 +101,14 @@ class AzureApiWrapper:
             extra={"props": {"url": doc_url}},
         )
         try:
-            resp = requests.get(doc_url)
+            resp: requests.Response = call_api_with_error_handling(
+                func=requests.get,
+                retries=3,
+                url=doc_url
+            )
+            if resp.status_code is not 200:
+                raise Exception(f"Invalid response when downloading document: {doc_url}")
+
             pdf_bytes = BytesIO(resp.content)
 
             pages_dict = split_into_pages(document_bytes=pdf_bytes)
