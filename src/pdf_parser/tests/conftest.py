@@ -1,15 +1,16 @@
 import unittest
+from typing import Union
 from unittest.mock import MagicMock
 
 import pytest
 import json
 
-from azure.ai.formrecognizer import AnalyzeResult
+from azure.ai.formrecognizer import AnalyzeResult, DocumentParagraph, DocumentTable
 
 from src.pdf_parser.azure_wrapper import AzureApiWrapper
 
 
-def read_local_json_file(file_path: str) -> list[dict[dict]]:
+def read_local_json_file(file_path: str) -> Union[list[dict[dict]], dict]:
     """Read a local json file and return the data."""
     with open(file_path) as json_file:
         data = json.load(json_file)
@@ -77,3 +78,17 @@ def mock_document_download_response_two_page(two_page_pdf_bytes) -> unittest.moc
     mock_response.headers = {'content-type': 'application/pdf'}
 
     return mock_response
+
+
+@pytest.fixture
+def document_paragraph() -> DocumentParagraph:
+    """Construct a document paragraph object."""
+    data = read_local_json_file("data/document-paragraph.json")
+    return DocumentParagraph.from_dict(data)
+
+
+@pytest.fixture
+def document_table() -> DocumentTable:
+    """Construct a document table object."""
+    data = read_local_json_file("data/document-table.json")
+    return DocumentTable.from_dict(data)

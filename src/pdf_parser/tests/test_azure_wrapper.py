@@ -110,16 +110,18 @@ def test_document_split_two_page(
     """Test that processing a document via url with the split page functionality
     returns the correct response.
 
-    We mock the response from the document download request as well as the reseponse
+    We mock the response from the document download request as well as the response
     from the azure api to extract content from the page.
     """
     with patch('requests.get') as mock_get:
         mock_get.return_value = mock_document_download_response_two_page
 
-        page_api_responses, merged_page_api_responses = \
-            mock_azure_client.analyze_large_document_from_url_split(
-                "https://example.com/test.pdf"
-            )
+        response = mock_azure_client.analyze_large_document_from_url_split(
+            "https://example.com/test.pdf"
+        )
+
+        page_api_responses = response[0]
+        merged_page_api_responses = response[1]
 
         assert isinstance(page_api_responses, list)
         assert len(page_api_responses) is 2

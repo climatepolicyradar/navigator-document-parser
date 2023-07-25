@@ -2,7 +2,8 @@ import io
 from io import BytesIO
 from typing import Sequence
 
-from azure.ai.formrecognizer import AnalyzeResult, DocumentParagraph, Point
+from azure.ai.formrecognizer import AnalyzeResult, DocumentParagraph, Point, \
+    DocumentTable
 from PyPDF2 import PdfReader, PdfWriter
 
 from src.base import ParserOutput, PDFTextBlock, PDFData, \
@@ -41,6 +42,34 @@ def convert_to_text_block(
     )
 
 
+def convert_to_table_block(table: DocumentTable, index: int) -> PDFTableBlock:
+    """Convert the tables in an api response to an array of table blocks."""
+    return PDFTableBlock(
+        table_id=index,
+        row_count=table.row_count,
+        column_count=table.column_count,
+        cells=[
+            TableCell(
+                cell_type=cell.kind,
+                row_index=cell.row_index,
+                column_index=cell.column_index,
+                row_span=cell.row_span,
+                column_span=cell.column_span,
+                content=cell.content,
+                bounding_regions=[
+                    BoundingRegion(
+                        page_number=cell.bounding_regions[
+                            0
+                        ].page_number,
+                        polygon=cell.bounding_regions[0].polygon,
+                    )
+                ],
+            )
+            for cell in table.cells
+        ],
+    )
+
+
 def convert_to_parser_output(
     parser_input: ParserInput, md5sum: str, api_response: AnalyzeResult
 ) -> ParserOutput:
@@ -75,32 +104,9 @@ def convert_to_parser_output(
                     for index, paragraph in enumerate(api_response.paragraphs)
                 ],
                 table_blocks=[
-                    PDFTableBlock(
-                        table_id=0,
-                        row_count=table.row_count,
-                        column_count=table.column_count,
-                        cells=[
-                            TableCell(
-                                cell_type=cell.kind,
-                                row_index=cell.row_index,
-                                column_index=cell.column_index,
-                                row_span=cell.row_span,
-                                column_span=cell.column_span,
-                                content=cell.content,
-                                bounding_regions=[
-                                    BoundingRegion(
-                                        page_number=cell.bounding_regions[
-                                            0
-                                        ].page_number,
-                                        polygon=cell.bounding_regions[0].polygon,
-                                    )
-                                ],
-                            )
-                            for cell in table.cells
-                        ],
-                    )
+                    convert_to_table_block(table=table, index=index)
                     for index, table in enumerate(api_response.tables)
-                ],
+                ]
             ),
         )
         .detect_and_set_languages()
