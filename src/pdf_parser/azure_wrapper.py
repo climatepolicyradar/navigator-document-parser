@@ -95,7 +95,10 @@ class AzureApiWrapper:
     def analyze_large_document_from_url_split(
         self, doc_url: str, timeout: Optional[Union[int, None]] = None
     ) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
-        """Analyze a large pdf document accessible by an endpoint by splitting into individual pages."""
+        """Analyze a large pdf document accessible by an endpoint
+
+        Facilitate processing by splitting into individual pages.
+        """
         logger.info(
             "Analyzing large document from url by splitting into individual pages...",
             extra={"props": {"url": doc_url}},
@@ -130,14 +133,19 @@ class AzureApiWrapper:
 
         except Exception as e:
             logger.error(
-                "Error occurred while analyzing large document from url by splitting into individual pages...",
+                "Error occurred while analyzing large document from url by splitting "
+                "into individual pages...",
                 extra={"props": {"url": doc_url}},
             )
             raise e
 
     def analyze_large_document_from_bytes_split(
-            self, doc_bytes: bytes, timeout: Optional[Union[int, None]] = None) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
-        """Analyze a large pdf document in the bytes form by splitting into individual pages."""
+            self, doc_bytes: bytes, timeout: Optional[Union[int, None]] = None
+    ) -> Tuple[Sequence[PDFPage], AnalyzeResult]:
+        """Analyze a large pdf document in the bytes form.
+
+        Facilitate processing by splitting into individual pages.
+        """
         logger.info(
             "Analyzing large document from bytes by splitting into individual pages...",
             extra={"props": {"bytes_size": sys.getsizeof(doc_bytes)}}
@@ -162,7 +170,8 @@ class AzureApiWrapper:
 
         except Exception as e:
             logger.error(
-                "Error occurred while analyzing large document from bytes by splitting into individual pages...",
+                "Error occurred while analyzing large document from bytes by splitting "
+                "into individual pages...",
                 extra={"props": {"bytes_size": sys.getsizeof(doc_bytes)}}
             )
             raise e

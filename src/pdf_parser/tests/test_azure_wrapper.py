@@ -80,7 +80,10 @@ def test_document_split_one_page(mock_azure_client, one_page_mock_analyse_result
 
 
 def test_document_split_two_page(mock_azure_client, one_page_mock_analyse_result, mock_document_download_response_two_page):
-    """Test that processing a document via url with the multi page function returns the correct response."""
+    """Test that processing a document via url with the split page functionality returns the correct response.
+
+    We mock the response from the document download request as well as the reseponse from the azure api to extract content from the page.
+    """
     with patch('requests.get') as mock_get:
         mock_get.return_value = mock_document_download_response_two_page
 

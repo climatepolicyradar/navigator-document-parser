@@ -10,7 +10,7 @@ from src.base import ParserOutput, PDFTextBlock, PDFData, \
 
 
 def polygon_to_coords(polygon: Sequence[Point]) -> list[tuple[float, float]]:
-    """Converts a polygon (four x,y co-ordinates) to a list of co-ordinates (two x,y points).
+    """Converts a polygon (four x,y co-ordinates) to a list of co-ordinates.
 
     The origin of the co-ordinate system is the top left corner of the page.
 
@@ -30,7 +30,8 @@ def convert_to_text_block(
     """Convert a DocumentParagraph to a PDFTextBlock."""
     return PDFTextBlock(
         coords=polygon_to_coords(paragraph.bounding_regions[0].polygon),
-        # FIXME: The paragraph could be split across multiple pages, page_number only allows int
+        # FIXME: The paragraph could be split across multiple pages, page_number only
+        #  allows int
         page_number=paragraph.bounding_regions[0].page_number,
         text=[paragraph.content],
         text_block_id=str(paragraph_id),
@@ -40,7 +41,9 @@ def convert_to_text_block(
     )
 
 
-def convert_to_parser_output(parser_input: ParserInput, md5sum: str, api_response: AnalyzeResult) -> ParserOutput:
+def convert_to_parser_output(
+    parser_input: ParserInput, md5sum: str, api_response: AnalyzeResult
+) -> ParserOutput:
     """Convert the API response AnalyzeResult object to a ParserOutput."""
     return (
         ParserOutput(
@@ -57,7 +60,8 @@ def convert_to_parser_output(parser_input: ParserInput, md5sum: str, api_respons
             translated=False,
             html_data=None,
             pdf_data=PDFData(
-                # FIXME: Check that the units of the dimensions are correct (units are in inches)
+                # FIXME: Check that the units of the dimensions are correct (units are
+                #  in inches)
                 page_metadata=[
                     PDFPageMetadata(
                         page_number=page.page_number,
