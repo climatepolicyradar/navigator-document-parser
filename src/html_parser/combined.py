@@ -92,7 +92,7 @@ class CombinedParser(HTMLParser):
         try:
             if input.document_source_url is None:
                 raise ValueError(
-                    f"HTML processing was supplied an empty source URL for {input.document_id} "
+                    f"HTML processing was supplied an empty source URL for {input.document_id}"
                 )
             proxy_url = get_proxy_url(input.document_source_url)
             _LOGGER.info(
