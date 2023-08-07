@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from src.config import SCRAPEOPS_API_KEY
 
 

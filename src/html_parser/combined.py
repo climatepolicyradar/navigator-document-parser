@@ -12,6 +12,7 @@ from src.config import (
     HTML_HTTP_REQUEST_TIMEOUT,
     HTML_MAX_PARAGRAPH_LENGTH_WORDS,
 )
+from src.utils import get_proxy_url
 
 _LOGGER = logging.getLogger(__name__)
 
