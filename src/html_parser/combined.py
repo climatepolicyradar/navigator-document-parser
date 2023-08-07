@@ -98,9 +98,7 @@ class CombinedParser(HTMLParser):
             proxy_url = get_proxy_url(input.document_source_url)
             _LOGGER.info(
                 "Using proxy url from srapeops.",
-                extra={
-                    "props": {"proxy_url": proxy_url}
-                }
+                extra={"props": {"proxy_url": proxy_url}},
             )
             requests_response = requests.get(
                 proxy_url,
