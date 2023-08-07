@@ -11,6 +11,7 @@ from src.config import (
     HTML_MIN_NO_LINES_FOR_VALID_TEXT,
     HTML_HTTP_REQUEST_TIMEOUT,
     HTML_MAX_PARAGRAPH_LENGTH_WORDS,
+    SCRAPEOPS_API_KEY,
 )
 from src.utils import get_proxy_url
 
@@ -95,17 +96,26 @@ class CombinedParser(HTMLParser):
                 raise ValueError(
                     f"HTML processing was supplied an empty source URL for {input.document_id}"
                 )
-            proxy_url = get_proxy_url(input.document_source_url)
-            _LOGGER.info(
-                "Using proxy url from srapeops.",
-                extra={"props": {"proxy_url": proxy_url}},
-            )
-            requests_response = requests.get(
-                proxy_url,
-                verify=False,
-                allow_redirects=True,
-                timeout=HTML_HTTP_REQUEST_TIMEOUT,
-            )
+
+            if SCRAPEOPS_API_KEY:
+                proxy_url = get_proxy_url(input.document_source_url)
+                _LOGGER.info(
+                    "Using proxy url from srapeops.",
+                    extra={"props": {"proxy_url": proxy_url}},
+                )
+                requests_response = requests.get(
+                    proxy_url,
+                    verify=False,
+                    allow_redirects=True,
+                    timeout=HTML_HTTP_REQUEST_TIMEOUT,
+                )
+            else:
+                requests_response = requests.get(
+                    input.document_source_url,
+                    verify=False,
+                    allow_redirects=True,
+                    timeout=HTML_HTTP_REQUEST_TIMEOUT,
+                )
         except Exception as e:
             _LOGGER.error(
                 "Failed to download html document.",
