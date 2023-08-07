@@ -98,24 +98,20 @@ class CombinedParser(HTMLParser):
                 )
 
             if SCRAPEOPS_API_KEY:
-                proxy_url = get_proxy_url(input.document_source_url)
+                request_url = get_proxy_url(input.document_source_url)
                 _LOGGER.info(
                     "Using proxy url from srapeops.",
-                    extra={"props": {"proxy_url": proxy_url}},
-                )
-                requests_response = requests.get(
-                    proxy_url,
-                    verify=False,
-                    allow_redirects=True,
-                    timeout=HTML_HTTP_REQUEST_TIMEOUT,
+                    extra={"props": {"proxy_url": request_url}},
                 )
             else:
-                requests_response = requests.get(
-                    input.document_source_url,
-                    verify=False,
-                    allow_redirects=True,
-                    timeout=HTML_HTTP_REQUEST_TIMEOUT,
-                )
+                request_url = input.document_source_url
+
+            requests_response = requests.get(
+                request_url,
+                verify=False,
+                allow_redirects=True,
+                timeout=HTML_HTTP_REQUEST_TIMEOUT,
+            )
         except Exception as e:
             _LOGGER.error(
                 "Failed to download html document.",
