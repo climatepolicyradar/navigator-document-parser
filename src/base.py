@@ -28,7 +28,6 @@ class HTMLParser(ABC):
         will often call `parse_html`. """
         raise NotImplementedError()
 
-    @abstractmethod
     def _get_empty_response(self, input_: ParserInput) -> ParserOutput:
         """Return ParsedHTML object with empty fields."""
         return ParserOutput(
