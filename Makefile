@@ -20,7 +20,7 @@ pre-commit-checks-all-files:
 
 test:
 	docker build -t navigator-document-parser .
-	docker run -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
+	docker run -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e "CDN_DOMAIN=cdn.dev.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
 
 run_docker:
 	docker build -t html-parser .

@@ -13,6 +13,7 @@ import hashlib
 import cloudpathlib.exceptions
 import requests
 from azure.ai.formrecognizer import AnalyzeResult
+from azure.core.exceptions import ServiceRequestError
 from cloudpathlib import CloudPath, S3Path
 from cpr_data_access.parser_models import (
     ParserInput,
@@ -259,11 +260,22 @@ def parse_file(
             )
             return None
 
-        # TODO add error handling for azure api response and retry with large document
-        #  api
-        api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
-            doc_bytes=read_local_json_to_bytes(str(pdf_path)),
-        )
+        # TODO retry with large document method if default fails
+        try:
+            api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
+                doc_bytes=read_local_json_to_bytes(str(pdf_path)),
+            )
+        except ServiceRequestError as e:
+            _LOGGER.exception(
+                "Failed to parse document with Azure API. No connection adapters were "
+                "found for for the endpoint in use.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                    }
+                },
+            )
+            return None
 
         document: ParserOutput = azure_api_response_to_parser_output(
             parser_input=input_task,
