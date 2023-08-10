@@ -196,8 +196,8 @@ def read_local_json_to_bytes(path_: str) -> bytes:
 
 
 def parse_file(
-    azure_client: AzureApiWrapper,
     input_task: ParserInput,
+    azure_client: AzureApiWrapper,
     output_dir: Union[Path, S3Path],
     redo: bool = False,
 ):
@@ -357,9 +357,9 @@ def run_pdf_parser(
 
     file_parser = partial(
         parse_file,
+        azure_client=azure_client,
         output_dir=output_dir,
         redo=redo,
-        azure_client=azure_client,
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)

@@ -6,10 +6,10 @@ install:
 	pip3 install --no-cache -r requirements.txt
 
 run_local:
-	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed
+	TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed
 
 test_local:
-	LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x PDF_OCR_AGENT=tesseract TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
+	TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
 
 build:
 	docker build -t navigator-document-parser .
@@ -20,7 +20,7 @@ pre-commit-checks-all-files:
 
 test:
 	docker build -t navigator-document-parser .
-	docker run -e "LAYOUTPARSER_MODEL=faster_rcnn_R_50_FPN_3x" -e "PDF_OCR_AGENT=tesseract" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
+	docker run -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e "CDN_DOMAIN=cdn.climatepolicyradar.org" --network host navigator-document-parser python -m pytest -vvv
 
 run_docker:
 	docker build -t html-parser .
