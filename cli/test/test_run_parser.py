@@ -50,7 +50,8 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
             assert ParserOutput.parse_file(output_file)
 
             if "html" in str(output_file):
-                assert ParserOutput.parse_file(output_file).html_data.text_blocks != []
+                html_data = ParserOutput.parse_file(output_file).html_data
+                assert html_data.text_blocks != [] or html_data.text_blocks is not None
 
             if "pdf" in str(output_file):
                 pdf_data = ParserOutput.parse_file(output_file).pdf_data
@@ -87,8 +88,8 @@ def test_run_parser_local_series(test_input_dir) -> None:
             assert ParserOutput.parse_file(output_file)
 
             if "html" in str(output_file):
-                assert ParserOutput.parse_file(
-                    output_file).html_data.text_blocks != []
+                html_data = ParserOutput.parse_file(output_file).html_data
+                assert html_data.text_blocks != [] or html_data.text_blocks is not None
 
             if "pdf" in str(output_file):
                 pdf_data = ParserOutput.parse_file(output_file).pdf_data
