@@ -3,6 +3,10 @@ FROM python:3.9-slim-bullseye
 RUN mkdir /app
 WORKDIR /app
 
+# Install git and precommit
+RUN apt-get update
+RUN apt-get install -y git pre-commit
+
 # Install pip and poetry
 RUN pip install --upgrade pip
 RUN pip install "poetry==1.5.1"
