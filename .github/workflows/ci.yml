@@ -24,7 +24,7 @@ jobs:
 
       - name: Run Unit Tests
         run:  make test
-        with:
+        env:
           AZURE_PROCESSOR_KEY: ${{ secrets.AZURE_PROCESSOR_KEY }}
           AZURE_PROCESSOR_ENDPOINT: ${{ secrets.AZURE_PROCESSOR_ENDPOINT }}
 
