@@ -18,7 +18,8 @@ def should_be_translated(document: ParserOutput) -> bool:
     """
     Determine if a document should be translated.
 
-    If the document has not already been translated and has not null source url, then it should be translated.
+    If the document has not already been translated and has not null source url,
+    then it should be translated.
     """
     if document.translated or document.document_source_url is None:
         return False
