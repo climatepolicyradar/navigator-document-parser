@@ -26,7 +26,7 @@ def test_input_dir() -> Path:
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser_local(test_input_dir) -> None:
+def test_run_parser_local_parallel(test_input_dir) -> None:
     """Test that the parsing CLI runs and outputs a file."""
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
@@ -37,7 +37,8 @@ def test_run_parser_local(test_input_dir) -> None:
 
         assert result.exit_code == 0
 
-        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
         assert set(Path(output_dir).glob("*.json")) == {
             Path(output_dir) / "test_html.json",
             Path(output_dir) / "test_pdf.json",
@@ -47,6 +48,57 @@ def test_run_parser_local(test_input_dir) -> None:
 
         for output_file in Path(output_dir).glob("*.json"):
             assert ParserOutput.parse_file(output_file)
+
+            if "html" in str(output_file):
+                html_data = ParserOutput.parse_file(output_file).html_data
+                assert html_data.text_blocks != [] or html_data.text_blocks is not None
+
+            if "pdf" in str(output_file):
+                pdf_data = ParserOutput.parse_file(output_file).pdf_data
+                assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
+                assert pdf_data.md5sum is not ""
+                assert (
+                    pdf_data.page_metadata is not []
+                    or pdf_data.page_metadata is not None
+                )
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_run_parser_local_series(test_input_dir) -> None:
+    """Test that the parsing CLI runs and outputs a file."""
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir]
+        )
+
+        assert result.exit_code == 0
+
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            assert ParserOutput.parse_file(output_file)
+
+            if "html" in str(output_file):
+                html_data = ParserOutput.parse_file(output_file).html_data
+                assert html_data.text_blocks != [] or html_data.text_blocks is not None
+
+            if "pdf" in str(output_file):
+                pdf_data = ParserOutput.parse_file(output_file).pdf_data
+                assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
+                assert pdf_data.md5sum is not ""
+                assert (
+                    pdf_data.page_metadata is not []
+                    or pdf_data.page_metadata is not None
+                )
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
