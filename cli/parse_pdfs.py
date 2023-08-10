@@ -13,9 +13,9 @@ import hashlib
 import cloudpathlib.exceptions
 import requests
 from azure.ai.formrecognizer import AnalyzeResult
+from azure.core.exceptions import ServiceRequestError
 from cloudpathlib import CloudPath, S3Path
-
-from src.base import (
+from cpr_data_access.parser_models import (
     ParserInput,
     ParserOutput,
     PDFData,
@@ -197,8 +197,8 @@ def read_local_json_to_bytes(path_: str) -> bytes:
 
 
 def parse_file(
-    azure_client: AzureApiWrapper,
     input_task: ParserInput,
+    azure_client: AzureApiWrapper,
     output_dir: Union[Path, S3Path],
     redo: bool = False,
 ):
@@ -260,11 +260,34 @@ def parse_file(
             )
             return None
 
-        # TODO add error handling for azure api response and retry with large document
-        #  api
-        api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
-            doc_bytes=read_local_json_to_bytes(str(pdf_path)),
-        )
+        # TODO retry with large document method if default fails
+        try:
+            api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
+                doc_bytes=read_local_json_to_bytes(str(pdf_path)),
+            )
+        except ServiceRequestError as e:
+            _LOGGER.exception(
+                "Failed to parse document with Azure API. This is most likely due to "
+                "incorrect azure api credentials.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "error_message": str(e.message),
+                    }
+                },
+            )
+            return None
+        except Exception as e:
+            _LOGGER.exception(
+                "Failed to parse document with Azure API.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "error_message": str(e),
+                    }
+                },
+            )
+            return None
 
         document: ParserOutput = azure_api_response_to_parser_output(
             parser_input=input_task,
@@ -358,9 +381,9 @@ def run_pdf_parser(
 
     file_parser = partial(
         parse_file,
+        azure_client=azure_client,
         output_dir=output_dir,
         redo=redo,
-        azure_client=azure_client,
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)

@@ -1,6 +1,7 @@
 import pytest
+from cpr_data_access.parser_models import ParserInput, ParserOutput
 
-from src.base import HTMLParser, ParserInput, ParserOutput
+from src.base import HTMLParser
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
 from src.html_parser.combined import CombinedParser
