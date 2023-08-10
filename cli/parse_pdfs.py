@@ -20,8 +20,7 @@ from src.base import (
     PDFData,
 )
 
-from src.pdf_parser.azure_wrapper import AzureApiWrapper
-from src.pdf_parser.utils import convert_to_parser_output
+from azure_pdf_parser import AzureApiWrapper, azure_api_response_to_parser_output
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 DOCUMENT_BUCKET_PREFIX = os.getenv("DOCUMENT_BUCKET_PREFIX", "navigator")
@@ -240,16 +239,15 @@ def parse_file(
         )
         return None
 
-    # TODO - We can avoid downloading the file to the parser entirely, only keeping this in as it's useful for
-    #  getting the md5sum
     with tempfile.TemporaryDirectory() as temp_output_dir:
         _LOGGER.info(f"Downloading pdf: {input_task.document_id}")
         pdf_path = download_pdf(input_task, temp_output_dir)
         _LOGGER.info(f"PDF path for: {input_task.document_id} - {pdf_path}")
         if pdf_path is None:
             _LOGGER.info(
-                "PDF path is None for document as the document either couldn't be downloaded, isn't content-type "
-                "pdf or the response status code is not 200.",
+                "PDF path is None for document as the document either couldn't be "
+                "downloaded, isn't content-type pdf or the response status code is not "
+                "200.",
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
@@ -259,7 +257,12 @@ def parse_file(
             )
             return None
 
-        document = convert_to_parser_output(
+        # TODO add error handling for azure api response and retry with large document api
+        api_response = azure_client.analyze_document_from_bytes(
+            doc_bytes=,
+        )
+
+        document = azure_api_response_to_parser_output(
             parser_input=input_task,
             md5sum=calculate_pdf_md5sum(str(pdf_path)),
             api_response=azure_client.analyze_large_document_from_bytes_split(
