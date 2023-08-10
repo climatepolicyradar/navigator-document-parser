@@ -24,5 +24,5 @@ PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() /
 FILES_TO_PARSE = os.getenv("files_to_parse")
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG").upper()
 
-AZURE_PROCESSOR_KEY = os.environ.get('AZURE_PROCESSOR_KEY')
-AZURE_PROCESSOR_ENDPOINT = os.environ.get('AZURE_PROCESSOR_ENDPOINT')
+AZURE_PROCESSOR_KEY = os.environ.get("AZURE_PROCESSOR_KEY")
+AZURE_PROCESSOR_ENDPOINT = os.environ.get("AZURE_PROCESSOR_ENDPOINT")

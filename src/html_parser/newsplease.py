@@ -11,7 +11,7 @@ from cpr_data_access.parser_models import (
     ParserInput,
     ParserOutput,
     HTMLData,
-    HTMLTextBlock
+    HTMLTextBlock,
 )
 
 _LOGGER = logging.getLogger(__name__)

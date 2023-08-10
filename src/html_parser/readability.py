@@ -8,7 +8,7 @@ from cpr_data_access.parser_models import (
     ParserInput,
     ParserOutput,
     HTMLData,
-    HTMLTextBlock
+    HTMLTextBlock,
 )
 from readability import Document
 import bleach
@@ -120,8 +120,12 @@ class ReadabilityParser(HTMLParser):
 
     @staticmethod
     def _combine_bullet_lines_with_next(lines: List[str]) -> List[str]:
-        """Iterate through all lines of text. If a line is a bullet or numbered list
-        heading (e.g. (1), 1., i.), then combine it with the next line. """
+        """
+        Iterate through all lines of text.
+
+        If a line is a bullet or numbered list heading (e.g. (1), 1., i.),
+        then combine it with the next line.
+        """
 
         list_header_regex = [
             r"([\divxIVX]+\.)+",  # dotted number or roman numeral

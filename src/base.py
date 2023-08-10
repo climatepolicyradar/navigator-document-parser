@@ -1,4 +1,5 @@
 """Base classes for parsing."""
+import logging
 import logging.config
 from abc import ABC, abstractmethod
 
@@ -13,8 +14,11 @@ class HTMLParser(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Identifier for the parser. Can be used if we want to identify the parser
-        that parsed a web page. """
+        """
+        Identifier for the parser.
+
+        Can be used if we want to identify the parser that parsed a web page.
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -24,8 +28,11 @@ class HTMLParser(ABC):
 
     @abstractmethod
     def parse(self, input_: ParserInput) -> ParserOutput:
-        """Parse a web page, by fetching the HTML and then parsing it. Implementations
-        will often call `parse_html`. """
+        """
+        Parse a web page, by fetching the HTML and then parsing it.
+
+        Implementation will often call `parse_html`.
+        """
         raise NotImplementedError()
 
     def _get_empty_response(self, input_: ParserInput) -> ParserOutput:

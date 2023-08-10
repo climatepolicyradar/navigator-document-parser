@@ -56,10 +56,9 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
             if "pdf" in str(output_file):
                 pdf_data = ParserOutput.parse_file(output_file).pdf_data
                 assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
-                assert pdf_data.md5sum is not ""
+                assert pdf_data.md5sum != ""
                 assert (
-                    pdf_data.page_metadata is not []
-                    or pdf_data.page_metadata is not None
+                    pdf_data.page_metadata != [] or pdf_data.page_metadata is not None
                 )
 
 
@@ -69,9 +68,7 @@ def test_run_parser_local_series(test_input_dir) -> None:
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
 
-        result = runner.invoke(
-            cli_main, [str(test_input_dir), output_dir]
-        )
+        result = runner.invoke(cli_main, [str(test_input_dir), output_dir])
 
         assert result.exit_code == 0
 
@@ -94,10 +91,9 @@ def test_run_parser_local_series(test_input_dir) -> None:
             if "pdf" in str(output_file):
                 pdf_data = ParserOutput.parse_file(output_file).pdf_data
                 assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
-                assert pdf_data.md5sum is not ""
+                assert pdf_data.md5sum != ""
                 assert (
-                    pdf_data.page_metadata is not []
-                    or pdf_data.page_metadata is not None
+                    pdf_data.page_metadata != [] or pdf_data.page_metadata is not None
                 )
 
 

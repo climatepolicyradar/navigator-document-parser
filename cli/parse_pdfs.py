@@ -192,7 +192,7 @@ def calculate_pdf_md5sum(file_path: str) -> str:
 
 def read_local_json_to_bytes(path_: str) -> bytes:
     """Read a local json file into bytes"""
-    with open(path_, 'rb') as file:
+    with open(path_, "rb") as file:
         return file.read()
 
 
@@ -375,8 +375,7 @@ def run_pdf_parser(
     )
 
     azure_client = AzureApiWrapper(
-        key=AZURE_PROCESSOR_KEY,
-        endpoint=AZURE_PROCESSOR_ENDPOINT
+        key=AZURE_PROCESSOR_KEY, endpoint=AZURE_PROCESSOR_ENDPOINT
     )
 
     file_parser = partial(
