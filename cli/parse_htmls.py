@@ -6,11 +6,11 @@ from typing import List, Union
 
 import cloudpathlib.exceptions
 from cloudpathlib import CloudPath
+from cpr_data_access.parser_models import ParserInput, ParserOutput, HTMLData
 from tqdm import tqdm
 
 sys.path.append("..")
 
-from src.base import HTMLData, ParserInput, ParserOutput  # noqa: E402
 from src.html_parser.combined import CombinedParser  # noqa: E402
 
 _LOGGER = logging.getLogger(__file__)

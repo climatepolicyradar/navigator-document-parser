@@ -9,14 +9,14 @@ from typing import Optional, Union
 import click
 import pydantic
 from cloudpathlib import S3Path, CloudPath
+from cpr_data_access.parser_models import (
+    ParserInput,
+    CONTENT_TYPE_HTML,
+    CONTENT_TYPE_PDF
+)
 
 sys.path.append("..")
 
-from src.base import (  # noqa: E402
-    CONTENT_TYPE_HTML,
-    CONTENT_TYPE_PDF,
-    ParserInput,
-)
 from src.config import (  # noqa: E402
     FILES_TO_PARSE,
     RUN_HTML_PARSER,
@@ -103,21 +103,24 @@ def _get_files_to_parse(
 @click.option(
     "--files",
     "-f",
-    help="Pass in a list of filenames to parse, relative to the input directory. Used to optionally specify a "
+    help="Pass in a list of filenames to parse, relative to the input directory. Used "
+         "to optionally specify a "
          "subset of files to parse.",
     multiple=True,
 )
 @click.option(
     "--redo",
     "-r",
-    help="Redo parsing for files that have already been parsed. By default, files with IDs that already exist in "
+    help="Redo parsing for files that have already been parsed. By default, files with "
+         "IDs that already exist in "
          "the output directory are skipped.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--s3",
-    help="Input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, "
+    help="Input and output directories are S3 paths. The CLI will download tasks from "
+         "S3, run parsing, "
          "and upload the results to S3.",
     is_flag=True,
     default=False,
@@ -135,15 +138,19 @@ def main(
     debug: bool,
 ):
     """
-    Run the parser on a directory of JSON files specifying documents to parse, and save the results to an output directory.
+    Run the parser on a directory of JSON files specifying documents to parse,
+    and save the results to an output directory.
 
     :param input_dir: directory of input JSON files (task specifications)
     :param output_dir: directory of output JSON files (results)
     :param parallel: whether to run PDF parsing over multiple processes
-    :param files: list of filenames to parse, relative to the input directory. Can be used to select a subset of files to parse.
+    :param files: list of filenames to parse, relative to the input directory.
+        Can be used to select a subset of files to parse.
     :param redo: redo parsing for files that have already been parsed. Defaults to False.
-    :param s3: input and output directories are S3 paths. The CLI will download tasks from S3, run parsing, and upload the results to S3.
-    :param debug: whether to run in debug mode (save images of intermediate steps). Defaults to False.
+    :param s3: input and output directories are S3 paths.
+        The CLI will download tasks from S3, run parsing, and upload the results to S3.
+    :param debug: whether to run in debug mode (save images of intermediate steps).
+        Defaults to False.
     """
 
     if s3:
@@ -212,7 +219,8 @@ def main(
     )
 
     _LOGGER.info(
-        f"Generating outputs for {len(no_processing_tasks)} inputs that cannot be processed."
+        f"Generating outputs for {len(no_processing_tasks)} inputs that cannot be "
+        f"processed. "
     )
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
@@ -236,7 +244,7 @@ def main(
 
     if RUN_TRANSLATION:
         _LOGGER.info(
-            "Translating results to target languages specified in environment variables.",
+            "Translating results to target languages specified in env variables.",
             extra={
                 "props": {
                     "target_languages": ",".join(TARGET_LANGUAGES),

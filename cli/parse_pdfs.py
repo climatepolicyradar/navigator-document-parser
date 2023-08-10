@@ -14,8 +14,7 @@ import cloudpathlib.exceptions
 import requests
 from azure.ai.formrecognizer import AnalyzeResult
 from cloudpathlib import CloudPath, S3Path
-
-from src.base import (
+from cpr_data_access.parser_models import (
     ParserInput,
     ParserOutput,
     PDFData,

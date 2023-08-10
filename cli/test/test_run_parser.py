@@ -6,11 +6,11 @@ import pytest
 from click.testing import CliRunner
 
 from cloudpathlib.local import LocalS3Path
+from cpr_data_access.parser_models import ParserOutput, HTMLData
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
 
-from src.base import ParserOutput, HTMLData
 from src.config import TARGET_LANGUAGES
 
 patcher = mock.patch(

@@ -1,8 +1,10 @@
 from typing import List
 import six
 import logging
+
+from cpr_data_access.parser_models import ParserOutput
 from google.cloud import translate_v2
-from src.base import ParserOutput
+
 
 _LOGGER = logging.getLogger(__file__)
 
