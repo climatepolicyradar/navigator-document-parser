@@ -215,7 +215,7 @@ _target_languages = set(TARGET_LANGUAGES)
 
 
 def get_parser_output(
-        translated: bool, source_url: Union[str, None], languages: Sequence[str]
+    translated: bool, source_url: Union[str, None], languages: Sequence[str]
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
