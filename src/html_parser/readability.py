@@ -41,8 +41,8 @@ class ReadabilityParser(HTMLParser):
         """
         if input.document_source_url is None:
             raise ValueError(
-                "HTML processing was supplied an empty source URL for {"
-                "input.document_id} "
+                f"HTML processing was supplied an empty source URL for "
+                f"{input.document_id}"
             )
 
         try:
