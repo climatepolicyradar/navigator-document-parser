@@ -49,6 +49,10 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
         for output_file in Path(output_dir).glob("*.json"):
             assert ParserOutput.parse_file(output_file)
 
+            text_blocks = ParserOutput.parse_file(output_file).text_blocks
+            if "html" in str(output_file) or "pdf" in str(output_file):
+                assert text_blocks != None and text_blocks != []
+
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_local_series(test_input_dir) -> None:
@@ -73,6 +77,7 @@ def test_run_parser_local_series(test_input_dir) -> None:
 
         for output_file in Path(output_dir).glob("*.json"):
             assert ParserOutput.parse_file(output_file)
+
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_s3(test_input_dir) -> None:
@@ -205,7 +210,7 @@ _target_languages = set(TARGET_LANGUAGES)
 
 
 def get_parser_output(
-    translated: bool, source_url: Union[str, None], languages: Sequence[str]
+        translated: bool, source_url: Union[str, None], languages: Sequence[str]
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
