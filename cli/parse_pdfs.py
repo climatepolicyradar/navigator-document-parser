@@ -267,11 +267,23 @@ def parse_file(
             )
         except ServiceRequestError as e:
             _LOGGER.exception(
-                "Failed to parse document with Azure API. No connection adapters were "
-                "found for for the endpoint in use.",
+                "Failed to parse document with Azure API. This is most likely due to "
+                "incorrect azure api credentials.",
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
+                        "error_message": str(e.message),
+                    }
+                },
+            )
+            return None
+        except Exception as e:
+            _LOGGER.exception(
+                "Failed to parse document with Azure API.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "error_message": str(e),
                     }
                 },
             )
