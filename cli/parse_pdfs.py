@@ -12,6 +12,7 @@ import hashlib
 
 import cloudpathlib.exceptions
 import requests
+from azure.ai.formrecognizer import AnalyzeResult
 from cloudpathlib import CloudPath, S3Path
 
 from src.base import (
@@ -19,8 +20,9 @@ from src.base import (
     ParserOutput,
     PDFData,
 )
-
 from azure_pdf_parser import AzureApiWrapper, azure_api_response_to_parser_output
+
+from src.config import AZURE_PROCESSOR_KEY, AZURE_PROCESSOR_ENDPOINT
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 DOCUMENT_BUCKET_PREFIX = os.getenv("DOCUMENT_BUCKET_PREFIX", "navigator")
@@ -32,11 +34,12 @@ _LOGGER.setLevel(logging.DEBUG)
 def copy_input_to_output_pdf(
     task: ParserInput, output_path: Union[Path, CloudPath]
 ) -> None:
-    """Necessary to copy the input file to the output to ensure that we don't drop documents.
+    """Copy the input file to the output to ensure that we don't drop documents.
 
-    The file is copied at the time of processing rather than syncing the entire input directory so that if that
-    parser fails and retries it will not think that all files have already been parsed. :param task: input task
-    specifying the document to copy :param output_path: path to save the copied file
+    The file is copied at the time of processing rather than syncing the entire input
+    directory so that if that parser fails and retries it will not think that all
+    files have already been parsed. :param task: input task specifying the document to
+    copy :param output_path: path to save the copied file
     """
     try:
         blank_output = ParserOutput(
@@ -151,7 +154,8 @@ def download_pdf(
         return None
     elif response.headers["Content-Type"] != "application/pdf":
         _LOGGER.exception(
-            "Failed to save downloaded file locally. Content-Type is not application/pdf.",
+            "Failed to save downloaded file locally. Content-Type is not "
+            "application/pdf.",
             extra={
                 "props": {
                     "document_id": parser_input.document_id,
@@ -200,11 +204,10 @@ def parse_file(
 ):
     """Parse an individual pdf file.
 
-    Args:
-        azure_client (AzureApiWrapper): Client for interacting with Azure's  services.
-        input_task (ParserInput): Class specifying location of the PDF and other data about the task.
-        output_dir (Path): Path to the output directory.
-        redo (bool): Whether to redo the parsing even if the output file already exists.
+    Args: azure_client (AzureApiWrapper): Client for interacting with Azure's
+    services. input_task (ParserInput): Class specifying location of the PDF and other
+    data about the task. output_dir (Path): Path to the output directory. redo (bool):
+    Whether to redo the parsing even if the output file already exists.
     """
 
     _LOGGER.info(
@@ -217,10 +220,10 @@ def parse_file(
     )
 
     output_path = output_dir / f"{input_task.document_id}.json"
-    if not output_path.exists():  # type: ignore
-        copy_input_to_output_pdf(input_task, output_path)  # type: ignore
+    if not output_path.exists():
+        copy_input_to_output_pdf(input_task, output_path)
 
-    existing_parser_output = ParserOutput.parse_raw(output_path.read_text())  # type: ignore
+    existing_parser_output = ParserOutput.parse_raw(output_path.read_text())
     # If no parsed pdf data exists, assume we've not run before
     existing_pdf_data_exists = (
         existing_parser_output.pdf_data is not None
@@ -257,17 +260,16 @@ def parse_file(
             )
             return None
 
-        # TODO add error handling for azure api response and retry with large document api
-        api_response = azure_client.analyze_document_from_bytes(
-            doc_bytes=,
+        # TODO add error handling for azure api response and retry with large document
+        #  api
+        api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
+            doc_bytes=read_local_json_to_bytes(str(pdf_path)),
         )
 
-        document = azure_api_response_to_parser_output(
+        document: ParserOutput = azure_api_response_to_parser_output(
             parser_input=input_task,
-            md5sum=calculate_pdf_md5sum(str(pdf_path)),
-            api_response=azure_client.analyze_large_document_from_bytes_split(
-                read_local_json_to_bytes(str(pdf_path))
-            )
+            md5_sum=calculate_pdf_md5sum(str(pdf_path)),
+            api_response=api_response,
         )
 
         _LOGGER.info(
@@ -283,7 +285,8 @@ def parse_file(
             output_path.write_text(document.json(indent=4, ensure_ascii=False))
         except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
             _LOGGER.error(
-                "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",
+                "Attempted write to s3, received OverwriteNewerCloudError and "
+                "therefore skipping.",
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
@@ -326,19 +329,15 @@ def run_pdf_parser(
     """
     Run cli to extract semi-structured JSON from document-AI + OCR.
 
-    Args:
-        input_tasks: List of tasks for the parser to process.
-        output_dir: The directory to write the parsed PDFs to.
-        parallel: Whether to run parsing over multiple processes.
-        debug: Whether to run in debug mode (puts images of resulting layouts in output_dir).
-        redo: Whether to redo the parsing even if the output file already exists.
+    Args: input_tasks: List of tasks for the parser to process. output_dir: The
+    directory to write the parsed PDFs to. parallel: Whether to run parsing over
+    multiple processes. debug: Whether to run in debug mode (puts images of resulting
+    layouts in output_dir). redo: Whether to redo the parsing even if the output file
+    already exists.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
     warnings.filterwarnings("ignore")
-
-    google_ai_client = GoogleAIAPIWrapper(PROJECT_ID, LOCATION, PROCESSOR_ID, MIME_TYPE)
-    lp_obj = LayoutParserWrapper()
 
     _LOGGER.info(
         "Iterating through files and parsing pdf content from pages.",
@@ -351,12 +350,17 @@ def run_pdf_parser(
             },
         },
     )
+
+    azure_client = AzureApiWrapper(
+        key=AZURE_PROCESSOR_KEY,
+        endpoint=AZURE_PROCESSOR_ENDPOINT
+    )
+
     file_parser = partial(
         parse_file,
         output_dir=output_dir,
         redo=redo,
-        google_ai_client_=google_ai_client,
-        lp_obj=lp_obj,
+        azure_client=azure_client,
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
