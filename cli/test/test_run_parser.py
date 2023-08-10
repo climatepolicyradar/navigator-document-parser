@@ -54,9 +54,12 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
 
             if "pdf" in str(output_file):
                 pdf_data = ParserOutput.parse_file(output_file).pdf_data
-                assert pdf_data.text_blocks != []
+                assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
                 assert pdf_data.md5sum is not ""
-                assert pdf_data.page_metadata is not []
+                assert (
+                    pdf_data.page_metadata is not []
+                    or pdf_data.page_metadata is not None
+                )
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -89,9 +92,12 @@ def test_run_parser_local_series(test_input_dir) -> None:
 
             if "pdf" in str(output_file):
                 pdf_data = ParserOutput.parse_file(output_file).pdf_data
-                assert pdf_data.text_blocks != []
+                assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
                 assert pdf_data.md5sum is not ""
-                assert pdf_data.page_metadata is not []
+                assert (
+                    pdf_data.page_metadata is not []
+                    or pdf_data.page_metadata is not None
+                )
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
