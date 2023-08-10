@@ -83,6 +83,16 @@ def test_run_parser_local_series(test_input_dir) -> None:
         for output_file in Path(output_dir).glob("*.json"):
             assert ParserOutput.parse_file(output_file)
 
+            if "html" in str(output_file):
+                assert ParserOutput.parse_file(
+                    output_file).html_data.text_blocks != []
+
+            if "pdf" in str(output_file):
+                pdf_data = ParserOutput.parse_file(output_file).pdf_data
+                assert pdf_data.text_blocks != []
+                assert pdf_data.md5sum is not ""
+                assert pdf_data.page_metadata is not []
+
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_s3(test_input_dir) -> None:
