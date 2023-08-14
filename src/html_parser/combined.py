@@ -2,11 +2,12 @@
 
 import logging
 import requests
+from cpr_data_access.parser_models import ParserInput, ParserOutput
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
 from src.html_parser.newsplease import NewsPleaseParser
 from src.html_parser.readability import ReadabilityParser
-from src.base import HTMLParser, ParserInput, ParserOutput
+from src.base import HTMLParser
 from src.config import (
     HTML_MIN_NO_LINES_FOR_VALID_TEXT,
     HTML_HTTP_REQUEST_TIMEOUT,

@@ -6,11 +6,16 @@ import pytest
 from click.testing import CliRunner
 
 from cloudpathlib.local import LocalS3Path
+from cpr_data_access.parser_models import (
+    ParserOutput,
+    HTMLData,
+    CONTENT_TYPE_HTML,
+    CONTENT_TYPE_PDF,
+)
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
 
-from src.base import ParserOutput, HTMLData
 from src.config import TARGET_LANGUAGES
 
 patcher = mock.patch(
@@ -26,7 +31,7 @@ def test_input_dir() -> Path:
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser_local(test_input_dir) -> None:
+def test_run_parser_local_parallel(test_input_dir) -> None:
     """Test that the parsing CLI runs and outputs a file."""
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
@@ -37,7 +42,8 @@ def test_run_parser_local(test_input_dir) -> None:
 
         assert result.exit_code == 0
 
-        # Default config is to translate to English, and the HTML doc is already in English - so we just expect a translation of the PDF
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
         assert set(Path(output_dir).glob("*.json")) == {
             Path(output_dir) / "test_html.json",
             Path(output_dir) / "test_pdf.json",
@@ -46,7 +52,48 @@ def test_run_parser_local(test_input_dir) -> None:
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            assert ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks not in [[], None]
+                assert parser_output.pdf_data.md5sum != ""
+                assert parser_output.pdf_data.page_metadata not in [[], None]
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_run_parser_local_series(test_input_dir) -> None:
+    """Test that the parsing CLI runs and outputs a file."""
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(cli_main, [str(test_input_dir), output_dir])
+
+        assert result.exit_code == 0
+
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks not in [[], None]
+                assert parser_output.pdf_data.md5sum != ""
+                assert parser_output.pdf_data.page_metadata not in [[], None]
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")

@@ -5,9 +5,9 @@ from typing import Set, Sequence, Union
 
 import cloudpathlib.exceptions
 from cloudpathlib import CloudPath
+from cpr_data_access.parser_models import ParserOutput
 from tqdm.auto import tqdm
 
-from src.base import ParserOutput
 from src.config import TARGET_LANGUAGES
 from src.translator.translate import translate_parser_output
 
@@ -18,7 +18,8 @@ def should_be_translated(document: ParserOutput) -> bool:
     """
     Determine if a document should be translated.
 
-    If the document has not already been translated and has not null source url, then it should be translated.
+    If the document has not already been translated and has not null source url,
+    then it should be translated.
     """
     if document.translated or document.document_source_url is None:
         return False
