@@ -6,8 +6,12 @@ import pytest
 from click.testing import CliRunner
 
 from cloudpathlib.local import LocalS3Path
-from cpr_data_access.parser_models import ParserOutput, HTMLData, CONTENT_TYPE_HTML, \
-    CONTENT_TYPE_PDF
+from cpr_data_access.parser_models import (
+    ParserOutput,
+    HTMLData,
+    CONTENT_TYPE_HTML,
+    CONTENT_TYPE_PDF,
+)
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
