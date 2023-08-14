@@ -161,5 +161,4 @@ dmypy.json
 # Ignore json files in the credentials folder
 credentials/*.json
 
-
 requirements.txt

@@ -6,7 +6,8 @@ import pytest
 from click.testing import CliRunner
 
 from cloudpathlib.local import LocalS3Path
-from cpr_data_access.parser_models import ParserOutput, HTMLData
+from cpr_data_access.parser_models import ParserOutput, HTMLData, CONTENT_TYPE_HTML, \
+    CONTENT_TYPE_PDF
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
@@ -47,19 +48,16 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            assert ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
 
-            if "html" in str(output_file):
-                html_data = ParserOutput.parse_file(output_file).html_data
-                assert html_data.text_blocks != [] or html_data.text_blocks is not None
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
 
-            if "pdf" in str(output_file):
-                pdf_data = ParserOutput.parse_file(output_file).pdf_data
-                assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
-                assert pdf_data.md5sum != ""
-                assert (
-                    pdf_data.page_metadata != [] or pdf_data.page_metadata is not None
-                )
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks not in [[], None]
+                assert parser_output.pdf_data.md5sum != ""
+                assert parser_output.pdf_data.page_metadata not in [[], None]
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -82,19 +80,16 @@ def test_run_parser_local_series(test_input_dir) -> None:
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            assert ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
 
-            if "html" in str(output_file):
-                html_data = ParserOutput.parse_file(output_file).html_data
-                assert html_data.text_blocks != [] or html_data.text_blocks is not None
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
 
-            if "pdf" in str(output_file):
-                pdf_data = ParserOutput.parse_file(output_file).pdf_data
-                assert pdf_data.text_blocks != [] or pdf_data.text_blocks is not None
-                assert pdf_data.md5sum != ""
-                assert (
-                    pdf_data.page_metadata != [] or pdf_data.page_metadata is not None
-                )
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks not in [[], None]
+                assert parser_output.pdf_data.md5sum != ""
+                assert parser_output.pdf_data.page_metadata not in [[], None]
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
