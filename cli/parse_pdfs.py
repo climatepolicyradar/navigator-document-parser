@@ -7,7 +7,7 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple, Sequence
 import hashlib
 
 import cloudpathlib.exceptions
@@ -20,10 +20,11 @@ from cpr_data_access.parser_models import (
     ParserOutput,
     PDFData,
 )
-from azure_pdf_parser import AzureApiWrapper, azure_api_response_to_parser_output, \
-    PDFPage
-from typing_extensions import Sequence
-
+from azure_pdf_parser import (
+    AzureApiWrapper,
+    azure_api_response_to_parser_output,
+    PDFPage,
+)
 from src.config import AZURE_PROCESSOR_KEY, AZURE_PROCESSOR_ENDPOINT
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
@@ -290,10 +291,10 @@ def parse_file(
                 },
             )
             try:
-                response_: Tuple[Sequence[PDFPage], AnalyzeResult] = (
-                    azure_client.analyze_large_document_from_bytes(
-                        doc_bytes=read_local_json_to_bytes(str(pdf_path)),
-                    )
+                response_: Tuple[
+                    Sequence[PDFPage], AnalyzeResult
+                ] = azure_client.analyze_large_document_from_bytes(
+                    doc_bytes=read_local_json_to_bytes(str(pdf_path)),
                 )
                 api_response: AnalyzeResult = response_[1]
             except Exception as e:
