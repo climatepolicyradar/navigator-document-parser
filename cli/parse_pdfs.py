@@ -7,20 +7,22 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 import hashlib
 
 import cloudpathlib.exceptions
 import requests
 from azure.ai.formrecognizer import AnalyzeResult
-from azure.core.exceptions import ServiceRequestError
+from azure.core.exceptions import ServiceRequestError, HttpResponseError
 from cloudpathlib import CloudPath, S3Path
 from cpr_data_access.parser_models import (
     ParserInput,
     ParserOutput,
     PDFData,
 )
-from azure_pdf_parser import AzureApiWrapper, azure_api_response_to_parser_output
+from azure_pdf_parser import AzureApiWrapper, azure_api_response_to_parser_output, \
+    PDFPage
+from typing_extensions import Sequence
 
 from src.config import AZURE_PROCESSOR_KEY, AZURE_PROCESSOR_ENDPOINT
 
@@ -260,7 +262,6 @@ def parse_file(
             )
             return None
 
-        # TODO retry with large document method if default fails
         try:
             api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
                 doc_bytes=read_local_json_to_bytes(str(pdf_path)),
@@ -277,9 +278,39 @@ def parse_file(
                 },
             )
             return None
+        except HttpResponseError as e:
+            _LOGGER.exception(
+                "Failed to parse document with Azure API with default endpoint, "
+                "retrying with large document endpoint.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "error_message": str(e.message),
+                    }
+                },
+            )
+            try:
+                response_: Tuple[Sequence[PDFPage], AnalyzeResult] = (
+                    azure_client.analyze_large_document_from_bytes(
+                        doc_bytes=read_local_json_to_bytes(str(pdf_path)),
+                    )
+                )
+                api_response: AnalyzeResult = response_[1]
+            except Exception as e:
+                _LOGGER.exception(
+                    "Failed to parse document with Azure API using the large document "
+                    "endpoint.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "error_message": str(e),
+                        }
+                    },
+                )
+                return None
         except Exception as e:
             _LOGGER.exception(
-                "Failed to parse document with Azure API.",
+                "Failed to parse document with Azure API using the default endpoint.",
                 extra={
                     "props": {
                         "document_id": input_task.document_id,
