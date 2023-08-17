@@ -268,7 +268,7 @@ def parse_file(
                 doc_bytes=read_local_json_to_bytes(str(pdf_path)),
             )
         except ServiceRequestError as e:
-            _LOGGER.exception(
+            _LOGGER.error(
                 "Failed to parse document with Azure API. This is most likely due to "
                 "incorrect azure api credentials.",
                 extra={
@@ -280,7 +280,7 @@ def parse_file(
             )
             return None
         except HttpResponseError as e:
-            _LOGGER.exception(
+            _LOGGER.error(
                 "Failed to parse document with Azure API with default endpoint, "
                 "retrying with large document endpoint.",
                 extra={
