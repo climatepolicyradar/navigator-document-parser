@@ -228,7 +228,7 @@ _target_languages = set(TARGET_LANGUAGES)
 
 
 def get_parser_output(
-        translated: bool, source_url: Union[str, None], languages: Sequence[str]
+    translated: bool, source_url: Union[str, None], languages: Sequence[str]
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
@@ -290,7 +290,9 @@ def test_identify_target_languages() -> None:
 
 
 @patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
-def test_fail_safely_on_azure_uncaught_exception(mock_get, test_input_dir, caplog) -> None:
+def test_fail_safely_on_azure_uncaught_exception(
+    mock_get, test_input_dir, caplog
+) -> None:
     """
     Test the functionality of the pdf parser.
 
@@ -333,7 +335,9 @@ def test_fail_safely_on_azure_uncaught_exception(mock_get, test_input_dir, caplo
 
 
 @patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
-def test_fail_safely_on_azure_service_request_error(mock_get, test_input_dir, caplog) -> None:
+def test_fail_safely_on_azure_service_request_error(
+    mock_get, test_input_dir, caplog
+) -> None:
     """
     Test the functionality of the pdf parser.
 
@@ -352,6 +356,11 @@ def test_fail_safely_on_azure_service_request_error(mock_get, test_input_dir, ca
         )
 
         assert result.exit_code == 0
+
+        assert (
+            "Failed to parse document with Azure API. This is most likely due to "
+            "incorrect azure api credentials." in caplog.text
+        )
 
         assert set(Path(output_dir).glob("*.json")) == {
             Path(output_dir) / "test_html.json",
@@ -406,8 +415,8 @@ def test_fail_safely_on_azure_http_response_error(
             assert result.exit_code == 0
 
             assert (
-                    "Failed to parse document with Azure API with default endpoint, "
-                    "retrying with large document endpoint." in caplog.text
+                "Failed to parse document with Azure API with default endpoint, "
+                "retrying with large document endpoint." in caplog.text
             )
 
             assert set(Path(output_dir).glob("*.json")) == {
