@@ -4,7 +4,7 @@ from typing import Sequence, Union
 from unittest import mock
 
 import pytest
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ServiceRequestError
 from click.testing import CliRunner
 from cloudpathlib.local import LocalS3Path
 from cpr_data_access.parser_models import (
@@ -228,7 +228,7 @@ _target_languages = set(TARGET_LANGUAGES)
 
 
 def get_parser_output(
-    translated: bool, source_url: Union[str, None], languages: Sequence[str]
+        translated: bool, source_url: Union[str, None], languages: Sequence[str]
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
@@ -290,15 +290,13 @@ def test_identify_target_languages() -> None:
 
 
 @patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
-def test_fail_safely_on_pdf_parser_failure(mock_get, test_input_dir, caplog) -> None:
+def test_fail_safely_on_azure_uncaught_exception(mock_get, test_input_dir, caplog) -> None:
     """
     Test the functionality of the pdf parser.
 
     Assert that we safely fail pdf parsing using the azure pdf parser should the default
     endpoint fail with an uncaught Exception.
     """
-
-    # Test that we safely fail on a 500 error on the azure endpoint
     mock_get.side_effect = Exception(
         mock.Mock(status=500), "Mock Internal Server Error"
     )
@@ -334,7 +332,48 @@ def test_fail_safely_on_pdf_parser_failure(mock_get, test_input_dir, caplog) -> 
                 assert parser_output.pdf_data.page_metadata in [[], None]
 
 
-def test_retry_on_pdf_parser_failure(
+@patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
+def test_fail_safely_on_azure_service_request_error(mock_get, test_input_dir, caplog) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we safely fail pdf parsing using the azure pdf parser should the default
+    endpoint fail with an uncaught Exception.
+    """
+    mock_get.side_effect = ServiceRequestError(
+        response=mock.Mock(status=500), message="Mock Service Request Error"
+    )
+
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+        )
+
+        assert result.exit_code == 0
+
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks in [[], None]
+                assert parser_output.pdf_data.md5sum == ""
+                assert parser_output.pdf_data.page_metadata in [[], None]
+
+
+def test_fail_safely_on_azure_http_response_error(
     test_input_dir, one_page_analyse_result, caplog
 ) -> None:
     """
@@ -367,15 +406,14 @@ def test_retry_on_pdf_parser_failure(
             assert result.exit_code == 0
 
             assert (
-                "Failed to parse document with Azure API with default endpoint, "
-                "retrying with large document endpoint." in caplog.text
+                    "Failed to parse document with Azure API with default endpoint, "
+                    "retrying with large document endpoint." in caplog.text
             )
 
             assert set(Path(output_dir).glob("*.json")) == {
                 Path(output_dir) / "test_html.json",
                 Path(output_dir) / "test_pdf.json",
                 Path(output_dir) / "test_no_content_type.json",
-                Path(output_dir) / "test_pdf_translated_en.json",
             }
 
             for output_file in Path(output_dir).glob("*.json"):
