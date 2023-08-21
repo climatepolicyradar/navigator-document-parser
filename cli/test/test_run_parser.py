@@ -1,10 +1,10 @@
-from pathlib import Path
 import tempfile
-from unittest import mock
+from pathlib import Path
 from typing import Sequence, Union
+from unittest import mock
+
 import pytest
 from click.testing import CliRunner
-
 from cloudpathlib.local import LocalS3Path
 from cpr_data_access.parser_models import (
     ParserOutput,
@@ -12,10 +12,10 @@ from cpr_data_access.parser_models import (
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
 )
+from mock import patch
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
-
 from src.config import TARGET_LANGUAGES
 
 patcher = mock.patch(
@@ -286,3 +286,44 @@ def test_identify_target_languages() -> None:
         translated=False, source_url="https://www.google.org", languages=["en"]
     )
     assert identify_translation_languages(doc_2, _target_languages) == set()
+
+
+@patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
+def test_retry_on_pdf_parser_failure(mock_get, test_input_dir) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we retry pdf parsing using the azure pdf parser should the default
+    endpoint fail.
+    """
+    mock_get.side_effect = Exception("Mock Internal Server Error")
+
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+        )
+
+        assert result.exit_code == 0
+
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks not in [[], None]
+                assert parser_output.pdf_data.md5sum != ""
+                assert parser_output.pdf_data.page_metadata not in [[], None]
