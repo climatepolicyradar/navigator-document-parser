@@ -4,6 +4,7 @@ from typing import Sequence, Union
 from unittest import mock
 
 import pytest
+from azure.core.exceptions import HttpResponseError
 from click.testing import CliRunner
 from cloudpathlib.local import LocalS3Path
 from cpr_data_access.parser_models import (
@@ -289,14 +290,18 @@ def test_identify_target_languages() -> None:
 
 
 @patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
-def test_retry_on_pdf_parser_failure(mock_get, test_input_dir) -> None:
+def test_fail_safely_on_pdf_parser_failure(mock_get, test_input_dir, caplog) -> None:
     """
     Test the functionality of the pdf parser.
 
-    Assert that we retry pdf parsing using the azure pdf parser should the default
-    endpoint fail.
+    Assert that we safely fail pdf parsing using the azure pdf parser should the default
+    endpoint fail with an uncaught Exception.
     """
-    mock_get.side_effect = Exception("Mock Internal Server Error")
+
+    # Test that we safely fail on a 500 error on the azure endpoint
+    mock_get.side_effect = Exception(
+        mock.Mock(status=500), "Mock Internal Server Error"
+    )
 
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
@@ -324,6 +329,63 @@ def test_retry_on_pdf_parser_failure(mock_get, test_input_dir) -> None:
                 assert parser_output.html_data.text_blocks not in [[], None]
 
             if parser_output.document_content_type == CONTENT_TYPE_PDF:
-                assert parser_output.pdf_data.text_blocks not in [[], None]
-                assert parser_output.pdf_data.md5sum != ""
-                assert parser_output.pdf_data.page_metadata not in [[], None]
+                assert parser_output.pdf_data.text_blocks in [[], None]
+                assert parser_output.pdf_data.md5sum == ""
+                assert parser_output.pdf_data.page_metadata in [[], None]
+
+
+def test_retry_on_pdf_parser_failure(
+    test_input_dir, one_page_analyse_result, caplog
+) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we retry pdf parsing using the large document endpoint should the default
+    endpoint fail with a HttpResponseError.
+    """
+    with (
+        patch(
+            "cli.parse_pdfs.AzureApiWrapper.analyze_large_document_from_bytes"
+        ) as mock_get_large,
+        patch(
+            "cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes"
+        ) as mock_get_default,
+    ):
+        mock_get_default.side_effect = HttpResponseError(
+            response=mock.Mock(status=500), message="Mock Internal Server Error"
+        )
+
+        mock_get_large.return_value = ({"0": []}, one_page_analyse_result)
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            runner = CliRunner()
+
+            result = runner.invoke(
+                cli_main, [str(test_input_dir), output_dir, "--parallel"]
+            )
+
+            assert result.exit_code == 0
+
+            assert (
+                "Failed to parse document with Azure API with default endpoint, "
+                "retrying with large document endpoint." in caplog.text
+            )
+
+            assert set(Path(output_dir).glob("*.json")) == {
+                Path(output_dir) / "test_html.json",
+                Path(output_dir) / "test_pdf.json",
+                Path(output_dir) / "test_no_content_type.json",
+                Path(output_dir) / "test_pdf_translated_en.json",
+            }
+
+            for output_file in Path(output_dir).glob("*.json"):
+                parser_output = ParserOutput.parse_file(output_file)
+                assert isinstance(parser_output, ParserOutput)
+
+                if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                    assert parser_output.html_data.text_blocks not in [[], None]
+
+                if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                    assert parser_output.pdf_data.text_blocks not in [[], None]
+                    assert parser_output.pdf_data.md5sum != ""
+                    assert parser_output.pdf_data.page_metadata not in [[], None]
