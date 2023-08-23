@@ -13,6 +13,7 @@ from cpr_data_access.parser_models import (
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
 )
+from cpr_data_access.pipeline_general_models import BackendDocument
 from mock import patch
 
 from cli.run_parser import main as cli_main
@@ -137,7 +138,7 @@ def test_run_parser_specific_files() -> None:
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser_skip_already_done(caplog) -> None:
+def test_run_parser_skip_already_done(backend_document_json, caplog) -> None:
     """Test that files which have already been parsed are skipped by default."""
 
     input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
@@ -148,7 +149,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ParserOutput.parse_obj(
                     {
                         "document_id": "test_pdf",
-                        "document_metadata": {},
+                        "document_metadata": backend_document_json,
                         "document_source_url": "https://www.pdfs.org",
                         "document_cdn_object": "test_pdf.pdf",
                         "document_md5_sum": "abcdefghijk",
@@ -181,7 +182,7 @@ def test_run_parser_skip_already_done(caplog) -> None:
                 ParserOutput.parse_obj(
                     {
                         "document_id": "test_html",
-                        "document_metadata": {},
+                        "document_metadata": backend_document_json,
                         "document_source_url": "https://www.google.org",
                         "document_cdn_object": None,
                         "document_md5_sum": None,
@@ -228,12 +229,15 @@ _target_languages = set(TARGET_LANGUAGES)
 
 
 def get_parser_output(
-    translated: bool, source_url: Union[str, None], languages: Sequence[str]
+    translated: bool,
+    source_url: Union[str, None],
+    languages: Sequence[str],
+    document_metadata: dict,
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
         document_id="sdf",
-        document_metadata={},
+        document_metadata=BackendDocument.parse_obj(document_metadata),
         document_name="sdf",
         document_description="sdf",
         document_source_url=source_url,
@@ -254,37 +258,57 @@ def get_parser_output(
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_should_be_translated() -> None:
+def test_should_be_translated(backend_document_json) -> None:
     """Tests whether we can successfully determine whether to translate a known input documents."""
     doc_1 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["fr"]
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["fr"],
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_1) is True
 
-    doc_2 = get_parser_output(translated=False, source_url=None, languages=["fr"])
+    doc_2 = get_parser_output(
+        translated=False,
+        source_url=None,
+        languages=["fr"],
+        document_metadata=backend_document_json,
+    )
     assert should_be_translated(doc_2) is False
 
     doc_3 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["English"]
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["English"],
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_3) is True
 
     doc_4 = get_parser_output(
-        translated=True, source_url="https://www.google.org", languages=["fr"]
+        translated=True,
+        source_url="https://www.google.org",
+        languages=["fr"],
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_4) is False
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_identify_target_languages() -> None:
+def test_identify_target_languages(backend_document_json) -> None:
     """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
     doc_1 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["fr"]
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["fr"],
+        document_metadata=backend_document_json,
     )
     assert identify_translation_languages(doc_1, _target_languages) == {"en"}
 
     doc_2 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["en"]
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["en"],
+        document_metadata=backend_document_json,
     )
     assert identify_translation_languages(doc_2, _target_languages) == set()
 

@@ -23,7 +23,7 @@ jobs:
         run: make pre-commit-checks-all-files
 
       - name: Run Unit Tests
-        run:  make test
+        run: make test
         env:
           AZURE_PROCESSOR_KEY: ${{ secrets.AZURE_PROCESSOR_KEY }}
           AZURE_PROCESSOR_ENDPOINT: ${{ secrets.AZURE_PROCESSOR_ENDPOINT }}
