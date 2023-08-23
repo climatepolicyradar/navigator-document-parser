@@ -325,6 +325,10 @@ def test_fail_safely_on_azure_uncaught_exception(
             parser_output = ParserOutput.parse_file(output_file)
             assert isinstance(parser_output, ParserOutput)
 
+            # Any html data should be parsed successfully as it is not using the azure
+            # api, but the pdf data should fail due to the uncaught exception as we
+            # don't re-attempt with the large document endpoint in this case
+
             if parser_output.document_content_type == CONTENT_TYPE_HTML:
                 assert parser_output.html_data.text_blocks not in [[], None]
 
@@ -372,6 +376,10 @@ def test_fail_safely_on_azure_service_request_error(
         for output_file in Path(output_dir).glob("*.json"):
             parser_output = ParserOutput.parse_file(output_file)
             assert isinstance(parser_output, ParserOutput)
+
+            # Any html data should be parsed successfully as it is not using the azure
+            # api, but the pdf data should fail due to the service request error as we
+            # don't re-attempt with the large document endpoint in this case
 
             if parser_output.document_content_type == CONTENT_TYPE_HTML:
                 assert parser_output.html_data.text_blocks not in [[], None]
@@ -428,6 +436,11 @@ def test_fail_safely_on_azure_http_response_error(
             for output_file in Path(output_dir).glob("*.json"):
                 parser_output = ParserOutput.parse_file(output_file)
                 assert isinstance(parser_output, ParserOutput)
+
+                # Any html data should be parsed successfully as it is not using the
+                # azure api, the pdf data should also be parsed successfully as we
+                # should re-attempt download using the large document endpoint upon
+                # HttpResponseError
 
                 if parser_output.document_content_type == CONTENT_TYPE_HTML:
                     assert parser_output.html_data.text_blocks not in [[], None]
