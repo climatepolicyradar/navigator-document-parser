@@ -19,3 +19,43 @@ def one_page_analyse_result() -> AnalyzeResult:
         "./cli/test/test_data/api_response/sample-one-page.json"
     )
     return AnalyzeResult.from_dict(data[0])
+
+
+@pytest.fixture()
+def backend_document_json() -> dict:
+    """BackendDocument JSON for testing."""
+    return {
+        "publication_ts": "2013-01-01T00:00:00",
+        "name": "test_pdf",
+        "description": "test_pdf_description",
+        "source_url": "https://www.pdfs.org",
+        "download_url": None,
+        "url": None,
+        "md5_sum": None,
+        "type": "EU Decision",
+        "source": "CCLW",
+        "import_id": "test_pdf",
+        "family_import_id": "TESTCCLW.family.4.0",
+        "category": "Law",
+        "geography": "EUR",
+        "languages": [
+            "English"
+        ],
+        "metadata": {
+            "hazards": [],
+            "frameworks": [],
+            "instruments": [
+                "Capacity building|Governance"
+            ],
+            "keywords": [
+                "Adaptation"
+            ],
+            "sectors": [
+                "Economy-wide"
+            ],
+            "topics": [
+                "Adaptation"
+            ]
+        },
+        "slug": "dummy_slug"
+    }
