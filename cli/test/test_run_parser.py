@@ -1,10 +1,11 @@
-from pathlib import Path
 import tempfile
-from unittest import mock
+from pathlib import Path
 from typing import Sequence, Union
-import pytest
-from click.testing import CliRunner
+from unittest import mock
 
+import pytest
+from azure.core.exceptions import HttpResponseError, ServiceRequestError
+from click.testing import CliRunner
 from cloudpathlib.local import LocalS3Path
 from cpr_data_access.parser_models import (
     ParserOutput,
@@ -12,10 +13,10 @@ from cpr_data_access.parser_models import (
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
 )
+from mock import patch
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
-
 from src.config import TARGET_LANGUAGES
 
 patcher = mock.patch(
@@ -286,3 +287,165 @@ def test_identify_target_languages() -> None:
         translated=False, source_url="https://www.google.org", languages=["en"]
     )
     assert identify_translation_languages(doc_2, _target_languages) == set()
+
+
+@patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
+def test_fail_safely_on_azure_uncaught_exception(
+    mock_get, test_input_dir, caplog
+) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we safely fail pdf parsing using the azure pdf parser should the default
+    endpoint fail with an uncaught Exception.
+    """
+    mock_get.side_effect = Exception(
+        mock.Mock(status=500), "Mock Internal Server Error"
+    )
+
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+        )
+
+        assert result.exit_code == 0
+
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            # Any html data should be parsed successfully as it is not using the azure
+            # api, but the pdf data should fail due to the uncaught exception as we
+            # don't re-attempt with the large document endpoint in this case
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks in [[], None]
+                assert parser_output.pdf_data.md5sum == ""
+                assert parser_output.pdf_data.page_metadata in [[], None]
+
+
+@patch("cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes")
+def test_fail_safely_on_azure_service_request_error(
+    mock_get, test_input_dir, caplog
+) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we safely fail pdf parsing using the azure pdf parser should the default
+    endpoint fail with an uncaught Exception.
+    """
+    mock_get.side_effect = ServiceRequestError(
+        response=mock.Mock(status=500), message="Mock Service Request Error"
+    )
+
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+        )
+
+        assert result.exit_code == 0
+
+        assert (
+            "Failed to parse document with Azure API. This is most likely due to "
+            "incorrect azure api credentials." in caplog.text
+        )
+
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            # Any html data should be parsed successfully as it is not using the azure
+            # api, but the pdf data should fail due to the service request error as we
+            # don't re-attempt with the large document endpoint in this case
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks in [[], None]
+                assert parser_output.pdf_data.md5sum == ""
+                assert parser_output.pdf_data.page_metadata in [[], None]
+
+
+def test_fail_safely_on_azure_http_response_error(
+    test_input_dir, one_page_analyse_result, caplog
+) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we retry pdf parsing using the large document endpoint should the default
+    endpoint fail with a HttpResponseError.
+    """
+    with (
+        patch(
+            "cli.parse_pdfs.AzureApiWrapper.analyze_large_document_from_bytes"
+        ) as mock_get_large,
+        patch(
+            "cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes"
+        ) as mock_get_default,
+    ):
+        mock_get_default.side_effect = HttpResponseError(
+            response=mock.Mock(status=500), message="Mock Internal Server Error"
+        )
+
+        mock_get_large.return_value = ({"0": []}, one_page_analyse_result)
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            runner = CliRunner()
+
+            result = runner.invoke(
+                cli_main, [str(test_input_dir), output_dir, "--parallel"]
+            )
+
+            assert result.exit_code == 0
+
+            assert (
+                "Failed to parse document with Azure API with default endpoint, "
+                "retrying with large document endpoint." in caplog.text
+            )
+
+            assert set(Path(output_dir).glob("*.json")) == {
+                Path(output_dir) / "test_html.json",
+                Path(output_dir) / "test_pdf.json",
+                Path(output_dir) / "test_no_content_type.json",
+            }
+
+            for output_file in Path(output_dir).glob("*.json"):
+                parser_output = ParserOutput.parse_file(output_file)
+                assert isinstance(parser_output, ParserOutput)
+
+                # Any html data should be parsed successfully as it is not using the
+                # azure api, the pdf data should also be parsed successfully as we
+                # should re-attempt download using the large document endpoint upon
+                # HttpResponseError
+
+                if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                    assert parser_output.html_data.text_blocks not in [[], None]
+
+                if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                    assert parser_output.pdf_data.text_blocks not in [[], None]
+                    assert parser_output.pdf_data.md5sum != ""
+                    assert parser_output.pdf_data.page_metadata not in [[], None]
