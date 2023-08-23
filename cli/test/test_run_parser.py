@@ -232,12 +232,12 @@ def get_parser_output(
     translated: bool,
     source_url: Union[str, None],
     languages: Sequence[str],
-    backend_document_json,
+    document_metadata: dict,
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
         document_id="sdf",
-        document_metadata=BackendDocument.parse_obj(backend_document_json),
+        document_metadata=BackendDocument.parse_obj(document_metadata),
         document_name="sdf",
         document_description="sdf",
         document_source_url=source_url,
@@ -264,7 +264,7 @@ def test_should_be_translated(backend_document_json) -> None:
         translated=False,
         source_url="https://www.google.org",
         languages=["fr"],
-        backend_document_json=backend_document_json,
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_1) is True
 
@@ -272,7 +272,7 @@ def test_should_be_translated(backend_document_json) -> None:
         translated=False,
         source_url=None,
         languages=["fr"],
-        backend_document_json=backend_document_json,
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_2) is False
 
@@ -280,7 +280,7 @@ def test_should_be_translated(backend_document_json) -> None:
         translated=False,
         source_url="https://www.google.org",
         languages=["English"],
-        backend_document_json=backend_document_json,
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_3) is True
 
@@ -288,7 +288,7 @@ def test_should_be_translated(backend_document_json) -> None:
         translated=True,
         source_url="https://www.google.org",
         languages=["fr"],
-        backend_document_json=backend_document_json,
+        document_metadata=backend_document_json,
     )
     assert should_be_translated(doc_4) is False
 
@@ -300,7 +300,7 @@ def test_identify_target_languages(backend_document_json) -> None:
         translated=False,
         source_url="https://www.google.org",
         languages=["fr"],
-        backend_document_json=backend_document_json,
+        document_metadata=backend_document_json,
     )
     assert identify_translation_languages(doc_1, _target_languages) == {"en"}
 
@@ -308,7 +308,7 @@ def test_identify_target_languages(backend_document_json) -> None:
         translated=False,
         source_url="https://www.google.org",
         languages=["en"],
-        backend_document_json=backend_document_json,
+        document_metadata=backend_document_json,
     )
     assert identify_translation_languages(doc_2, _target_languages) == set()
 
