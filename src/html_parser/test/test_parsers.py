@@ -30,39 +30,29 @@ def test_parse(url: str, parser: HTMLParser) -> None:
         {
             "document_id": "test_id",
             "document_metadata": {
-              "publication_ts": "2013-01-01T00:00:00",
-              "name": "Dummy Name",
-              "description": "description",
-              "source_url": "http://existing.com",
-              "download_url": None,
-              "url": None,
-              "md5_sum": None,
-              "type": "EU Decision",
-              "source": "CCLW",
-              "import_id": "TESTCCLW.executive.4.4",
-              "family_import_id": "TESTCCLW.family.4.0",
-              "category": "Law",
-              "geography": "EUR",
-              "languages": [
-                "English"
-              ],
-              "metadata": {
-                "hazards": [],
-                "frameworks": [],
-                "instruments": [
-                  "Capacity building|Governance"
-                ],
-                "keywords": [
-                  "Adaptation"
-                ],
-                "sectors": [
-                  "Economy-wide"
-                ],
-                "topics": [
-                  "Adaptation"
-                ]
-              },
-              "slug": "dummy_slug"
+                "publication_ts": "2013-01-01T00:00:00",
+                "name": "Dummy Name",
+                "description": "description",
+                "source_url": "http://existing.com",
+                "download_url": None,
+                "url": None,
+                "md5_sum": None,
+                "type": "EU Decision",
+                "source": "CCLW",
+                "import_id": "TESTCCLW.executive.4.4",
+                "family_import_id": "TESTCCLW.family.4.0",
+                "category": "Law",
+                "geography": "EUR",
+                "languages": ["English"],
+                "metadata": {
+                    "hazards": [],
+                    "frameworks": [],
+                    "instruments": ["Capacity building|Governance"],
+                    "keywords": ["Adaptation"],
+                    "sectors": ["Economy-wide"],
+                    "topics": ["Adaptation"],
+                },
+                "slug": "dummy_slug",
             },
             "document_source_url": url,
             "document_cdn_object": None,

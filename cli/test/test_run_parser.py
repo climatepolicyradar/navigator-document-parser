@@ -232,7 +232,7 @@ def get_parser_output(
     translated: bool,
     source_url: Union[str, None],
     languages: Sequence[str],
-    backend_document_json
+    backend_document_json,
 ) -> ParserOutput:
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
@@ -261,20 +261,34 @@ def get_parser_output(
 def test_should_be_translated(backend_document_json) -> None:
     """Tests whether we can successfully determine whether to translate a known input documents."""
     doc_1 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["fr"], backend_document_json=backend_document_json
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["fr"],
+        backend_document_json=backend_document_json,
     )
     assert should_be_translated(doc_1) is True
 
-    doc_2 = get_parser_output(translated=False, source_url=None, languages=["fr"], backend_document_json=backend_document_json)
+    doc_2 = get_parser_output(
+        translated=False,
+        source_url=None,
+        languages=["fr"],
+        backend_document_json=backend_document_json,
+    )
     assert should_be_translated(doc_2) is False
 
     doc_3 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["English"], backend_document_json=backend_document_json
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["English"],
+        backend_document_json=backend_document_json,
     )
     assert should_be_translated(doc_3) is True
 
     doc_4 = get_parser_output(
-        translated=True, source_url="https://www.google.org", languages=["fr"], backend_document_json=backend_document_json
+        translated=True,
+        source_url="https://www.google.org",
+        languages=["fr"],
+        backend_document_json=backend_document_json,
     )
     assert should_be_translated(doc_4) is False
 
@@ -283,12 +297,18 @@ def test_should_be_translated(backend_document_json) -> None:
 def test_identify_target_languages(backend_document_json) -> None:
     """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
     doc_1 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["fr"], backend_document_json=backend_document_json
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["fr"],
+        backend_document_json=backend_document_json,
     )
     assert identify_translation_languages(doc_1, _target_languages) == {"en"}
 
     doc_2 = get_parser_output(
-        translated=False, source_url="https://www.google.org", languages=["en"], backend_document_json=backend_document_json
+        translated=False,
+        source_url="https://www.google.org",
+        languages=["en"],
+        backend_document_json=backend_document_json,
     )
     assert identify_translation_languages(doc_2, _target_languages) == set()
 

@@ -23,7 +23,7 @@ def one_page_analyse_result() -> AnalyzeResult:
 
 @pytest.fixture()
 def backend_document_json() -> dict:
-    """BackendDocument JSON for testing."""
+    """Backend Document JSON for testing."""
     return {
         "publication_ts": "2013-01-01T00:00:00",
         "name": "test_pdf",
@@ -38,24 +38,14 @@ def backend_document_json() -> dict:
         "family_import_id": "TESTCCLW.family.4.0",
         "category": "Law",
         "geography": "EUR",
-        "languages": [
-            "English"
-        ],
+        "languages": ["English"],
         "metadata": {
             "hazards": [],
             "frameworks": [],
-            "instruments": [
-                "Capacity building|Governance"
-            ],
-            "keywords": [
-                "Adaptation"
-            ],
-            "sectors": [
-                "Economy-wide"
-            ],
-            "topics": [
-                "Adaptation"
-            ]
+            "instruments": ["Capacity building|Governance"],
+            "keywords": ["Adaptation"],
+            "sectors": ["Economy-wide"],
+            "topics": ["Adaptation"],
         },
-        "slug": "dummy_slug"
+        "slug": "dummy_slug",
     }
