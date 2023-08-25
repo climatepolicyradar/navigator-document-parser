@@ -270,7 +270,7 @@ develop = false
 
 [package.dependencies]
 azure-ai-formrecognizer = "^3.2.1"
-cpr-data-access = {git = "https://github.com/climatepolicyradar/data-access.git", tag = "v0.1.2"}
+cpr-data-access = {git = "https://github.com/climatepolicyradar/data-access.git", rev = "e5eae556769743efc83473a552932ff9e4cc393e"}
 langdetect = "^1.0.9"
 pypdf = "^3.15.0"
 requests = "^2.31.0"
@@ -278,8 +278,8 @@ requests = "^2.31.0"
 [package.source]
 type = "git"
 url = "https://github.com/climatepolicyradar/azure-pdf-parser.git"
-reference = "v0.1.1"
-resolved_reference = "1923edc2f877ce7b69eb0f2bf05855317edb268c"
+reference = "57ba82d1f17197bf0c0129bca9c755ef9f7e37c4"
+resolved_reference = "57ba82d1f17197bf0c0129bca9c755ef9f7e37c4"
 
 [[package]]
 name = "beautifulsoup4"
@@ -723,8 +723,8 @@ tqdm = "^4.64.1"
 [package.source]
 type = "git"
 url = "https://github.com/climatepolicyradar/data-access.git"
-reference = "v0.1.2"
-resolved_reference = "8c168ee9c73254b02db3b55f35c5ed7a0b5a5489"
+reference = "e5eae556769743efc83473a552932ff9e4cc393e"
+resolved_reference = "e5eae556769743efc83473a552932ff9e4cc393e"
 
 [[package]]
 name = "cryptography"
@@ -3532,4 +3532,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.9"
-content-hash = "fb74f332d8d5597c23df0d87b5fd74895b28ff5d10217c540c4c45b0bef51480"
+content-hash = "798806782e3266c3d90fccb5c9714ef0579bba4abb6c5c9ee72f2890dd4321a5"
