@@ -1,8 +1,18 @@
 # Navigator Document Parser
 
-Parsers for web pages and PDFs containing laws and policies.
+## Overview
 
-Please see config.py for configuration options and their explanations. There are many hyperparameters that can be tuned to improve the performance of the parser.
+This repo contains a CLI application used for extracting text from pdf and html documents before translating these to a target language (default is English) if they are in a different language to the target language. 
+
+**HTML Text Extraction:** 
+- HTML webpages are processed by making a request to the webpage and extracting text from the html content using a combination of the `news-please` and `readability` python packages. 
+
+**PDF Text Extraction:**
+- PDF documents are processed by downloading the pdf from the cdn (Content Delivery Network accessible via an endpoint) and using the `Azure` form recognizer API to extract text from the pdf.
+
+**Translation:**
+- Text is translated using the `Google` translation api.
+
 ## Setup
 
 - `make install` - install dependencies using Poetry and set up playwright and pre-commit
@@ -17,161 +27,41 @@ To run in Docker with the `data/raw` folder as input and `data/processed` as out
 make run_docker
 ```
 
-The CLI operates on an input folder of tasks defined by JSON files in the following format.
+The CLI operates on an input folder of tasks defined by JSON files in the following format as defined in `cpr_data_access` library dependency. This can be found [here](https://github.com/climatepolicyradar/data-access).
 
 ``` python
-{
-  "document_id": "test_html",
-  "document_metadata": {},
-  "document_name": "test_html",
-  "document_description": "test_html description",
-  "document_url": "https://www.industry.gov.au/funding-and-incentives/emissions-reduction-fund",
-  "document_content_type": "text/html", # or "application/pdf"
-  "document_slug": "YYY"
-}
+class ParserInput(BaseModel):
+    """Base class for input to a parser."""
+
+    document_id: str
+    document_metadata: BackendDocument
+    document_name: str
+    document_description: str
+    document_source_url: Optional[AnyHttpUrl]
+    document_cdn_object: Optional[str]
+    document_content_type: Optional[str]
+    document_md5_sum: Optional[str]
+    document_slug: str
 ```
 
-It outputs JSON files named `id.json`, with `id` being the ID of each input document, to an output folder in one of these formats:
+It outputs JSON files named `${id}.json`, with `id` being the `document_id` of each input document, to an output folder in one of these formats:
 
 ``` python
-# HTMLs
-{
-    "document_id": "1",
-    "document_name": "Policy Document 1",
-    "document_url": "https://website.org/path/document",
-    "document_metadata": {}, 
-    "languages": [
-        "en"
-    ],
-    "translated": false,
-    "document_slug": "YYYY",
-    "document_content_type": "text/html",
-    "html_data": {
-        "detected_title": "[no-title]",
-        "detected_date": null,
-        "has_valid_text": true,
-        "text_blocks": [
-            {
-                "text": [
-                    "%PDF-1.6"
-                ],
-                "text_block_id": "b0",
-                "language": "da",
-                "type": "Text",
-                "type_confidence": 1.0
-            }
-        ]
-    },
-    "pdf_data": null
-}
+class ParserOutput(BaseModel):
+    """Base class for an output to a parser."""
 
-# PDFs
-{
-    "document_id": "1",
-    "document_name": "Policy Document 1",
-    "document_url": "https://website.org/path/document",
-    "languages": null,
-    "translated": false,
-    "document_slug": "YYYY",
-    "document_content_type": "application/pdf",
-    "html_data": null,
-    "pdf_data": {
-        "page_metadata": [
-            {
-                "page_number": 0,
-                "dimensions": [
-                    596.0,
-                    842.0
-                ]
-            },
-            {
-                "page_number": 1,
-                "dimensions": [
-                    612.0,
-                    936.0
-                ]
-            },
-            {
-                "page_number": 2,
-                "dimensions": [
-                    612.0,
-                    936.0
-                ]
-            },
-            {
-                "page_number": 3,
-                "dimensions": [
-                    612.0,
-                    936.0
-                ]
-            },
-            {
-                "page_number": 4,
-                "dimensions": [
-                    612.0,
-                    936.0
-                ]
-            }
-        ],
-        "md5sum": "6237180d8c443d72c06c9167019ca177",
-        "text_blocks": [
-            {
-                "text": [
-                    Example text block."
-                ],
-                "text_block_id": "p_0_b_0",
-                "language": null,
-                "type": "Text",
-                "type_confidence": 0.6339805126190186,
-                "coords": [
-                    [
-                        10.998469352722168,
-                        702.727294921875
-                    ],
-                    [
-                        134.93479919433594,
-                        702.727294921875
-                    ],
-                    [
-                        134.93479919433594,
-                        737.7978515625
-                    ],
-                    [
-                        10.998469352722168,
-                        737.7978515625
-                    ]
-                ],
-                "page_number": 0
-            },
-            {
-                "text": [
-                    "Example text block."
-                ],
-                "text_block_id": "p_1_b_0",
-                "language": null,
-                "type": "Title",
-                "type_confidence": 0.577865481376648,
-                "coords": [
-                    [
-                        26.7734375,
-                        313.9053039550781
-                    ],
-                    [
-                        281.1876525878906,
-                        313.9053039550781
-                    ],
-                    [
-                        281.1876525878906,
-                        380.9349365234375
-                    ],
-                    [
-                        26.7734375,
-                        380.9349365234375
-                    ]
-                ],
-                "page_number": 1
-            },
-        ]
-    }
-}
+    document_id: str
+    document_metadata: BackendDocument
+    document_name: str
+    document_description: str
+    document_source_url: Optional[AnyHttpUrl]
+    document_cdn_object: Optional[str]
+    document_content_type: Optional[str]
+    document_md5_sum: Optional[str]
+    document_slug: str
+
+    languages: Optional[Sequence[str]] = None
+    translated: bool = False
+    html_data: Optional[HTMLData] = None
+    pdf_data: Optional[PDFData] = None
 ```
