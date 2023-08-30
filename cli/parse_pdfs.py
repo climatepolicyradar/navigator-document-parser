@@ -267,6 +267,8 @@ def parse_file(
             api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
                 doc_bytes=read_local_json_to_bytes(str(pdf_path)),
             )
+
+            # TODO - save intermediate response to s3
         except ServiceRequestError as e:
             _LOGGER.error(
                 "Failed to parse document with Azure API. This is most likely due to "
