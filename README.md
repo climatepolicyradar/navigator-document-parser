@@ -15,7 +15,13 @@ This repo contains a CLI application used for extracting text from pdf and html 
 
 ## Setup
 
-- `make install` - install dependencies using Poetry and set up playwright and pre-commit
+To operate and run the CLI the repo provides useful commands in the `Makefile`. This reads environment variables from a `.env` file. Create this locally by running the following command and then enter the relevant values.
+
+``` bash
+cp .env.example .env
+```
+
+- Once this is done we can then run `make install` to install dependencies using Poetry and set up playwright and pre-commit.
 
 To run locally you will then need to enter your Poetry virtual environment with `poetry shell`.
 
