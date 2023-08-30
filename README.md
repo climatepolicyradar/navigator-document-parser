@@ -21,7 +21,16 @@ To operate and run the CLI the repo provides useful commands in the `Makefile`. 
 cp .env.example .env
 ```
 
-- Once this is done we can then run `make install` to install dependencies using Poetry and set up playwright and pre-commit.
+Once this is done we can then run the commands in the `Makefile`. These split into two main groups, running `locally` or in a `docker container`. 
+
+To run locally run the following commands to install dependencies using Poetry and set up playwright and pre-commit. Then run the CLI locally.
+
+Note that you will need a python version in your virtual environment of `3.9` or greater.
+
+``` bash
+make install
+make run_local
+```
 
 To run locally you will then need to enter your Poetry virtual environment with `poetry shell`.
 
