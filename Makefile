@@ -2,8 +2,8 @@
 include .env
 
 install:
-	poetry export --with dev > requirements.txt
-	pip3 install --no-cache -r requirements.txt
+	poetry shell
+	poetry install
 
 run_local:
 	TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed

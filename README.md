@@ -25,14 +25,12 @@ Once this is done we can then run the commands in the `Makefile`. These split in
 
 To run locally run the following commands to install dependencies using Poetry and set up playwright and pre-commit. Then run the CLI locally.
 
-Note that you will need a python version in your virtual environment of `3.9` or greater.
+Note that you will need a python version in your virtual environment of `3.9` or greater. It is also recommended to run within a virtual environment.
 
 ``` bash
 make install
 make run_local
 ```
-
-To run locally you will then need to enter your Poetry virtual environment with `poetry shell`.
 
 ## Running the CLI
 
