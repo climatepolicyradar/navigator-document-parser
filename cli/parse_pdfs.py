@@ -282,6 +282,15 @@ def parse_file(
                     document_azure_cache_path.write_text(
                         json.dumps(api_response.to_dict())
                     )
+                    _LOGGER.info(
+                        "Saved raw azure api response.",
+                        extra={
+                            "props": {
+                                "document_id": input_task.document_id,
+                                "azure_cache_path": str(document_azure_cache_path),
+                            }
+                        },
+                    )
             except Exception as e:
                 _LOGGER.exception(
                     "Failed to save the raw azure api response.",

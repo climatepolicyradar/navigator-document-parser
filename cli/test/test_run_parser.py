@@ -155,14 +155,17 @@ def test_run_parser_cache_azure_response_s3(
 
     input_dir = "s3://test-bucket/test-input-dir"
     output_dir = "s3://test-bucket/test-output-dir"
-    test_azure_api_response_dir = output_dir + "/" + "azure_api_response_cache"
+    azure_cache_prefix = "azure_api_response_cache"
+    test_azure_api_response_dir = output_dir + "/" + azure_cache_prefix
 
     # Copy test data to mock of S3 path
     html_file_path = LocalS3Path(f"{input_dir}/test_html.json")
-    html_file_path.write_text((test_input_dir / "test_html.json").read_text())
+    html_file_data: str = (test_input_dir / "test_html.json").read_text()
+    html_file_path.write_text(html_file_data)
 
     pdf_file_path = LocalS3Path(f"{input_dir}/test_pdf.json")
-    pdf_file_path.write_text((test_input_dir / "test_pdf.json").read_text())
+    pdf_file_data: str = (test_input_dir / "test_pdf.json").read_text()
+    pdf_file_path.write_text(pdf_file_data)
 
     with mock.patch("cli.run_parser.S3Path", LocalS3Path):
         runner = CliRunner()
@@ -189,9 +192,10 @@ def test_run_parser_cache_azure_response_s3(
         for file in azure_responses:
             # Check that the object is of the correct structure and has the correct
             # file name
-
             AnalyzeResult.from_dict(json.loads(file.read_text()))
             assert re.match(archived_file_name_pattern, file.name)
+            assert file.parts[-2] == json.loads(pdf_file_data)["document_id"]
+            assert file.parts[-3] == azure_cache_prefix
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
