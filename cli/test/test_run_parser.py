@@ -104,7 +104,13 @@ def test_run_parser_cache_azure_response(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [str(test_input_dir), output_dir, test_azure_api_response_dir]
+            cli_main,
+            [
+                str(test_input_dir),
+                output_dir,
+                "--azure_api_response_cache_dir",
+                test_azure_api_response_dir,
+            ],
         )
 
         assert result.exit_code == 0
@@ -130,12 +136,14 @@ def test_run_parser_cache_azure_response(
                 assert parser_output.pdf_data.md5sum != ""
                 assert parser_output.pdf_data.page_metadata not in [[], None]
 
-        azure_responses = set(Path(test_azure_api_response_dir).glob("*.json"))
+        azure_responses = set(Path(test_azure_api_response_dir).glob("*/*.json"))
         assert len(azure_responses) == 1
         for file in azure_responses:
             # Check that the object is of the correct structure and has the correct
             # file name
-            AnalyzeResult.parse_file(file)
+            import json
+
+            AnalyzeResult.from_dict(json.loads(file.read_text()))
             assert re.match(archived_file_name_pattern, file.name)
 
 

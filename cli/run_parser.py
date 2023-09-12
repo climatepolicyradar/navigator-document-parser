@@ -94,9 +94,10 @@ def _get_files_to_parse(
 @click.command()
 @click.argument("input_dir", type=str)
 @click.argument("output_dir", type=str)
-@click.argument(
-    "azure_api_response_dir",
+@click.option(
+    "--azure_api_response_cache_dir",
     help="Directory to store raw responses from Azure API during pdf parsing.",
+    nargs=1,
     type=str,
     default=None,
     required=False,
@@ -135,7 +136,7 @@ def _get_files_to_parse(
 def main(
     input_dir: str,
     output_dir: str,
-    azure_api_response_dir: str,
+    azure_api_response_cache_dir: str,
     parallel: bool,
     files: Optional[tuple[str]],
     redo: bool,
@@ -149,7 +150,7 @@ def main(
 
     :param input_dir: directory of input JSON files (task specifications)
     :param output_dir: directory of output JSON files (results)
-    :param azure_api_response_dir: directory to store raw responses from Azure API during
+    :param azure_api_response_cache_dir: directory to store raw responses from Azure API during
         pdf parsing.
     :param parallel: whether to run PDF parsing over multiple processes
     :param files: list of filenames to parse, relative to the input directory.
@@ -165,13 +166,15 @@ def main(
         input_dir_as_path = S3Path(input_dir)
         output_dir_as_path = S3Path(output_dir)
         azure_cache_dir_as_path = (
-            S3Path(azure_api_response_dir) if azure_api_response_dir else None
+            S3Path(azure_api_response_cache_dir)
+            if azure_api_response_cache_dir
+            else None
         )
     else:
         input_dir_as_path = Path(input_dir)
         output_dir_as_path = Path(output_dir)
         azure_cache_dir_as_path = (
-            Path(azure_api_response_dir) if azure_api_response_dir else None
+            Path(azure_api_response_cache_dir) if azure_api_response_cache_dir else None
         )
 
     # if visual debugging is on, create a debug directory

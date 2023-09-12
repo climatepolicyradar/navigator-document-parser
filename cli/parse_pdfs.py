@@ -9,6 +9,7 @@ from functools import partial
 from pathlib import Path
 from typing import List, Optional, Union, Tuple, Sequence
 import hashlib
+import json
 
 import cloudpathlib.exceptions
 import requests
@@ -271,13 +272,16 @@ def parse_file(
             )
             try:
                 if azure_cache_dir:
-                    azure_cache_dir.mkdir(parents=True, exist_ok=True)
-                    azure_cache_path = (
-                        azure_cache_dir
-                        / input_task.document_id
-                        / f"{time.time_ns()}.json"
+                    document_azure_cache_dir = azure_cache_dir / input_task.document_id
+                    document_azure_cache_dir.mkdir(parents=True, exist_ok=True)
+                    document_azure_cache_path = (
+                        document_azure_cache_dir / f"{time.time_ns()}.json"
                     )
-                    azure_cache_path.write_text(api_response.to_dict())
+                    if not document_azure_cache_path.exists():
+                        document_azure_cache_path.touch()
+                    document_azure_cache_path.write_text(
+                        json.dumps(api_response.to_dict())
+                    )
             except Exception as e:
                 _LOGGER.exception(
                     "Failed to save the raw azure api response.",
