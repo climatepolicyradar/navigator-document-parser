@@ -1,3 +1,4 @@
+import re
 import tempfile
 from pathlib import Path
 from typing import Sequence, Union
@@ -14,6 +15,7 @@ from cpr_data_access.parser_models import (
     CONTENT_TYPE_PDF,
 )
 from cpr_data_access.pipeline_general_models import BackendDocument
+from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
 
 from cli.run_parser import main as cli_main
@@ -25,11 +27,6 @@ patcher = mock.patch(
     mock.MagicMock(return_value=["translated text"]),
 )
 patcher.start()
-
-
-@pytest.fixture()
-def test_input_dir() -> Path:
-    return (Path(__file__).parent / "test_data" / "input").resolve()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -96,6 +93,50 @@ def test_run_parser_local_series(test_input_dir) -> None:
                 assert parser_output.pdf_data.text_blocks not in [[], None]
                 assert parser_output.pdf_data.md5sum != ""
                 assert parser_output.pdf_data.page_metadata not in [[], None]
+
+
+@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
+def test_run_parser_cache_azure_response(
+        test_input_dir, test_azure_api_response_dir, archived_file_name_pattern
+) -> None:
+    """Test that the parsing CLI runs and outputs a file."""
+    with tempfile.TemporaryDirectory() as output_dir:
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli_main, [str(test_input_dir), output_dir, test_azure_api_response_dir]
+        )
+
+        assert result.exit_code == 0
+
+        # Default config is to translate to English, and the HTML doc is already in
+        # English - so we just expect a translation of the PDF
+        assert set(Path(output_dir).glob("*.json")) == {
+            Path(output_dir) / "test_html.json",
+            Path(output_dir) / "test_pdf.json",
+            Path(output_dir) / "test_no_content_type.json",
+            Path(output_dir) / "test_pdf_translated_en.json",
+        }
+
+        for output_file in Path(output_dir).glob("*.json"):
+            parser_output = ParserOutput.parse_file(output_file)
+            assert isinstance(parser_output, ParserOutput)
+
+            if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                assert parser_output.html_data.text_blocks not in [[], None]
+
+            if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                assert parser_output.pdf_data.text_blocks not in [[], None]
+                assert parser_output.pdf_data.md5sum != ""
+                assert parser_output.pdf_data.page_metadata not in [[], None]
+
+        azure_responses = set(Path(test_azure_api_response_dir).glob("*.json"))
+        assert len(azure_responses) == 1
+        for file in azure_responses:
+            # Check that the object is of the correct structure and has the correct
+            # file name
+            AnalyzeResult.parse_file(file)
+            assert re.match(archived_file_name_pattern, file.name)
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")

@@ -203,13 +203,15 @@ def parse_file(
     input_task: ParserInput,
     azure_client: AzureApiWrapper,
     output_dir: Union[Path, S3Path],
+    azure_cache_dir: Union[Path, S3Path, None],
     redo: bool = False,
 ):
     """Parse an individual pdf file.
 
     Args: azure_client (AzureApiWrapper): Client for interacting with Azure's
     services. input_task (ParserInput): Class specifying location of the PDF and other
-    data about the task. output_dir (Path): Path to the output directory. redo (bool):
+    data about the task. output_dir (Path): Path to the output directory.
+    azure_cache_dir (Path): Path to save the raw azure api responses to. redo (bool):
     Whether to redo the parsing even if the output file already exists.
     """
 
@@ -267,6 +269,25 @@ def parse_file(
             api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
                 doc_bytes=read_local_json_to_bytes(str(pdf_path)),
             )
+            try:
+                if azure_cache_dir:
+                    azure_cache_dir.mkdir(parents=True, exist_ok=True)
+                    azure_cache_path = (
+                        azure_cache_dir /
+                        input_task.document_id /
+                        f"{time.time_ns()}.json"
+                    )
+                    azure_cache_path.write_text(api_response.to_dict())
+            except Exception as e:
+                _LOGGER.exception(
+                    "Failed to save the raw azure api response.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "error_message": str(e),
+                        }
+                    },
+                )
         except ServiceRequestError as e:
             _LOGGER.error(
                 "Failed to parse document with Azure API. This is most likely due to "
@@ -377,6 +398,7 @@ def parse_file(
 def run_pdf_parser(
     input_tasks: List[ParserInput],
     output_dir: Union[Path, S3Path],
+    azure_cache_dir: Union[Path, S3Path, None],
     parallel: bool,
     debug: bool,
     redo: bool = False,
@@ -385,10 +407,11 @@ def run_pdf_parser(
     Run cli to extract semi-structured JSON from document-AI + OCR.
 
     Args: input_tasks: List of tasks for the parser to process. output_dir: The
-    directory to write the parsed PDFs to. parallel: Whether to run parsing over
-    multiple processes. debug: Whether to run in debug mode (puts images of resulting
-    layouts in output_dir). redo: Whether to redo the parsing even if the output file
-    already exists.
+    directory to write the parsed PDFs to. azure_cache_dir: The directory to save the
+    raw azure api responses to. parallel: Whether to run parsing over multiple
+    processes. debug: Whether to run in debug mode (puts images of resulting layouts
+    in output_dir). redo: Whether to redo the parsing even if the output file already
+    exists.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
@@ -414,6 +437,7 @@ def run_pdf_parser(
         parse_file,
         azure_client=azure_client,
         output_dir=output_dir,
+        azure_cache_dir=azure_cache_dir,
         redo=redo,
     )
     if parallel:

@@ -94,6 +94,13 @@ def _get_files_to_parse(
 @click.command()
 @click.argument("input_dir", type=str)
 @click.argument("output_dir", type=str)
+@click.argument(
+    "azure_api_response_dir",
+    help="Directory to store raw responses from Azure API during pdf parsing.",
+    type=str,
+    default=None,
+    required=False,
+)
 @click.option(
     "--parallel",
     help="Whether to run PDF parsing over multiple processes",
@@ -104,24 +111,21 @@ def _get_files_to_parse(
     "--files",
     "-f",
     help="Pass in a list of filenames to parse, relative to the input directory. Used "
-    "to optionally specify a "
-    "subset of files to parse.",
+    "to optionally specify a subset of files to parse.",
     multiple=True,
 )
 @click.option(
     "--redo",
     "-r",
     help="Redo parsing for files that have already been parsed. By default, files with "
-    "IDs that already exist in "
-    "the output directory are skipped.",
+    "IDs that already exist in the output directory are skipped.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--s3",
     help="Input and output directories are S3 paths. The CLI will download tasks from "
-    "S3, run parsing, "
-    "and upload the results to S3.",
+    "S3, run parsing, and upload the results to S3.",
     is_flag=True,
     default=False,
 )
@@ -131,6 +135,7 @@ def _get_files_to_parse(
 def main(
     input_dir: str,
     output_dir: str,
+    azure_api_response_dir: str,
     parallel: bool,
     files: Optional[tuple[str]],
     redo: bool,
@@ -144,6 +149,8 @@ def main(
 
     :param input_dir: directory of input JSON files (task specifications)
     :param output_dir: directory of output JSON files (results)
+    :param azure_api_response_dir: directory to store raw responses from Azure API during
+        pdf parsing.
     :param parallel: whether to run PDF parsing over multiple processes
     :param files: list of filenames to parse, relative to the input directory.
         Can be used to select a subset of files to parse.
@@ -157,9 +164,15 @@ def main(
     if s3:
         input_dir_as_path = S3Path(input_dir)
         output_dir_as_path = S3Path(output_dir)
+        azure_cache_dir_as_path = (
+            S3Path(azure_api_response_dir) if azure_api_response_dir else None
+        )
     else:
         input_dir_as_path = Path(input_dir)
         output_dir_as_path = Path(output_dir)
+        azure_cache_dir_as_path = (
+            Path(azure_api_response_dir) if azure_api_response_dir else None
+        )
 
     # if visual debugging is on, create a debug directory
     if debug:
@@ -238,6 +251,7 @@ def main(
         run_pdf_parser(
             pdf_tasks,
             output_dir_as_path,
+            azure_cache_dir_as_path,
             parallel=parallel,
             debug=debug,
             redo=redo,
