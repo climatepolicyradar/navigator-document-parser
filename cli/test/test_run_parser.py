@@ -153,7 +153,6 @@ def test_run_parser_cache_azure_response_s3(
 ) -> None:
     """Test that the parser can successfully save api responses remotely."""
 
-    # TODO make fixtures
     input_dir = "s3://test-bucket/test-input-dir"
     output_dir = "s3://test-bucket/test-output-dir"
     test_azure_api_response_dir = output_dir + "/" + "azure_api_response_cache"
