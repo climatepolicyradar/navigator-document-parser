@@ -273,9 +273,9 @@ def parse_file(
                 if azure_cache_dir:
                     azure_cache_dir.mkdir(parents=True, exist_ok=True)
                     azure_cache_path = (
-                        azure_cache_dir /
-                        input_task.document_id /
-                        f"{time.time_ns()}.json"
+                        azure_cache_dir
+                        / input_task.document_id
+                        / f"{time.time_ns()}.json"
                     )
                     azure_cache_path.write_text(api_response.to_dict())
             except Exception as e:

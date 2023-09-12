@@ -97,7 +97,7 @@ def test_run_parser_local_series(test_input_dir) -> None:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_cache_azure_response(
-        test_input_dir, test_azure_api_response_dir, archived_file_name_pattern
+    test_input_dir, test_azure_api_response_dir, archived_file_name_pattern
 ) -> None:
     """Test that the parsing CLI runs and outputs a file."""
     with tempfile.TemporaryDirectory() as output_dir:
