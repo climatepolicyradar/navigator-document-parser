@@ -8,6 +8,9 @@ from cpr_data_access.parser_models import HTMLData, ParserOutput, ParserInput
 logger = logging.getLogger(__name__)
 
 
+PARSER_METADATA_KEY = "parser_metadata"
+
+
 class HTMLParser(ABC):
     """Base class for an HTML parser."""
 

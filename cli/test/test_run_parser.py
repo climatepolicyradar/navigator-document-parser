@@ -21,6 +21,7 @@ from mock import patch
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
+from src.base import PARSER_METADATA_KEY
 from src.config import TARGET_LANGUAGES
 
 patcher = mock.patch(
@@ -31,7 +32,9 @@ patcher.start()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser_local_parallel(test_input_dir) -> None:
+def test_run_parser_local_parallel(
+    test_input_dir, expected_pipeline_metadata_keys
+) -> None:
     """Test that the parsing CLI runs and outputs a file."""
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
@@ -62,6 +65,11 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
                 assert parser_output.pdf_data.text_blocks not in [[], None]
                 assert parser_output.pdf_data.md5sum != ""
                 assert parser_output.pdf_data.page_metadata not in [[], None]
+                assert PARSER_METADATA_KEY in parser_output.pipeline_metadata.keys()
+                assert (
+                    set(parser_output.pipeline_metadata[PARSER_METADATA_KEY].keys())
+                    == expected_pipeline_metadata_keys
+                )
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
