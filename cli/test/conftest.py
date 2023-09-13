@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Union
 import pytest
 
@@ -49,3 +50,18 @@ def backend_document_json() -> dict:
         },
         "slug": "dummy_slug",
     }
+
+
+@pytest.fixture()
+def test_input_dir() -> Path:
+    return (Path(__file__).parent / "test_data" / "input").resolve()
+
+
+@pytest.fixture()
+def test_azure_api_response_dir() -> Path:
+    return (Path(__file__).parent / "test_data" / "azure_api_response_cache").resolve()
+
+
+@pytest.fixture()
+def archived_file_name_pattern() -> str:
+    return "^\d+\.json$"  # noqa: W605

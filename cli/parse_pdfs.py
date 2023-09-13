@@ -9,6 +9,7 @@ from functools import partial
 from pathlib import Path
 from typing import List, Optional, Union, Tuple, Sequence
 import hashlib
+import json
 
 import cloudpathlib.exceptions
 import requests
@@ -203,13 +204,15 @@ def parse_file(
     input_task: ParserInput,
     azure_client: AzureApiWrapper,
     output_dir: Union[Path, S3Path],
+    azure_cache_dir: Union[Path, S3Path, None],
     redo: bool = False,
 ):
     """Parse an individual pdf file.
 
     Args: azure_client (AzureApiWrapper): Client for interacting with Azure's
     services. input_task (ParserInput): Class specifying location of the PDF and other
-    data about the task. output_dir (Path): Path to the output directory. redo (bool):
+    data about the task. output_dir (Path): Path to the output directory.
+    azure_cache_dir (Path): Path to save the raw azure api responses to. redo (bool):
     Whether to redo the parsing even if the output file already exists.
     """
 
@@ -267,6 +270,37 @@ def parse_file(
             api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
                 doc_bytes=read_local_json_to_bytes(str(pdf_path)),
             )
+            try:
+                if azure_cache_dir:
+                    document_azure_cache_dir = azure_cache_dir / input_task.document_id
+                    document_azure_cache_dir.mkdir(parents=True, exist_ok=True)
+                    document_azure_cache_path = (
+                        document_azure_cache_dir / f"{time.time_ns()}.json"
+                    )
+                    if not document_azure_cache_path.exists():
+                        document_azure_cache_path.touch()
+                    document_azure_cache_path.write_text(
+                        json.dumps(api_response.to_dict())
+                    )
+                    _LOGGER.info(
+                        "Saved raw azure api response.",
+                        extra={
+                            "props": {
+                                "document_id": input_task.document_id,
+                                "azure_cache_path": str(document_azure_cache_path),
+                            }
+                        },
+                    )
+            except Exception as e:
+                _LOGGER.exception(
+                    "Failed to save the raw azure api response.",
+                    extra={
+                        "props": {
+                            "document_id": input_task.document_id,
+                            "error_message": str(e),
+                        }
+                    },
+                )
         except ServiceRequestError as e:
             _LOGGER.error(
                 "Failed to parse document with Azure API. This is most likely due to "
@@ -377,6 +411,7 @@ def parse_file(
 def run_pdf_parser(
     input_tasks: List[ParserInput],
     output_dir: Union[Path, S3Path],
+    azure_cache_dir: Union[Path, S3Path, None],
     parallel: bool,
     debug: bool,
     redo: bool = False,
@@ -385,10 +420,11 @@ def run_pdf_parser(
     Run cli to extract semi-structured JSON from document-AI + OCR.
 
     Args: input_tasks: List of tasks for the parser to process. output_dir: The
-    directory to write the parsed PDFs to. parallel: Whether to run parsing over
-    multiple processes. debug: Whether to run in debug mode (puts images of resulting
-    layouts in output_dir). redo: Whether to redo the parsing even if the output file
-    already exists.
+    directory to write the parsed PDFs to. azure_cache_dir: The directory to save the
+    raw azure api responses to. parallel: Whether to run parsing over multiple
+    processes. debug: Whether to run in debug mode (puts images of resulting layouts
+    in output_dir). redo: Whether to redo the parsing even if the output file already
+    exists.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
@@ -414,6 +450,7 @@ def run_pdf_parser(
         parse_file,
         azure_client=azure_client,
         output_dir=output_dir,
+        azure_cache_dir=azure_cache_dir,
         redo=redo,
     )
     if parallel:
