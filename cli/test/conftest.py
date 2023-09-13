@@ -70,4 +70,4 @@ def archived_file_name_pattern() -> str:
 @pytest.fixture()
 def expected_pipeline_metadata_keys() -> set[str]:
     """The names of the pipeline metadata keys that are expected in the output."""
-    return {"azure_model_id", "date_parsed", "azure_api_version"}
+    return {"azure_model_id", "parsing_date", "azure_api_version"}
