@@ -111,22 +111,28 @@ def _get_files_to_parse(
 @click.option(
     "--files",
     "-f",
-    help="Pass in a list of filenames to parse, relative to the input directory. Used "
-    "to optionally specify a subset of files to parse.",
+    help=(
+        "Pass in a list of filenames to parse, relative to the input directory. Used to "
+        "optionally specify a subset of files to parse."
+    ),
     multiple=True,
 )
 @click.option(
     "--redo",
     "-r",
-    help="Redo parsing for files that have already been parsed. By default, files with "
-    "IDs that already exist in the output directory are skipped.",
+    help=(
+        "Redo parsing for files that have already been parsed. By default, files with "
+        "IDs that already exist in the output directory are skipped."
+    ),
     is_flag=True,
     default=False,
 )
 @click.option(
     "--s3",
-    help="Input and output directories are S3 paths. The CLI will download tasks from "
-    "S3, run parsing, and upload the results to S3.",
+    help=(
+        "Input and output directories are S3 paths. The CLI will download tasks from "
+        "S3, run parsing, and upload the results to S3.",
+    ),
     is_flag=True,
     default=False,
 )
