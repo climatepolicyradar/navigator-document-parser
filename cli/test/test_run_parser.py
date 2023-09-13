@@ -31,7 +31,9 @@ patcher.start()
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser_local_parallel(test_input_dir) -> None:
+def test_run_parser_local_parallel(
+        test_input_dir, expected_pipeline_metadata_keys
+) -> None:
     """Test that the parsing CLI runs and outputs a file."""
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
@@ -62,6 +64,10 @@ def test_run_parser_local_parallel(test_input_dir) -> None:
                 assert parser_output.pdf_data.text_blocks not in [[], None]
                 assert parser_output.pdf_data.md5sum != ""
                 assert parser_output.pdf_data.page_metadata not in [[], None]
+                assert (
+                    set(parser_output.pipeline_metadata.keys())
+                    is expected_pipeline_metadata_keys
+                )
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")

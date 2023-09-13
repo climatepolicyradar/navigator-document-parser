@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Optional, Union, Tuple, Sequence
 import hashlib
 import json
+from datetime import datetime
 
 import cloudpathlib.exceptions
 import requests
@@ -360,6 +361,12 @@ def parse_file(
             md5_sum=calculate_pdf_md5sum(str(pdf_path)),
             api_response=api_response,
         )
+
+        document.pipeline_metadata = {
+            "azure_api_version": api_response.api_version,
+            "azure_model_id": api_response.model_id,
+            "parsing_date": datetime.now().isoformat(),
+        }
 
         _LOGGER.info(
             "Saving parser output document.",
