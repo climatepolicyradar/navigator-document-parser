@@ -27,6 +27,8 @@ from azure_pdf_parser import (
     azure_api_response_to_parser_output,
     PDFPage,
 )
+
+from src.base import PARSER_METADATA_KEY
 from src.config import AZURE_PROCESSOR_KEY, AZURE_PROCESSOR_ENDPOINT
 
 CDN_DOMAIN = os.environ["CDN_DOMAIN"]
@@ -201,6 +203,47 @@ def read_local_json_to_bytes(path_: str) -> bytes:
         return file.read()
 
 
+def add_parser_metadata(
+    parser_output: ParserOutput, _key: str, _value: str
+) -> ParserOutput:
+    """
+    Add metadata to the parser stage metadata field.
+
+    If the parser metadata field doesn't exist then create it.
+    Log a warning if we are overwriting an existing value.
+    """
+    _LOGGER.info(
+        "Adding parser metadata.",
+        extra={
+            "props": {
+                "document_id": parser_output.document_id,
+                "key": _key,
+                "value": _value,
+            }
+        }
+    )
+    if PARSER_METADATA_KEY not in parser_output.pipeline_metadata.keys():
+        parser_output.pipeline_metadata = {PARSER_METADATA_KEY: {_key: _value}}
+        return parser_output
+
+    if _key in parser_output.pipeline_metadata[PARSER_METADATA_KEY].keys():
+        _LOGGER.warning(
+            "Overwriting existing parser metadata key.",
+            extra={
+                "props": {
+                    "document_id": parser_output.document_id,
+                    "key": _key,
+                    "new_value": _value,
+                    "existing_value": parser_output.pipeline_metadata[
+                        PARSER_METADATA_KEY
+                    ][_key],
+                }
+            },
+        )
+    parser_output.pipeline_metadata[PARSER_METADATA_KEY][_key] = _value
+    return parser_output
+
+
 def parse_file(
     input_task: ParserInput,
     azure_client: AzureApiWrapper,
@@ -362,11 +405,15 @@ def parse_file(
             api_response=api_response,
         )
 
-        document.pipeline_metadata = {
-            "azure_api_version": api_response.api_version,
-            "azure_model_id": api_response.model_id,
-            "parsing_date": datetime.now().isoformat(),
-        }
+        document = add_parser_metadata(
+            document, "azure_api_version", api_response.api_version
+        )
+        document = add_parser_metadata(
+            document, "azure_model_id", api_response.model_id
+        )
+        document = add_parser_metadata(
+            document, "parsing_date", datetime.now().isoformat()
+        )
 
         _LOGGER.info(
             "Saving parser output document.",
