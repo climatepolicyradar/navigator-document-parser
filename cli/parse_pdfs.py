@@ -220,7 +220,7 @@ def add_parser_metadata(
                 "key": _key,
                 "value": _value,
             }
-        }
+        },
     )
     if PARSER_METADATA_KEY not in parser_output.pipeline_metadata.keys():
         parser_output.pipeline_metadata = {PARSER_METADATA_KEY: {_key: _value}}
