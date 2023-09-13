@@ -66,7 +66,7 @@ def test_run_parser_local_parallel(
                 assert parser_output.pdf_data.page_metadata not in [[], None]
                 assert (
                     set(parser_output.pipeline_metadata.keys())
-                    is expected_pipeline_metadata_keys
+                    == expected_pipeline_metadata_keys
                 )
 
 
