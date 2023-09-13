@@ -32,7 +32,7 @@ patcher.start()
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_local_parallel(
-        test_input_dir, expected_pipeline_metadata_keys
+    test_input_dir, expected_pipeline_metadata_keys
 ) -> None:
     """Test that the parsing CLI runs and outputs a file."""
     with tempfile.TemporaryDirectory() as output_dir:

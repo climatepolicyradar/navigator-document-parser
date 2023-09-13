@@ -67,8 +67,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_files_to_parse(
-        files: Optional[tuple[str]],
-        input_dir_as_path: Union[CloudPath, Path],
+    files: Optional[tuple[str]],
+    input_dir_as_path: Union[CloudPath, Path],
 ) -> list[Path]:
     # If no file list is provided, run over all inputs in the input prefix
     env_files = []
@@ -112,21 +112,21 @@ def _get_files_to_parse(
     "--files",
     "-f",
     help="Pass in a list of filenames to parse, relative to the input directory. Used "
-         "to optionally specify a subset of files to parse.",
+    "to optionally specify a subset of files to parse.",
     multiple=True,
 )
 @click.option(
     "--redo",
     "-r",
     help="Redo parsing for files that have already been parsed. By default, files with "
-         "IDs that already exist in the output directory are skipped.",
+    "IDs that already exist in the output directory are skipped.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--s3",
     help="Input and output directories are S3 paths. The CLI will download tasks from "
-         "S3, run parsing, and upload the results to S3.",
+    "S3, run parsing, and upload the results to S3.",
     is_flag=True,
     default=False,
 )

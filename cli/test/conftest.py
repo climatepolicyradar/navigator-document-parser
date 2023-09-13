@@ -71,5 +71,3 @@ def archived_file_name_pattern() -> str:
 def expected_pipeline_metadata_keys() -> set[str]:
     """The names of the pipeline metadata keys that are expected in the output."""
     return {"azure_model_id", "date_parsed", "azure_api_version"}
-
-
