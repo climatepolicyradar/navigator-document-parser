@@ -71,6 +71,11 @@ def test_run_parser_local_parallel(
                     == expected_pipeline_metadata_keys
                 )
 
+                # Test that we can call the vertically_flip_text_block_coords method
+                # on the ParserOutput, this will assert that the page numbers are
+                # correct as well.
+                parser_output.vertically_flip_text_block_coords().get_text_blocks()
+
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_local_series(test_input_dir) -> None:
