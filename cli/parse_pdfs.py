@@ -247,7 +247,7 @@ def add_parser_metadata(
 def save_api_response(
     azure_cache_dir: Union[Path, S3Path, None],
     input_task: ParserInput,
-    api_response_array: [AnalyzeResult]
+    api_response_array: [AnalyzeResult],
 ) -> None:
     """Cache the raw api responses as an array of json data."""
     if azure_cache_dir:
@@ -255,16 +255,13 @@ def save_api_response(
             document_azure_cache_dir = azure_cache_dir / input_task.document_id
             document_azure_cache_dir.mkdir(parents=True, exist_ok=True)
             document_azure_cache_path = (
-                    document_azure_cache_dir / f"{time.time_ns()}.json"
+                document_azure_cache_dir / f"{time.time_ns()}.json"
             )
             if not document_azure_cache_path.exists():
                 document_azure_cache_path.touch()
             document_azure_cache_path.write_text(
                 json.dumps(
-                    [
-                        api_response.to_dict()
-                        for api_response in api_response_array
-                    ]
+                    [api_response.to_dict() for api_response in api_response_array]
                 )
             )
             _LOGGER.info(
@@ -361,7 +358,7 @@ def parse_file(
             save_api_response(
                 azure_cache_dir=azure_cache_dir,
                 input_task=input_task,
-                api_response_array=[api_response]
+                api_response_array=[api_response],
             )
         except ServiceRequestError as e:
             _LOGGER.error(
@@ -387,10 +384,11 @@ def parse_file(
                 },
             )
             try:
-                batch_responses_array, api_response = (
-                    azure_client.analyze_large_document_from_bytes(
-                        doc_bytes=read_local_json_to_bytes(str(pdf_path)),
-                    )
+                (
+                    batch_responses_array,
+                    api_response,
+                ) = azure_client.analyze_large_document_from_bytes(
+                    doc_bytes=read_local_json_to_bytes(str(pdf_path)),
                 )
                 save_api_response(
                     azure_cache_dir=azure_cache_dir,
@@ -398,7 +396,7 @@ def parse_file(
                     api_response_array=[
                         api_response_.extracted_content
                         for api_response_ in batch_responses_array
-                    ]
+                    ],
                 )
             except Exception as e:
                 _LOGGER.exception(
