@@ -168,6 +168,7 @@ def test_run_parser_cache_azure_response_s3(
 
     input_dir = "s3://test-bucket/test-input-dir"
     output_dir = "s3://test-bucket/test-output-dir"
+    # TODO move to fixture
     azure_cache_prefix = "azure_api_response_cache"
     test_azure_api_response_dir = output_dir + "/" + azure_cache_prefix
 
@@ -233,7 +234,7 @@ def test_run_parser_s3(test_input_dir) -> None:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_specific_files() -> None:
-    """Test that using the `--files` flag only parses the files that have been specified."""
+    """Test that using the `--files` flag only parses the specified files."""
 
     input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
 
@@ -372,7 +373,7 @@ def get_parser_output(
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_should_be_translated(backend_document_json) -> None:
-    """Tests whether we can successfully determine whether to translate a known input documents."""
+    """Tests we can successfully determine whether to translate input document."""
     doc_1 = get_parser_output(
         translated=False,
         source_url="https://www.google.org",
@@ -408,7 +409,7 @@ def test_should_be_translated(backend_document_json) -> None:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_identify_target_languages(backend_document_json) -> None:
-    """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
+    """Tests whether we can successfully determine the target languages."""
     doc_1 = get_parser_output(
         translated=False,
         source_url="https://www.google.org",
@@ -528,7 +529,11 @@ def test_fail_safely_on_azure_service_request_error(
 
 
 def test_fail_safely_on_azure_http_response_error(
-    test_input_dir, one_page_analyse_result, caplog
+    archived_file_name_pattern,
+    test_azure_api_response_dir,
+    test_input_dir,
+    one_page_analyse_result,
+    caplog,
 ) -> None:
     """
     Test the functionality of the pdf parser.
@@ -586,3 +591,22 @@ def test_fail_safely_on_azure_http_response_error(
                     assert parser_output.pdf_data.text_blocks not in [[], None]
                     assert parser_output.pdf_data.md5sum != ""
                     assert parser_output.pdf_data.page_metadata not in [[], None]
+
+            azure_responses = set(
+                LocalS3Path(test_azure_api_response_dir).glob("*/*.json")
+            )
+            assert len(azure_responses) == 1
+            for file in azure_responses:
+                assert re.match(archived_file_name_pattern, file.name)
+
+                # Check that the object is of the correct structure and has the correct
+                # file name
+                data = json.loads(file.read_text())
+                assert isinstance(data, list)
+                for analyse_result in data:
+                    AnalyzeResult.from_dict(analyse_result)
+
+                assert {document["document_id"] for document in data} == {
+                    file.parts[-2]
+                }
+                assert file.parts[-3] == "azure_api_response_cache"
