@@ -58,8 +58,14 @@ def test_input_dir() -> Path:
 
 
 @pytest.fixture()
-def test_azure_api_response_dir() -> Path:
-    return (Path(__file__).parent / "test_data" / "azure_api_response_cache").resolve()
+def azure_api_cache_dir() -> str:
+    """The directory where the azure api response cache is stored."""
+    return "azure_api_response_cache"
+
+
+@pytest.fixture()
+def test_azure_api_response_dir(azure_api_cache_dir) -> Path:
+    return (Path(__file__).parent / "test_data" / azure_api_cache_dir).resolve()
 
 
 @pytest.fixture()

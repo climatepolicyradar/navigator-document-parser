@@ -278,8 +278,8 @@ requests = "^2.31.0"
 [package.source]
 type = "git"
 url = "https://github.com/climatepolicyradar/azure-pdf-parser.git"
-reference = "v0.1.4"
-resolved_reference = "4529522386475f98518a752cd329e262ead0db08"
+reference = "v0.1.5"
+resolved_reference = "bd0070263d636c80d7bb9dd343b523eb8f578523"
 
 [[package]]
 name = "beautifulsoup4"
@@ -3623,4 +3623,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.9"
-content-hash = "4be819a3156cbeb673485562a9472da0192a0d86c7be9a68804cee4010cf7cf4"
+content-hash = "0974def5d0636dcb46733747ff300b476f20d9a9156222f015bf60b12ea9c2b6"

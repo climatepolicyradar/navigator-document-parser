@@ -25,7 +25,6 @@ from cpr_data_access.parser_models import (
 from azure_pdf_parser import (
     AzureApiWrapper,
     azure_api_response_to_parser_output,
-    PDFPage,
 )
 
 from src.base import PARSER_METADATA_KEY

@@ -16,6 +16,7 @@ from cpr_data_access.parser_models import (
     CONTENT_TYPE_PDF,
 )
 from cpr_data_access.pipeline_general_models import BackendDocument
+from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
 
@@ -162,15 +163,13 @@ def test_run_parser_cache_azure_response_local(
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_cache_azure_response_s3(
-    test_input_dir, archived_file_name_pattern
+    test_input_dir, archived_file_name_pattern, azure_api_cache_dir
 ) -> None:
     """Test that the parser can successfully save api responses remotely."""
 
     input_dir = "s3://test-bucket/test-input-dir"
     output_dir = "s3://test-bucket/test-output-dir"
-    # TODO move to fixture
-    azure_cache_prefix = "azure_api_response_cache"
-    test_azure_api_response_dir = output_dir + "/" + azure_cache_prefix
+    test_azure_api_response_dir = output_dir + "/" + azure_api_cache_dir
 
     # Copy test data to mock of S3 path
     html_file_path = LocalS3Path(f"{input_dir}/test_html.json")
@@ -209,7 +208,7 @@ def test_run_parser_cache_azure_response_s3(
             AnalyzeResult.from_dict(json.loads(file.read_text()))
             assert re.match(archived_file_name_pattern, file.name)
             assert file.parts[-2] == json.loads(pdf_file_data)["document_id"]
-            assert file.parts[-3] == azure_cache_prefix
+            assert file.parts[-3] == azure_api_cache_dir
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -533,6 +532,7 @@ def test_fail_safely_on_azure_http_response_error(
     test_azure_api_response_dir,
     test_input_dir,
     one_page_analyse_result,
+    azure_api_cache_dir,
     caplog,
 ) -> None:
     """
@@ -553,7 +553,18 @@ def test_fail_safely_on_azure_http_response_error(
             response=mock.Mock(status=500), message="Mock Internal Server Error"
         )
 
-        mock_get_large.return_value = ({"0": []}, one_page_analyse_result)
+        # TODO - Add a test for a larger document as well
+        mock_get_large.return_value = (
+            [
+                PDFPagesBatchExtracted(
+                    page_range=(1, 1),
+                    extracted_content=one_page_analyse_result,
+                    batch_number=1,
+                    batch_size_max=50,
+                )
+            ],
+            one_page_analyse_result,
+        )
 
         with tempfile.TemporaryDirectory() as output_dir:
             runner = CliRunner()
@@ -609,4 +620,4 @@ def test_fail_safely_on_azure_http_response_error(
                 assert {document["document_id"] for document in data} == {
                     file.parts[-2]
                 }
-                assert file.parts[-3] == "azure_api_response_cache"
+                assert file.parts[-3] == azure_api_cache_dir
