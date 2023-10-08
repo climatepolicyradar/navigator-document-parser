@@ -260,7 +260,12 @@ def save_api_response(
                 document_azure_cache_path.touch()
             document_azure_cache_path.write_text(
                 json.dumps(
-                    [api_response.to_dict() for api_response in api_response_array]
+                    {
+                        input_task.document_id: [
+                            api_response.to_dict()
+                            for api_response in api_response_array
+                        ]
+                    }
                 )
             )
             _LOGGER.info(
