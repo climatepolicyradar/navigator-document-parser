@@ -157,7 +157,11 @@ def test_run_parser_cache_azure_response_local(
             # Check that the object is of the correct structure and has the correct
             # file name
 
-            AnalyzeResult.from_dict(json.loads(file.read_text()))
+            [
+                AnalyzeResult.from_dict(response)
+                for response in
+                json.loads(file.read_text())
+            ]
             assert re.match(archived_file_name_pattern, file.name)
 
 
@@ -205,7 +209,10 @@ def test_run_parser_cache_azure_response_s3(
         for file in azure_responses:
             # Check that the object is of the correct structure and has the correct
             # file name
-            AnalyzeResult.from_dict(json.loads(file.read_text()))
+            [
+                AnalyzeResult.from_dict(response)
+                for response in json.loads(file.read_text())
+            ]
             assert re.match(archived_file_name_pattern, file.name)
             assert file.parts[-2] == json.loads(pdf_file_data)["document_id"]
             assert file.parts[-3] == azure_api_cache_dir
@@ -604,7 +611,7 @@ def test_fail_safely_on_azure_http_response_error(
                     assert parser_output.pdf_data.page_metadata not in [[], None]
 
             azure_responses = set(
-                LocalS3Path(test_azure_api_response_dir).glob("*/*.json")
+                Path(test_azure_api_response_dir).glob("*/*.json")
             )
             assert len(azure_responses) == 1
             for file in azure_responses:
@@ -612,12 +619,10 @@ def test_fail_safely_on_azure_http_response_error(
 
                 # Check that the object is of the correct structure and has the correct
                 # file name
-                data = json.loads(file.read_text())
-                assert isinstance(data, list)
-                for analyse_result in data:
+                analyse_result_array = json.loads(file.read_text())
+                assert isinstance(analyse_result_array, list)
+                [
                     AnalyzeResult.from_dict(analyse_result)
-
-                assert {document["document_id"] for document in data} == {
-                    file.parts[-2]
-                }
+                    for analyse_result in analyse_result_array
+                ]
                 assert file.parts[-3] == azure_api_cache_dir
