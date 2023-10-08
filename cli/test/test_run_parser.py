@@ -159,8 +159,7 @@ def test_run_parser_cache_azure_response_local(
 
             [
                 AnalyzeResult.from_dict(response)
-                for response in
-                json.loads(file.read_text())
+                for response in json.loads(file.read_text())
             ]
             assert re.match(archived_file_name_pattern, file.name)
 
@@ -610,9 +609,7 @@ def test_fail_safely_on_azure_http_response_error(
                     assert parser_output.pdf_data.md5sum != ""
                     assert parser_output.pdf_data.page_metadata not in [[], None]
 
-            azure_responses = set(
-                Path(test_azure_api_response_dir).glob("*/*.json")
-            )
+            azure_responses = set(Path(test_azure_api_response_dir).glob("*/*.json"))
             assert len(azure_responses) == 1
             for file in azure_responses:
                 assert re.match(archived_file_name_pattern, file.name)
