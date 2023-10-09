@@ -7,7 +7,7 @@ import time
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Union, Tuple, Sequence
+from typing import List, Optional, Union
 import hashlib
 import json
 from datetime import datetime
@@ -25,7 +25,6 @@ from cpr_data_access.parser_models import (
 from azure_pdf_parser import (
     AzureApiWrapper,
     azure_api_response_to_parser_output,
-    PDFPage,
 )
 
 from src.base import PARSER_METADATA_KEY
@@ -244,6 +243,52 @@ def add_parser_metadata(
     return parser_output
 
 
+def save_api_response(
+    azure_cache_dir: Union[Path, S3Path, None],
+    input_task: ParserInput,
+    api_response_array: [AnalyzeResult],
+) -> None:
+    """Cache the raw api responses as an array of json data."""
+    if azure_cache_dir:
+        try:
+            document_azure_cache_dir = azure_cache_dir / input_task.document_id
+            document_azure_cache_dir.mkdir(parents=True, exist_ok=True)
+            document_azure_cache_path = (
+                document_azure_cache_dir / f"{time.time_ns()}.json"
+            )
+            if not document_azure_cache_path.exists():
+                document_azure_cache_path.touch()
+            document_azure_cache_path.write_text(
+                json.dumps(
+                    {
+                        input_task.document_id: [
+                            api_response.to_dict()
+                            for api_response in api_response_array
+                        ]
+                    }
+                )
+            )
+            _LOGGER.info(
+                "Saved raw azure api response.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "azure_cache_path": str(document_azure_cache_path),
+                    }
+                },
+            )
+        except Exception as e:
+            _LOGGER.exception(
+                "Failed to save the raw azure api response.",
+                extra={
+                    "props": {
+                        "document_id": input_task.document_id,
+                        "error_message": str(e),
+                    }
+                },
+            )
+
+
 def parse_file(
     input_task: ParserInput,
     azure_client: AzureApiWrapper,
@@ -314,37 +359,11 @@ def parse_file(
             api_response: AnalyzeResult = azure_client.analyze_document_from_bytes(
                 doc_bytes=read_local_json_to_bytes(str(pdf_path)),
             )
-            try:
-                if azure_cache_dir:
-                    document_azure_cache_dir = azure_cache_dir / input_task.document_id
-                    document_azure_cache_dir.mkdir(parents=True, exist_ok=True)
-                    document_azure_cache_path = (
-                        document_azure_cache_dir / f"{time.time_ns()}.json"
-                    )
-                    if not document_azure_cache_path.exists():
-                        document_azure_cache_path.touch()
-                    document_azure_cache_path.write_text(
-                        json.dumps(api_response.to_dict())
-                    )
-                    _LOGGER.info(
-                        "Saved raw azure api response.",
-                        extra={
-                            "props": {
-                                "document_id": input_task.document_id,
-                                "azure_cache_path": str(document_azure_cache_path),
-                            }
-                        },
-                    )
-            except Exception as e:
-                _LOGGER.exception(
-                    "Failed to save the raw azure api response.",
-                    extra={
-                        "props": {
-                            "document_id": input_task.document_id,
-                            "error_message": str(e),
-                        }
-                    },
-                )
+            save_api_response(
+                azure_cache_dir=azure_cache_dir,
+                input_task=input_task,
+                api_response_array=[api_response],
+            )
         except ServiceRequestError as e:
             _LOGGER.error(
                 "Failed to parse document with Azure API. This is most likely due to "
@@ -369,12 +388,20 @@ def parse_file(
                 },
             )
             try:
-                response_: Tuple[
-                    Sequence[PDFPage], AnalyzeResult
-                ] = azure_client.analyze_large_document_from_bytes(
+                (
+                    batch_responses_array,
+                    api_response,
+                ) = azure_client.analyze_large_document_from_bytes(
                     doc_bytes=read_local_json_to_bytes(str(pdf_path)),
                 )
-                api_response: AnalyzeResult = response_[1]
+                save_api_response(
+                    azure_cache_dir=azure_cache_dir,
+                    input_task=input_task,
+                    api_response_array=[
+                        api_response_.extracted_content
+                        for api_response_ in batch_responses_array
+                    ],
+                )
             except Exception as e:
                 _LOGGER.exception(
                     "Failed to parse document with Azure API using the large document "

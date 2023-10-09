@@ -16,6 +16,7 @@ from cpr_data_access.parser_models import (
     CONTENT_TYPE_PDF,
 )
 from cpr_data_access.pipeline_general_models import BackendDocument
+from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
 
@@ -155,21 +156,25 @@ def test_run_parser_cache_azure_response_local(
         for file in azure_responses:
             # Check that the object is of the correct structure and has the correct
             # file name
+            azure_response = json.loads(file.read_text())
+            assert len(azure_response.keys()) == 1
+            assert len(azure_response.values()) == 1
 
-            AnalyzeResult.from_dict(json.loads(file.read_text()))
+            azure_response_array = list(azure_response.values())[0]
+            assert isinstance(azure_response_array, list)
+            [AnalyzeResult.from_dict(response) for response in azure_response_array]
             assert re.match(archived_file_name_pattern, file.name)
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_cache_azure_response_s3(
-    test_input_dir, archived_file_name_pattern
+    test_input_dir, archived_file_name_pattern, azure_api_cache_dir
 ) -> None:
     """Test that the parser can successfully save api responses remotely."""
 
     input_dir = "s3://test-bucket/test-input-dir"
     output_dir = "s3://test-bucket/test-output-dir"
-    azure_cache_prefix = "azure_api_response_cache"
-    test_azure_api_response_dir = output_dir + "/" + azure_cache_prefix
+    test_azure_api_response_dir = output_dir + "/" + azure_api_cache_dir
 
     # Copy test data to mock of S3 path
     html_file_path = LocalS3Path(f"{input_dir}/test_html.json")
@@ -205,10 +210,16 @@ def test_run_parser_cache_azure_response_s3(
         for file in azure_responses:
             # Check that the object is of the correct structure and has the correct
             # file name
-            AnalyzeResult.from_dict(json.loads(file.read_text()))
+            azure_response = json.loads(file.read_text())
+            assert len(azure_response.keys()) == 1
+            assert len(azure_response.values()) == 1
+
+            azure_response_array = list(azure_response.values())[0]
+            assert isinstance(azure_response_array, list)
+            [AnalyzeResult.from_dict(response) for response in azure_response_array]
             assert re.match(archived_file_name_pattern, file.name)
             assert file.parts[-2] == json.loads(pdf_file_data)["document_id"]
-            assert file.parts[-3] == azure_cache_prefix
+            assert file.parts[-3] == azure_api_cache_dir
 
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
@@ -233,7 +244,7 @@ def test_run_parser_s3(test_input_dir) -> None:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_specific_files() -> None:
-    """Test that using the `--files` flag only parses the files that have been specified."""
+    """Test that using the `--files` flag only parses the specified files."""
 
     input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
 
@@ -372,7 +383,7 @@ def get_parser_output(
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_should_be_translated(backend_document_json) -> None:
-    """Tests whether we can successfully determine whether to translate a known input documents."""
+    """Tests we can successfully determine whether to translate input document."""
     doc_1 = get_parser_output(
         translated=False,
         source_url="https://www.google.org",
@@ -408,7 +419,7 @@ def test_should_be_translated(backend_document_json) -> None:
 
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_identify_target_languages(backend_document_json) -> None:
-    """Tests whether we can successfully determine the target lanugages to translate too for a known input documents."""
+    """Tests whether we can successfully determine the target languages."""
     doc_1 = get_parser_output(
         translated=False,
         source_url="https://www.google.org",
@@ -528,7 +539,12 @@ def test_fail_safely_on_azure_service_request_error(
 
 
 def test_fail_safely_on_azure_http_response_error(
-    test_input_dir, one_page_analyse_result, caplog
+    archived_file_name_pattern,
+    test_azure_api_response_dir,
+    test_input_dir,
+    one_page_analyse_result,
+    azure_api_cache_dir,
+    caplog,
 ) -> None:
     """
     Test the functionality of the pdf parser.
@@ -548,7 +564,18 @@ def test_fail_safely_on_azure_http_response_error(
             response=mock.Mock(status=500), message="Mock Internal Server Error"
         )
 
-        mock_get_large.return_value = ({"0": []}, one_page_analyse_result)
+        # TODO - Add a test for a larger document as well
+        mock_get_large.return_value = (
+            [
+                PDFPagesBatchExtracted(
+                    page_range=(1, 1),
+                    extracted_content=one_page_analyse_result,
+                    batch_number=1,
+                    batch_size_max=50,
+                )
+            ],
+            one_page_analyse_result,
+        )
 
         with tempfile.TemporaryDirectory() as output_dir:
             runner = CliRunner()
@@ -586,3 +613,19 @@ def test_fail_safely_on_azure_http_response_error(
                     assert parser_output.pdf_data.text_blocks not in [[], None]
                     assert parser_output.pdf_data.md5sum != ""
                     assert parser_output.pdf_data.page_metadata not in [[], None]
+
+            azure_responses = set(Path(test_azure_api_response_dir).glob("*/*.json"))
+            assert len(azure_responses) == 1
+            for file in azure_responses:
+                assert re.match(archived_file_name_pattern, file.name)
+
+                # Check that the object is of the correct structure and has the correct
+                # file name
+                analyse_result = json.loads(file.read_text())
+                assert len(analyse_result.keys()) == 1
+                assert len(analyse_result.values()) == 1
+
+                azure_response_array = list(analyse_result.values())[0]
+                assert isinstance(azure_response_array, list)
+                [AnalyzeResult.from_dict(result) for result in azure_response_array]
+                assert file.parts[-3] == azure_api_cache_dir
