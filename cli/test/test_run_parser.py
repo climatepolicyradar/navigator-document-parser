@@ -32,6 +32,15 @@ patcher = mock.patch(
 patcher.start()
 
 
+def update_page_number(
+    analyse_result_: AnalyzeResult, page_number: int
+) -> AnalyzeResult:
+    """Update the page number on all the pages."""
+    for page in analyse_result_.pages:
+        page.page_number = page_number
+    return analyse_result_
+
+
 @pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
 def test_run_parser_local_parallel(
     test_input_dir, expected_pipeline_metadata_keys
@@ -658,14 +667,6 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
             response=mock.Mock(status=500), message="Mock Internal Server Error"
         )
 
-        def update_page_number(
-            analyse_result_: AnalyzeResult, page_number: int
-        ) -> AnalyzeResult:
-            """Update the page number on all the pages."""
-            for page in analyse_result_.pages:
-                page.page_number = page_number
-            return analyse_result_
-
         mock_get_large.return_value = (
             [
                 PDFPagesBatchExtracted(
@@ -691,7 +692,7 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
                     extracted_content=update_page_number(one_page_analyse_result, 4),
                     batch_number=4,
                     batch_size_max=1,
-                )
+                ),
             ],
             one_page_analyse_result,
         )
