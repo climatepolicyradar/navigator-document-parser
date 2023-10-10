@@ -564,7 +564,6 @@ def test_fail_safely_on_azure_http_response_error(
             response=mock.Mock(status=500), message="Mock Internal Server Error"
         )
 
-        # TODO - Add a test for a larger document as well
         mock_get_large.return_value = (
             [
                 PDFPagesBatchExtracted(
@@ -605,6 +604,128 @@ def test_fail_safely_on_azure_http_response_error(
                 # azure api, the pdf data should also be parsed successfully as we
                 # should re-attempt download using the large document endpoint upon
                 # HttpResponseError
+
+                parser_output.vertically_flip_text_block_coords()
+
+                if parser_output.document_content_type == CONTENT_TYPE_HTML:
+                    assert parser_output.html_data.text_blocks not in [[], None]
+
+                if parser_output.document_content_type == CONTENT_TYPE_PDF:
+                    assert parser_output.pdf_data.text_blocks not in [[], None]
+                    assert parser_output.pdf_data.md5sum != ""
+                    assert parser_output.pdf_data.page_metadata not in [[], None]
+
+            azure_responses = set(Path(test_azure_api_response_dir).glob("*/*.json"))
+            assert len(azure_responses) == 1
+            for file in azure_responses:
+                assert re.match(archived_file_name_pattern, file.name)
+
+                # Check that the object is of the correct structure and has the correct
+                # file name
+                analyse_result = json.loads(file.read_text())
+                assert len(analyse_result.keys()) == 1
+                assert len(analyse_result.values()) == 1
+
+                azure_response_array = list(analyse_result.values())[0]
+                assert isinstance(azure_response_array, list)
+                [AnalyzeResult.from_dict(result) for result in azure_response_array]
+                assert file.parts[-3] == azure_api_cache_dir
+
+
+def test_fail_safely_on_azure_http_response_error_large_doc(
+    archived_file_name_pattern,
+    test_azure_api_response_dir,
+    test_input_dir,
+    one_page_analyse_result,
+    azure_api_cache_dir,
+    caplog,
+) -> None:
+    """
+    Test the functionality of the pdf parser.
+
+    Assert that we retry pdf parsing using the large document endpoint should the default
+    endpoint fail with a HttpResponseError.
+    """
+    with (
+        patch(
+            "cli.parse_pdfs.AzureApiWrapper.analyze_large_document_from_bytes"
+        ) as mock_get_large,
+        patch(
+            "cli.parse_pdfs.AzureApiWrapper.analyze_document_from_bytes"
+        ) as mock_get_default,
+    ):
+        mock_get_default.side_effect = HttpResponseError(
+            response=mock.Mock(status=500), message="Mock Internal Server Error"
+        )
+
+        def update_page_number(
+            analyse_result_: AnalyzeResult, page_number: int
+        ) -> AnalyzeResult:
+            """Update the page number on all the pages."""
+            for page in analyse_result_.pages:
+                page.page_number = page_number
+            return analyse_result_
+
+        mock_get_large.return_value = (
+            [
+                PDFPagesBatchExtracted(
+                    page_range=(1, 1),
+                    extracted_content=one_page_analyse_result,
+                    batch_number=1,
+                    batch_size_max=1,
+                ),
+                PDFPagesBatchExtracted(
+                    page_range=(2, 2),
+                    extracted_content=update_page_number(one_page_analyse_result, 2),
+                    batch_number=2,
+                    batch_size_max=1,
+                ),
+                PDFPagesBatchExtracted(
+                    page_range=(3, 3),
+                    extracted_content=update_page_number(one_page_analyse_result, 3),
+                    batch_number=3,
+                    batch_size_max=1,
+                ),
+                PDFPagesBatchExtracted(
+                    page_range=(4, 4),
+                    extracted_content=update_page_number(one_page_analyse_result, 4),
+                    batch_number=4,
+                    batch_size_max=1,
+                )
+            ],
+            one_page_analyse_result,
+        )
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            runner = CliRunner()
+
+            result = runner.invoke(
+                cli_main, [str(test_input_dir), output_dir, "--parallel"]
+            )
+
+            assert result.exit_code == 0
+
+            assert (
+                "Failed to parse document with Azure API with default endpoint, "
+                "retrying with large document endpoint." in caplog.text
+            )
+
+            assert set(Path(output_dir).glob("*.json")) == {
+                Path(output_dir) / "test_html.json",
+                Path(output_dir) / "test_pdf.json",
+                Path(output_dir) / "test_no_content_type.json",
+            }
+
+            for output_file in Path(output_dir).glob("*.json"):
+                parser_output = ParserOutput.parse_file(output_file)
+                assert isinstance(parser_output, ParserOutput)
+
+                # Any html data should be parsed successfully as it is not using the
+                # azure api, the pdf data should also be parsed successfully as we
+                # should re-attempt download using the large document endpoint upon
+                # HttpResponseError
+
+                parser_output.vertically_flip_text_block_coords()
 
                 if parser_output.document_content_type == CONTENT_TYPE_HTML:
                     assert parser_output.html_data.text_blocks not in [[], None]
