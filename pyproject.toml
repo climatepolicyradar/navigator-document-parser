@@ -29,7 +29,7 @@ azure-ai-formrecognizer = "^3.2.1"
 pytest = "^7.4.0"
 mock = "^5.1.0"
 pypdf2 = "^3.0.1"
-azure-pdf-parser = {git = "https://github.com/climatepolicyradar/azure-pdf-parser.git", tag = "v0.1.6"}
+azure-pdf-parser = {git = "https://github.com/climatepolicyradar/azure-pdf-parser.git", tag = "v0.1.7"}
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20.0"
