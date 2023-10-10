@@ -36,8 +36,25 @@ def update_page_number(
     analyse_result_: AnalyzeResult, page_number: int
 ) -> AnalyzeResult:
     """Update the page number on all the pages."""
+    if analyse_result_.paragraphs:
+        for paragraph in analyse_result_.paragraphs:
+            if paragraph and paragraph.bounding_regions:
+                paragraph.bounding_regions[0].page_number = page_number
+
+    if analyse_result_.tables:
+        for table in analyse_result_.tables:
+            for cell in table.cells:
+                if cell and cell.bounding_regions:
+                    for bounding_region in cell.bounding_regions:
+                        bounding_region.page_number = page_number
+
+            if table.bounding_regions:
+                for bounding_region in table.bounding_regions:
+                    bounding_region.page_number = page_number
+
     for page in analyse_result_.pages:
         page.page_number = page_number
+
     return analyse_result_
 
 
