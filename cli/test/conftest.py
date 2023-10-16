@@ -37,6 +37,7 @@ def backend_document_json() -> dict:
         "source": "CCLW",
         "import_id": "test_pdf",
         "family_import_id": "TESTCCLW.family.4.0",
+        "family_slug": "slug_TESTCCLW.family.4.0",
         "category": "Law",
         "geography": "EUR",
         "languages": ["English"],
