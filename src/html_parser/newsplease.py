@@ -45,7 +45,7 @@ class NewsPleaseParser(HTMLParser):
                 )
 
             article = NewsPlease.from_html(
-                html=html, url=input.document_source_url, fetch_images=False
+                html=html, url=str(input.document_source_url), fetch_images=False
             )
         except Exception as e:
             _LOGGER.exception(
@@ -53,7 +53,6 @@ class NewsPleaseParser(HTMLParser):
                 extra={
                     "document_id": input.document_id,
                     "source_url": input.document_source_url,
-                    "html": html,
                     "error_message": e,
                 },
             )
