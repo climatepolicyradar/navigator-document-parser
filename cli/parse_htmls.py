@@ -48,7 +48,7 @@ def copy_input_to_output_html(
         pdf_data=None,
     )
 
-    output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+    output_path.write_text(blank_output.model_dump_json(indent=4))
 
     _LOGGER.info(
         "Blank html output saved.",
@@ -84,7 +84,7 @@ def run_html_parser(
             if not output_path.exists():
                 copy_input_to_output_html(task, output_path)
 
-            existing_parser_output = ParserOutput.parse_raw(output_path.read_text())
+            existing_parser_output = ParserOutput.model_validate_json(output_path.read_text())
             # If no parsed html dta exists, assume we've not run before
             existing_html_data_exists = (
                 existing_parser_output.html_data is not None
@@ -107,7 +107,7 @@ def run_html_parser(
             parsed_html = html_parser.parse(task).detect_and_set_languages()
 
             try:
-                output_path.write_text(parsed_html.json(indent=4, ensure_ascii=False))
+                output_path.write_text(parsed_html.model_dump_json(indent=4))
             except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
                 _LOGGER.error(
                     "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",

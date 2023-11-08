@@ -43,7 +43,7 @@ def process_documents_with_no_content_type(
 
         output_path = output_dir / f"{task.document_id}.json"
         try:
-            output_path.write_text(output.json(indent=4, ensure_ascii=False))
+            output_path.write_text(output.model_dump_json(indent=4))
         except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
             _LOGGER.error(
                 "Attempted write to s3, received OverwriteNewerCloudError and therefore skipping.",

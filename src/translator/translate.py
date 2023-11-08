@@ -62,7 +62,7 @@ def translate_parser_output(
     """
 
     # A deep copy here prevents text blocks in the original ParserOutput object from being modified in place
-    new_parser_output = parser_output.copy(deep=True)
+    new_parser_output = parser_output.model_copy(deep=True)
 
     # Translate document name, document description and text
     new_parser_output.document_name = translate_text(
