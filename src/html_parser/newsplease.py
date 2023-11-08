@@ -53,7 +53,7 @@ class NewsPleaseParser(HTMLParser):
                 extra={
                     "document_id": input.document_id,
                     "source_url": input.document_source_url,
-                    "html": html, 
+                    "html": html,
                     "error_message": e,
                 },
             )

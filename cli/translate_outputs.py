@@ -65,7 +65,7 @@ def translate_parser_outputs(
         )
 
         try:
-            parser_output = ParserOutput.parse_raw(path.read_text())
+            parser_output = ParserOutput.model_validate_json(path.read_text())
             _LOGGER.debug(
                 "Successfully parsed document from output dir during translation processing.",
                 extra={"props": {"path": f"{path}"}},

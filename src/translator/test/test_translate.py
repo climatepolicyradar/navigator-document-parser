@@ -18,18 +18,17 @@ def test_translate_parser_output() -> None:
     with mock.patch(
         "src.translator.translate.translate_text",
         wraps=fake_translate_text,
-    ):  
-        test_file_path = (Path(__file__).parent.parent.parent.parent
+    ):
+        test_file_path = (
+            Path(__file__).parent.parent.parent.parent
             / "cli"
             / "test"
             / "test_data"
             / "output"
             / "test_html.json"
         )
-        
-        parser_output = ParserOutput.model_validate_json(
-            test_file_path.read_text()
-        )
+
+        parser_output = ParserOutput.model_validate_json(test_file_path.read_text())
 
         translated_parser_output = translate_parser_output(parser_output, "fr")
 

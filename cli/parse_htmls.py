@@ -84,7 +84,9 @@ def run_html_parser(
             if not output_path.exists():
                 copy_input_to_output_html(task, output_path)
 
-            existing_parser_output = ParserOutput.model_validate_json(output_path.read_text())
+            existing_parser_output = ParserOutput.model_validate_json(
+                output_path.read_text()
+            )
             # If no parsed html dta exists, assume we've not run before
             existing_html_data_exists = (
                 existing_parser_output.html_data is not None

@@ -390,7 +390,7 @@ def get_parser_output(
         document_metadata=BackendDocument.model_validate(document_metadata),
         document_name="sdf",
         document_description="sdf",
-        document_source_url=source_url, # type: ignore 
+        document_source_url=source_url,  # type: ignore
         document_cdn_object="sdf",
         document_content_type="text/html",
         document_md5_sum="sdf",
@@ -623,7 +623,9 @@ def test_fail_safely_on_azure_http_response_error(
             }
 
             for output_file in Path(output_dir).glob("*.json"):
-                parser_output = ParserOutput.model_validate_json(output_file.read_text())
+                parser_output = ParserOutput.model_validate_json(
+                    output_file.read_text()
+                )
                 assert isinstance(parser_output, ParserOutput)
 
                 # Any html data should be parsed successfully as it is not using the
@@ -735,7 +737,9 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
             }
 
             for output_file in Path(output_dir).glob("*.json"):
-                parser_output = ParserOutput.model_validate_json(output_file.read_text())
+                parser_output = ParserOutput.model_validate_json(
+                    output_file.read_text()
+                )
                 assert isinstance(parser_output, ParserOutput)
 
                 # Any html data should be parsed successfully as it is not using the
