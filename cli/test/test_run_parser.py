@@ -19,6 +19,7 @@ from cpr_data_access.pipeline_general_models import BackendDocument
 from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
+from pydantic import AnyHttpUrl
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
@@ -390,7 +391,7 @@ def get_parser_output(
         document_metadata=BackendDocument.model_validate(document_metadata),
         document_name="sdf",
         document_description="sdf",
-        document_source_url=source_url,  # type: ignore
+        document_source_url=AnyHttpUrl(source_url) if source_url else None,
         document_cdn_object="sdf",
         document_content_type="text/html",
         document_md5_sum="sdf",
