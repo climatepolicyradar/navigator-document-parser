@@ -19,6 +19,7 @@ from cpr_data_access.pipeline_general_models import BackendDocument
 from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
+from pydantic import AnyHttpUrl
 
 from cli.run_parser import main as cli_main
 from cli.translate_outputs import should_be_translated, identify_translation_languages
@@ -82,7 +83,7 @@ def test_run_parser_local_parallel(
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            parser_output = ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.model_validate_json(output_file.read_text())
             assert isinstance(parser_output, ParserOutput)
 
             if parser_output.document_content_type == CONTENT_TYPE_HTML:
@@ -124,7 +125,7 @@ def test_run_parser_local_series(test_input_dir) -> None:
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            parser_output = ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.model_validate_json(output_file.read_text())
             assert isinstance(parser_output, ParserOutput)
 
             if parser_output.document_content_type == CONTENT_TYPE_HTML:
@@ -166,7 +167,7 @@ def test_run_parser_cache_azure_response_local(
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            parser_output = ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.model_validate_json(output_file.read_text())
             assert isinstance(parser_output, ParserOutput)
 
             if parser_output.document_content_type == CONTENT_TYPE_HTML:
@@ -296,7 +297,7 @@ def test_run_parser_skip_already_done(backend_document_json, caplog) -> None:
     with tempfile.TemporaryDirectory() as output_dir:
         with open(Path(output_dir) / "test_pdf.json", "w") as f:
             f.write(
-                ParserOutput.parse_obj(
+                ParserOutput.model_validate(
                     {
                         "document_id": "test_pdf",
                         "document_metadata": backend_document_json,
@@ -324,12 +325,12 @@ def test_run_parser_skip_already_done(backend_document_json, caplog) -> None:
                         },
                         "html_data": None,
                     }
-                ).json()
+                ).model_dump_json()
             )
 
         with open(Path(output_dir) / "test_html.json", "w") as f:
             f.write(
-                ParserOutput.parse_obj(
+                ParserOutput.model_validate(
                     {
                         "document_id": "test_html",
                         "document_metadata": backend_document_json,
@@ -356,7 +357,7 @@ def test_run_parser_skip_already_done(backend_document_json, caplog) -> None:
                         },
                         "pdf_data": None,
                     }
-                ).json()
+                ).model_dump_json()
             )
 
         runner = CliRunner()
@@ -387,10 +388,10 @@ def get_parser_output(
     """Generate the parser output objects for the tests given input variables."""
     return ParserOutput(
         document_id="sdf",
-        document_metadata=BackendDocument.parse_obj(document_metadata),
+        document_metadata=BackendDocument.model_validate(document_metadata),
         document_name="sdf",
         document_description="sdf",
-        document_source_url=source_url,
+        document_source_url=AnyHttpUrl(source_url) if source_url else None,
         document_cdn_object="sdf",
         document_content_type="text/html",
         document_md5_sum="sdf",
@@ -496,7 +497,7 @@ def test_fail_safely_on_azure_uncaught_exception(
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            parser_output = ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.model_validate_json(output_file.read_text())
             assert isinstance(parser_output, ParserOutput)
 
             # Any html data should be parsed successfully as it is not using the azure
@@ -548,7 +549,7 @@ def test_fail_safely_on_azure_service_request_error(
         }
 
         for output_file in Path(output_dir).glob("*.json"):
-            parser_output = ParserOutput.parse_file(output_file)
+            parser_output = ParserOutput.model_validate_json(output_file.read_text())
             assert isinstance(parser_output, ParserOutput)
 
             # Any html data should be parsed successfully as it is not using the azure
@@ -623,7 +624,9 @@ def test_fail_safely_on_azure_http_response_error(
             }
 
             for output_file in Path(output_dir).glob("*.json"):
-                parser_output = ParserOutput.parse_file(output_file)
+                parser_output = ParserOutput.model_validate_json(
+                    output_file.read_text()
+                )
                 assert isinstance(parser_output, ParserOutput)
 
                 # Any html data should be parsed successfully as it is not using the
@@ -735,7 +738,9 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
             }
 
             for output_file in Path(output_dir).glob("*.json"):
-                parser_output = ParserOutput.parse_file(output_file)
+                parser_output = ParserOutput.model_validate_json(
+                    output_file.read_text()
+                )
                 assert isinstance(parser_output, ParserOutput)
 
                 # Any html data should be parsed successfully as it is not using the

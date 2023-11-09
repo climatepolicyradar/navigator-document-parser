@@ -65,7 +65,7 @@ def copy_input_to_output_pdf(
         )
 
         try:
-            output_path.write_text(blank_output.json(indent=4, ensure_ascii=False))
+            output_path.write_text(blank_output.model_dump_json(indent=4))
             _LOGGER.info(
                 "Blank output saved.",
                 extra={
@@ -246,7 +246,7 @@ def add_parser_metadata(
 def save_api_response(
     azure_cache_dir: Union[Path, S3Path, None],
     input_task: ParserInput,
-    api_response_array: [AnalyzeResult],
+    api_response_array: List[AnalyzeResult],
 ) -> None:
     """Cache the raw api responses as an array of json data."""
     if azure_cache_dir:
@@ -318,7 +318,7 @@ def parse_file(
     if not output_path.exists():
         copy_input_to_output_pdf(input_task, output_path)
 
-    existing_parser_output = ParserOutput.parse_raw(output_path.read_text())
+    existing_parser_output = ParserOutput.model_validate_json(output_path.read_text())
     # If no parsed pdf data exists, assume we've not run before
     existing_pdf_data_exists = (
         existing_parser_output.pdf_data is not None
@@ -426,7 +426,7 @@ def parse_file(
             )
             return None
 
-        document: ParserOutput = azure_api_response_to_parser_output(
+        document = azure_api_response_to_parser_output(
             parser_input=input_task,
             md5_sum=calculate_pdf_md5sum(str(pdf_path)),
             api_response=api_response,
@@ -452,7 +452,7 @@ def parse_file(
         )
 
         try:
-            output_path.write_text(document.json(indent=4, ensure_ascii=False))
+            output_path.write_text(document.model_dump_json(indent=4))
         except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
             _LOGGER.error(
                 "Attempted write to s3, received OverwriteNewerCloudError and "

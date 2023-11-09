@@ -45,11 +45,11 @@ class NewsPleaseParser(HTMLParser):
                 )
 
             article = NewsPlease.from_html(
-                html=html, url=input.document_source_url, fetch_images=False
+                html=html, url=str(input.document_source_url), fetch_images=False
             )
         except Exception as e:
             _LOGGER.exception(
-                "Failed to parse document.{input.document_source_url} for {input.document_id}",
+                f"Failed to parse {input.document_source_url} for {input.document_id}",
                 extra={
                     "document_id": input.document_id,
                     "source_url": input.document_source_url,
@@ -120,7 +120,7 @@ class NewsPleaseParser(HTMLParser):
         has_valid_text = len(text_by_line) >= HTML_MIN_NO_LINES_FOR_VALID_TEXT
 
         text_blocks = [
-            HTMLTextBlock.parse_obj(
+            HTMLTextBlock.model_validate(
                 {
                     "text_block_id": f"b{idx}",
                     "text": [text],

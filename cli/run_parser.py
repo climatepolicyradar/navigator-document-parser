@@ -197,8 +197,8 @@ def main(
     tasks = []
     for path in files_to_parse:
         try:
-            tasks.append(ParserInput.parse_raw(path.read_text()))
-        except (pydantic.error_wrappers.ValidationError, KeyError) as e:
+            tasks.append(ParserInput.model_validate_json(path.read_text()))
+        except (pydantic.ValidationError, KeyError) as e:
             _LOGGER.error(
                 "Failed to parse input file.",
                 extra={

@@ -90,7 +90,7 @@ class ReadabilityParser(HTMLParser):
         has_valid_text = len(text_by_line) >= HTML_MIN_NO_LINES_FOR_VALID_TEXT
 
         text_blocks = [
-            HTMLTextBlock.parse_obj(
+            HTMLTextBlock.model_validate(
                 {
                     "text_block_id": f"b{idx}",
                     "text": [text],

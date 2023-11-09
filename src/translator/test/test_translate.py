@@ -19,7 +19,7 @@ def test_translate_parser_output() -> None:
         "src.translator.translate.translate_text",
         wraps=fake_translate_text,
     ):
-        parser_output = ParserOutput.parse_file(
+        test_file_path = (
             Path(__file__).parent.parent.parent.parent
             / "cli"
             / "test"
@@ -27,6 +27,8 @@ def test_translate_parser_output() -> None:
             / "output"
             / "test_html.json"
         )
+
+        parser_output = ParserOutput.model_validate_json(test_file_path.read_text())
 
         translated_parser_output = translate_parser_output(parser_output, "fr")
 

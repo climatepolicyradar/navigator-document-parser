@@ -26,7 +26,7 @@ def test_parse(url: str, parser: HTMLParser) -> None:
     :param parser: HTML parser
     """
 
-    input = ParserInput.parse_obj(
+    input = ParserInput.model_validate(
         {
             "document_id": "test_id",
             "document_metadata": {
