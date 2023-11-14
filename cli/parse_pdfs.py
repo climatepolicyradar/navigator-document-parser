@@ -65,7 +65,7 @@ def copy_input_to_output_pdf(
         )
 
         try:
-            output_path.write_text(blank_output.model_dump_json(indent=4))
+            output_path.write_text(blank_output.model_dump_json(indent=2))
             _LOGGER.info(
                 "Blank output saved.",
                 extra={
@@ -452,7 +452,7 @@ def parse_file(
         )
 
         try:
-            output_path.write_text(document.model_dump_json(indent=4))
+            output_path.write_text(document.model_dump_json(indent=2))
         except cloudpathlib.exceptions.OverwriteNewerCloudError as e:
             _LOGGER.error(
                 "Attempted write to s3, received OverwriteNewerCloudError and "
