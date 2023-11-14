@@ -164,7 +164,7 @@ def _translate_to_target_languages(
 
             try:
                 output_path.write_text(  # type: ignore
-                    translated_parser_output.model_dump_json(indent=4)
+                    translated_parser_output.model_dump_json(indent=2)
                 )
                 _LOGGER.info(
                     "Saved translated output for document.",
