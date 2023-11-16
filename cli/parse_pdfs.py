@@ -266,7 +266,7 @@ def save_api_response(
                             for api_response in api_response_array
                         ]
                     },
-                    indent=2
+                    indent=2,
                 )
             )
             _LOGGER.info(
