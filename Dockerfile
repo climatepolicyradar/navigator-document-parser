@@ -3,6 +3,9 @@ FROM python:3.9-slim-bullseye
 RUN mkdir /app
 WORKDIR /app
 
+# Copy the src module here so that poetry can install it as a package
+COPY /src /app/src
+
 # Install git and precommit
 RUN apt-get update
 RUN apt-get install -y git pre-commit
