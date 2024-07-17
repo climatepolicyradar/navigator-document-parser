@@ -1,5 +1,8 @@
 .PHONY: run_local run_docker install test_local build test
-include .env
+-include .env
+
+setup:
+	cp .env.example .env
 
 install:
 	poetry shell
@@ -9,7 +12,7 @@ run_local:
 	TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed
 
 test_local:
-	TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org python -m pytest -vvv
+	TARGET_LANGUAGES=en CDN_DOMAIN=cdn.climatepolicyradar.org poetry run python -m pytest -vvv
 
 build:
 	docker build -t navigator-document-parser .
