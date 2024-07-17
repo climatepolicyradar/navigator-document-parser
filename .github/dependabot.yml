@@ -7,7 +7,7 @@ updates:
     ignore:
       - dependency-name: cpr_sdk
     reviewers:
-      - "climatepolicyradar/deng"
+      - climatepolicyradar/deng
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -15,7 +15,7 @@ updates:
     ignore:
       - dependency-name: cpr_sdk
     reviewers:
-      - "climatepolicyradar/deng"
+      - climatepolicyradar/deng
   - package-ecosystem: pip
     directory: /
     schedule:
@@ -23,4 +23,5 @@ updates:
     allow:
       - dependency-name: cpr_sdk
     reviewers:
-      - "climatepolicyradar/deng"
+      - climatepolicyradar/deng
+    target-branch: main
