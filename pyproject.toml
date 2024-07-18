@@ -9,7 +9,7 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 awscli = "^1.26.16"
 news-please = "^1.5.22"
 pandas = "^1.4.4"
