@@ -71,7 +71,7 @@ def test_azure_api_response_dir(azure_api_cache_dir) -> Path:
 
 @pytest.fixture()
 def archived_file_name_pattern() -> str:
-    return "^\d+\.json$"  # noqa: W605
+    return r"^\d+\.json$"
 
 
 @pytest.fixture()
