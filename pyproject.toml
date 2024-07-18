@@ -39,7 +39,7 @@ azure-pdf-parser = { git = "https://github.com/climatepolicyradar/azure-pdf-pars
 pre-commit = "^2.20.0"
 pyright = "^1.1.270"
 pytest = "^7.1.3"
-black = "^22.10.0"
+black = "^24.4.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
