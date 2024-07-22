@@ -1,5 +1,5 @@
 import pytest
-from cpr_data_access.parser_models import ParserInput, ParserOutput
+from cpr_sdk.parser_models import ParserInput, ParserOutput
 
 from src.base import HTMLParser
 from src.html_parser.newsplease import NewsPleaseParser

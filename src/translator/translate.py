@@ -4,7 +4,7 @@ import logging
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 
-from cpr_data_access.parser_models import ParserOutput
+from cpr_sdk.parser_models import ParserOutput
 from google.cloud import translate_v2
 
 

@@ -6,7 +6,7 @@ from typing import List, Union
 
 import cloudpathlib.exceptions
 from cloudpathlib import CloudPath
-from cpr_data_access.parser_models import ParserInput, ParserOutput, HTMLData
+from cpr_sdk.parser_models import ParserInput, ParserOutput, HTMLData
 from tqdm import tqdm
 
 sys.path.append("..")

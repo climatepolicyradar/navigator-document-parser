@@ -7,7 +7,7 @@ from newsplease import NewsPlease
 
 from src.config import HTML_HTTP_REQUEST_TIMEOUT, HTML_MIN_NO_LINES_FOR_VALID_TEXT
 from src.base import HTMLParser
-from cpr_data_access.parser_models import (
+from cpr_sdk.parser_models import (
     ParserInput,
     ParserOutput,
     HTMLData,

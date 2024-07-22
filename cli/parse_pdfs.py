@@ -17,7 +17,7 @@ import requests
 from azure.ai.formrecognizer import AnalyzeResult
 from azure.core.exceptions import ServiceRequestError, HttpResponseError
 from cloudpathlib import CloudPath, S3Path
-from cpr_data_access.parser_models import (
+from cpr_sdk.parser_models import (
     ParserInput,
     ParserOutput,
     PDFData,

@@ -4,7 +4,7 @@ import logging
 from typing import List
 import re
 import requests
-from cpr_data_access.parser_models import (
+from cpr_sdk.parser_models import (
     ParserInput,
     ParserOutput,
     HTMLData,

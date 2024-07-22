@@ -40,7 +40,7 @@ To run in Docker with the `data/raw` folder as input and `data/processed` as out
 make run_docker
 ```
 
-The CLI operates on an input folder of tasks defined by JSON files in the following format as defined in `cpr_data_access` library dependency. This can be found [here](https://github.com/climatepolicyradar/data-access).
+The CLI operates on an input folder of tasks defined by JSON files in the following format as defined in `cpr_sdk` library dependency. This can be found [here](https://github.com/climatepolicyradar/data-access).
 
 ``` python
 class ParserInput(BaseModel):
