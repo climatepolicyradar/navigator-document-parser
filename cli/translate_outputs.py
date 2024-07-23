@@ -5,7 +5,7 @@ from typing import Set, Sequence, Union
 
 import cloudpathlib.exceptions
 from cloudpathlib import CloudPath
-from cpr_data_access.parser_models import ParserOutput
+from cpr_sdk.parser_models import ParserOutput
 from tqdm.auto import tqdm
 
 from src.config import TARGET_LANGUAGES

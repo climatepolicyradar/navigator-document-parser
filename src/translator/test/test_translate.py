@@ -2,7 +2,7 @@ from typing import List
 from pathlib import Path
 from unittest import mock
 
-from cpr_data_access.parser_models import ParserOutput
+from cpr_sdk.parser_models import ParserOutput
 from src.translator.translate import translate_parser_output
 
 

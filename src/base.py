@@ -1,9 +1,10 @@
 """Base classes for parsing."""
+
 import logging
 import logging.config
 from abc import ABC, abstractmethod
 
-from cpr_data_access.parser_models import HTMLData, ParserOutput, ParserInput
+from cpr_sdk.parser_models import HTMLData, ParserOutput, ParserInput
 
 logger = logging.getLogger(__name__)
 

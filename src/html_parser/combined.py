@@ -2,7 +2,7 @@
 
 import logging
 import requests
-from cpr_data_access.parser_models import ParserInput, ParserOutput
+from cpr_sdk.parser_models import ParserInput, ParserOutput
 from playwright.sync_api import sync_playwright
 from playwright.sync_api._generated import Playwright
 from src.html_parser.newsplease import NewsPleaseParser

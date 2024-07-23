@@ -9,7 +9,7 @@ from typing import Optional, Union
 import click
 import pydantic
 from cloudpathlib import S3Path, CloudPath
-from cpr_data_access.parser_models import (
+from cpr_sdk.parser_models import (
     ParserInput,
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
