@@ -1404,12 +1404,12 @@ files = [
 google-auth = ">=2.14.1,<3.0.dev0"
 googleapis-common-protos = ">=1.56.2,<2.0.dev0"
 grpcio = [
-    {version = ">=1.33.2,<2.0dev", optional = true, markers = "python_version < \"3.11\" and extra == \"grpc\""},
     {version = ">=1.49.1,<2.0dev", optional = true, markers = "python_version >= \"3.11\" and extra == \"grpc\""},
+    {version = ">=1.33.2,<2.0dev", optional = true, markers = "python_version < \"3.11\" and extra == \"grpc\""},
 ]
 grpcio-status = [
-    {version = ">=1.33.2,<2.0.dev0", optional = true, markers = "python_version < \"3.11\" and extra == \"grpc\""},
     {version = ">=1.49.1,<2.0.dev0", optional = true, markers = "python_version >= \"3.11\" and extra == \"grpc\""},
+    {version = ">=1.33.2,<2.0.dev0", optional = true, markers = "python_version < \"3.11\" and extra == \"grpc\""},
 ]
 proto-plus = ">=1.22.3,<2.0.0dev"
 protobuf = ">=3.19.5,<3.20.0 || >3.20.0,<3.20.1 || >3.20.1,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<6.0.0.dev0"
@@ -2417,44 +2417,6 @@ six = ">=1.10.0"
 warcio = ">=1.3.3"
 
 [[package]]
-name = "news-please"
-version = "1.6.12"
-description = "news-please is an open source easy-to-use news extractor that just works."
-optional = false
-python-versions = "*"
-files = [
-    {file = "news_please-1.6.12-py3-none-any.whl", hash = "sha256:22ce7077a3339ebf2ba86c8a5ce263e2feb9a25d03e4f8b5708f3e44da875710"},
-    {file = "news_please-1.6.12.tar.gz", hash = "sha256:5cbabb0a0e69b7662a05922b88bec44a907377007346d1cb5b45edd1b20a07b7"},
-]
-
-[package.dependencies]
-ago = ">=0.0.9"
-beautifulsoup4 = ">=4.3.2"
-boto3 = "*"
-bs4 = "*"
-dotmap = ">=1.2.17"
-elasticsearch = ">=2.4"
-faust-cchardet = ">=2.1.18"
-hjson = ">=1.5.8"
-"hurry.filesize" = ">=0.9"
-langdetect = ">=1.0.7"
-lxml = ">=3.3.5"
-lxml-html-clean = ">=0.1.1"
-newspaper4k = ">=0.9.3.1"
-plac = ">=0.9.6"
-psycopg2-binary = ">=2.8.4"
-PyDispatcher = ">=2.0.5"
-PyMySQL = ">=0.7.9"
-python-dateutil = ">=2.4.0"
-pywin32 = {version = ">=220", markers = "sys_platform == \"win32\""}
-readability-lxml = ">=0.6.2"
-redis = "*"
-Scrapy = ">=1.1.0"
-six = ">=1.10.0"
-typing-extensions = ">=4.7.0"
-warcio = ">=1.3.3"
-
-[[package]]
 name = "newspaper3k"
 version = "0.2.8"
 description = "Simplified python article discovery & extraction."
@@ -2479,42 +2441,6 @@ PyYAML = ">=3.11"
 requests = ">=2.10.0"
 tinysegmenter = "0.3"
 tldextract = ">=2.0.1"
-
-[[package]]
-name = "newspaper4k"
-version = "0.9.3.1"
-description = "Simplified python article discovery & extraction."
-optional = false
-python-versions = ">=3.8,<4.0"
-files = [
-    {file = "newspaper4k-0.9.3.1-py3-none-any.whl", hash = "sha256:42a03b7915d92941a9fe4cc8dab47240219560e0cb8ecb5a291dc5a913eb8aa4"},
-    {file = "newspaper4k-0.9.3.1.tar.gz", hash = "sha256:fc237ae6a7b65d5ac4df224f962b2d7368c991fdf63b5176e439a1b74a2992e0"},
-]
-
-[package.dependencies]
-beautifulsoup4 = ">=4.9.3"
-feedparser = ">=6.0.0"
-lxml = ">=4.2.0"
-nltk = ">=3.6.6"
-numpy = {version = ">=1.25", markers = "python_version >= \"3.11\""}
-pandas = {version = ">=2.1.0", markers = "python_version >= \"3.11\""}
-Pillow = ">=4.0.0"
-python-dateutil = ">=2.6.1"
-PyYAML = ">=5.1"
-requests = ">=2.26.0"
-tldextract = ">=2.0.1"
-
-[package.extras]
-all = ["cloudscraper (>=1.2.0)", "gnews (>=0.3.6)", "indic-nlp-library (>=0.90)", "jieba (>=0.42.1)", "pythainlp (>=2.3.2)", "tinysegmenter (>=0.4)"]
-bn = ["indic-nlp-library (>=0.90)"]
-cloudflare = ["cloudscraper (>=1.2.0)"]
-gnews = ["gnews (>=0.3.6)"]
-hi = ["indic-nlp-library (>=0.90)"]
-ja = ["tinysegmenter (>=0.4)"]
-np = ["indic-nlp-library (>=0.90)"]
-ta = ["indic-nlp-library (>=0.90)"]
-th = ["pythainlp (>=2.3.2)"]
-zh = ["jieba (>=0.42.1)"]
 
 [[package]]
 name = "nltk"
@@ -2673,9 +2599,9 @@ files = [
 
 [package.dependencies]
 numpy = [
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -3201,6 +3127,19 @@ files = [
     {file = "pyarrow-17.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:392bc9feabc647338e6c89267635e111d71edad5fcffba204425a7c8d13610d7"},
     {file = "pyarrow-17.0.0-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:af5ff82a04b2171415f1410cff7ebb79861afc5dae50be73ce06d6e870615204"},
     {file = "pyarrow-17.0.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:edca18eaca89cd6382dfbcff3dd2d87633433043650c07375d095cd3517561d8"},
+    {file = "pyarrow-17.0.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7c7916bff914ac5d4a8fe25b7a25e432ff921e72f6f2b7547d1e325c1ad9d155"},
+    {file = "pyarrow-17.0.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f553ca691b9e94b202ff741bdd40f6ccb70cdd5fbf65c187af132f1317de6145"},
+    {file = "pyarrow-17.0.0-cp38-cp38-manylinux_2_28_aarch64.whl", hash = "sha256:0cdb0e627c86c373205a2f94a510ac4376fdc523f8bb36beab2e7f204416163c"},
+    {file = "pyarrow-17.0.0-cp38-cp38-manylinux_2_28_x86_64.whl", hash = "sha256:d7d192305d9d8bc9082d10f361fc70a73590a4c65cf31c3e6926cd72b76bc35c"},
+    {file = "pyarrow-17.0.0-cp38-cp38-win_amd64.whl", hash = "sha256:02dae06ce212d8b3244dd3e7d12d9c4d3046945a5933d28026598e9dbbda1fca"},
+    {file = "pyarrow-17.0.0-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:13d7a460b412f31e4c0efa1148e1d29bdf18ad1411eb6757d38f8fbdcc8645fb"},
+    {file = "pyarrow-17.0.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:9b564a51fbccfab5a04a80453e5ac6c9954a9c5ef2890d1bcf63741909c3f8df"},
+    {file = "pyarrow-17.0.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:32503827abbc5aadedfa235f5ece8c4f8f8b0a3cf01066bc8d29de7539532687"},
+    {file = "pyarrow-17.0.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a155acc7f154b9ffcc85497509bcd0d43efb80d6f733b0dc3bb14e281f131c8b"},
+    {file = "pyarrow-17.0.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:dec8d129254d0188a49f8a1fc99e0560dc1b85f60af729f47de4046015f9b0a5"},
+    {file = "pyarrow-17.0.0-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:a48ddf5c3c6a6c505904545c25a4ae13646ae1f8ba703c4df4a1bfe4f4006bda"},
+    {file = "pyarrow-17.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:42bf93249a083aca230ba7e2786c5f673507fa97bbd9725a1e2754715151a204"},
+    {file = "pyarrow-17.0.0.tar.gz", hash = "sha256:4beca9521ed2c0921c1023e68d097d0299b62c362639ea315572a58f3f50fd28"},
 ]
 
 [package.dependencies]
@@ -3271,8 +3210,8 @@ files = [
 annotated-types = ">=0.4.0"
 pydantic-core = "2.20.1"
 typing-extensions = [
-    {version = ">=4.6.1", markers = "python_version < \"3.13\""},
     {version = ">=4.12.2", markers = "python_version >= \"3.13\""},
+    {version = ">=4.6.1", markers = "python_version < \"3.13\""},
 ]
 
 [package.extras]
@@ -3567,13 +3506,13 @@ files = [
 
 [[package]]
 name = "pyright"
-version = "1.1.372"
+version = "1.1.374"
 description = "Command line wrapper for pyright"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyright-1.1.372-py3-none-any.whl", hash = "sha256:25b15fb8967740f0949fd35b963777187f0a0404c0bd753cc966ec139f3eaa0b"},
-    {file = "pyright-1.1.372.tar.gz", hash = "sha256:a9f5e0daa955daaa17e3d1ef76d3623e75f8afd5e37b437d3ff84d5b38c15420"},
+    {file = "pyright-1.1.374-py3-none-any.whl", hash = "sha256:55752bcf7a3646d293cd76710a983b71e16f6128aab2d42468e6eb7e46c0a70d"},
+    {file = "pyright-1.1.374.tar.gz", hash = "sha256:d01b2daf864ba5e0362e56b844984865970d7204158e61eb685e2dab7804cb82"},
 ]
 
 [package.dependencies]
@@ -3869,24 +3808,6 @@ lxml = "*"
 
 [package.extras]
 test = ["timeout-decorator"]
-
-[[package]]
-name = "redis"
-version = "5.0.7"
-description = "Python client for Redis database and key-value store"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "redis-5.0.7-py3-none-any.whl", hash = "sha256:0e479e24da960c690be5d9b96d21f7b918a98c0cf49af3b6fafaa0753f93a0db"},
-    {file = "redis-5.0.7.tar.gz", hash = "sha256:8f611490b93c8109b50adc317b31bfd84fff31def3475b92e7e80bf39f48175b"},
-]
-
-[package.dependencies]
-async-timeout = {version = ">=4.0.3", markers = "python_full_version < \"3.11.3\""}
-
-[package.extras]
-hiredis = ["hiredis (>=1.0.0)"]
-ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
 
 [[package]]
 name = "regex"
@@ -4826,4 +4747,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "d04eb76bb92f651153a64e5f286d77bd5b46f808355015def0635412a4fa8207"
+content-hash = "fcb36febbfc6eda3f21c3ca7aec211c71ce4096a3c2f2a1ee47c7026145a93c3"
