@@ -38,7 +38,7 @@ lxml = {extras = ["html-clean"], version = "^5.2.2"}
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^3.8.0"
-pyright = "^1.1.374"
+pyright = "^1.1.378"
 pytest = "^8.3.1"
 black = "^24.4.2"
 
