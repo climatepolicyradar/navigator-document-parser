@@ -783,13 +783,13 @@ files = [
 
 [[package]]
 name = "cpr-sdk"
-version = "1.9.1"
+version = "1.9.7"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "cpr_sdk-1.9.1-py3-none-any.whl", hash = "sha256:f5ac11da4ccc09fc75ebc9438f4ca46c68191e2c8b9d42d485f2ca734a799a7e"},
-    {file = "cpr_sdk-1.9.1.tar.gz", hash = "sha256:22ec7385829b96be5939df13e0336ca9e1a72cbd5ca669ea7dba9b210a153415"},
+    {file = "cpr_sdk-1.9.7-py3-none-any.whl", hash = "sha256:edfab77f41885625130f9fa1c2b79775c35ee51dc01e54af5be66bc1170068d0"},
+    {file = "cpr_sdk-1.9.7.tar.gz", hash = "sha256:486fe7da3bd20df97aa92ff6692180d807a859005dfac0c1824f569a52143dcd"},
 ]
 
 [package.dependencies]
