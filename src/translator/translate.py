@@ -10,6 +10,8 @@ from google.cloud import translate_v2
 
 _LOGGER = logging.getLogger(__file__)
 
+TRANSLATE_CLIENT = translate_v2.Client()
+
 
 @retry(
     stop=stop_after_attempt(4),
@@ -26,15 +28,13 @@ def translate_text(text: List[str], target_language: str) -> List[str]:
     :return: list of translated text
     """
 
-    translate_client = translate_v2.Client()
-
     text = [
         _str.decode("utf-8") if isinstance(_str, six.binary_type) else _str
         for _str in text
     ]
 
     try:
-        result = translate_client.translate(text, target_language=target_language)
+        result = TRANSLATE_CLIENT.translate(text, target_language=target_language)
         return [item["translatedText"] for item in result]
     except Exception as e:
         _LOGGER.exception(
