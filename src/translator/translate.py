@@ -1,6 +1,7 @@
 from typing import List
 import six
 import logging
+import string
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 
@@ -50,6 +51,25 @@ def translate_text(
         raise e
 
 
+def should_translate_text_block(text: str) -> bool:
+    """
+    Identify whether we should translate text.
+
+    For example punctuation and numbers shouldn't be translated as they are the same in
+    most languages.
+    """
+    if all(char in string.punctuation for char in text):
+        return False
+
+    try:
+        float(text)
+        return False
+    except ValueError:
+        pass
+
+    return True
+
+
 def translate_parser_output(
     parser_output: ParserOutput, target_language: str
 ) -> ParserOutput:
@@ -75,12 +95,14 @@ def translate_parser_output(
 
     if new_parser_output.html_data is not None:
         for block in new_parser_output.html_data.text_blocks:
-            block.text = translate_text(translate_client, block.text, target_language)
+            if should_translate_text_block(block.text):
+                block.text = translate_text(translate_client, block.text, target_language)
             block.language = target_language
 
     if new_parser_output.pdf_data is not None:
         for block in new_parser_output.pdf_data.text_blocks:
-            block.text = translate_text(translate_client, block.text, target_language)
+            if should_translate_text_block(block.text):
+                block.text = translate_text(translate_client, block.text, target_language)
             block.language = target_language
 
     # Set language and translation status of new ParserOutput object
