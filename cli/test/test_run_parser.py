@@ -26,20 +26,11 @@ from cli.translate_outputs import should_be_translated, identify_translation_lan
 from src.base import PARSER_METADATA_KEY
 from src.config import TARGET_LANGUAGES
 
-# Mock the translate_text function
-patcher_translate_text = mock.patch(
-    "src.translator.translate.translate_text",
-    mock.MagicMock(return_value=["translated text"]),
-)
-patcher_translate_text.start()
-
-# Mock the translate_v2.Client instance
 patcher_translate_client = mock.patch("google.cloud.translate_v2.Client", autospec=True)
 mock_translate_client = patcher_translate_client.start()
 
-# Configure the mock client to return a mocked translate method
 mock_instance = mock_translate_client.return_value
-mock_instance.translate.return_value = [{"translatedText": "mock translated text"}]
+mock_instance.translate.return_value = ["translated text"]
 
 
 def update_page_number(
