@@ -27,7 +27,7 @@ test:
 
 run_docker:
 	docker build -t navigator-document-parser .
-	docker run --network host -v ${PWD}/data:/app/data -e RUN_HTML_PARSER=False -e RUN_PDF_PARSER=False -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" navigator-document-parser
+	docker run --network host -v ${PWD}/data:/app/data navigator-document-parser python -m cli.run_parser ./data/raw ./data/processed
 
 run_on_specific_files_flag:
 	docker build -t html-parser .
