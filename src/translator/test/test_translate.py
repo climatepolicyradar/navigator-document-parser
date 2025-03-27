@@ -3,10 +3,14 @@ from pathlib import Path
 from unittest import mock
 
 from cpr_sdk.parser_models import ParserOutput
+from google.cloud import translate_v2
+
 from src.translator.translate import translate_parser_output
 
 
-def fake_translate_text(text: List[str], target_language: str) -> List[str]:
+def fake_translate_text(
+    client: translate_v2.Client, text: List[str], target_language: str
+) -> List[str]:
     """Mock translate_text function."""
     return [f"translated to {target_language}: {t}" for t in text]
 

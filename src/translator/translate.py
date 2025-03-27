@@ -15,7 +15,9 @@ _LOGGER = logging.getLogger(__file__)
     stop=stop_after_attempt(4),
     wait=wait_random_exponential(multiplier=1, min=1, max=10),
 )
-def translate_text(text: List[str], target_language: str) -> List[str]:
+def translate_text(
+    translate_client: translate_v2.Client, text: List[str], target_language: str
+) -> List[str]:
     """
     Translate text into the target language.
 
@@ -25,8 +27,6 @@ def translate_text(text: List[str], target_language: str) -> List[str]:
     :param target_language: target language. Must be an ISO 639-1 (2-letter) language code.
     :return: list of translated text
     """
-
-    translate_client = translate_v2.Client()
 
     text = [
         _str.decode("utf-8") if isinstance(_str, six.binary_type) else _str
@@ -60,26 +60,27 @@ def translate_parser_output(
     :param target_language: target language. Must be an ISO 639-1 (2-letter) language code.
     :return: translated ParserOutput object
     """
+    translate_client = translate_v2.Client()
 
     # A deep copy here prevents text blocks in the original ParserOutput object from being modified in place
     new_parser_output = parser_output.model_copy(deep=True)
 
     # Translate document name, document description and text
     new_parser_output.document_name = translate_text(
-        [parser_output.document_name], target_language
+        translate_client, [parser_output.document_name], target_language
     )[0]
     new_parser_output.document_description = translate_text(
-        [parser_output.document_description], target_language
+        translate_client, [parser_output.document_description], target_language
     )[0]
 
     if new_parser_output.html_data is not None:
         for block in new_parser_output.html_data.text_blocks:
-            block.text = translate_text(block.text, target_language)
+            block.text = translate_text(translate_client, block.text, target_language)
             block.language = target_language
 
     if new_parser_output.pdf_data is not None:
         for block in new_parser_output.pdf_data.text_blocks:
-            block.text = translate_text(block.text, target_language)
+            block.text = translate_text(translate_client, block.text, target_language)
             block.language = target_language
 
     # Set language and translation status of new ParserOutput object
