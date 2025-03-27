@@ -1,13 +1,11 @@
-from typing import List
-import six
 import logging
 import string
-from tenacity import retry, stop_after_attempt, wait_random_exponential
+from typing import List
 
-
+import six
 from cpr_sdk.parser_models import ParserOutput
 from google.cloud import translate_v2
-
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 _LOGGER = logging.getLogger(__file__)
 
@@ -51,7 +49,7 @@ def translate_text(
         raise e
 
 
-def should_translate_text_block(text: str) -> bool:
+def should_translate_text(text: str) -> bool:
     """
     Identify whether we should translate text.
 
@@ -95,14 +93,18 @@ def translate_parser_output(
 
     if new_parser_output.html_data is not None:
         for block in new_parser_output.html_data.text_blocks:
-            if should_translate_text_block(block.text):
-                block.text = translate_text(translate_client, block.text, target_language)
+            if all([should_translate_text(text) for text in block.text]):
+                block.text = translate_text(
+                    translate_client, block.text, target_language
+                )
             block.language = target_language
 
     if new_parser_output.pdf_data is not None:
         for block in new_parser_output.pdf_data.text_blocks:
-            if should_translate_text_block(block.text):
-                block.text = translate_text(translate_client, block.text, target_language)
+            if all([should_translate_text(text) for text in block.text]):
+                block.text = translate_text(
+                    translate_client, block.text, target_language
+                )
             block.language = target_language
 
     # Set language and translation status of new ParserOutput object
