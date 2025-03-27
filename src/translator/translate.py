@@ -15,7 +15,9 @@ _LOGGER = logging.getLogger(__file__)
     stop=stop_after_attempt(4),
     wait=wait_random_exponential(multiplier=1, min=1, max=10),
 )
-def translate_text(translate_client: translate_v2.Client, text: List[str], target_language: str) -> List[str]:
+def translate_text(
+    translate_client: translate_v2.Client, text: List[str], target_language: str
+) -> List[str]:
     """
     Translate text into the target language.
 
