@@ -94,16 +94,12 @@ def translate_parser_output(
 
     if new_parser_output.html_data is not None:
         for block in new_parser_output.html_data.text_blocks:
-            block.text = translate_text(
-                translate_client, block.text, target_language
-            )
+            block.text = translate_text(translate_client, block.text, target_language)
             block.language = target_language
 
     if new_parser_output.pdf_data is not None:
         for block in new_parser_output.pdf_data.text_blocks:
-            block.text = translate_text(
-                translate_client, block.text, target_language
-            )
+            block.text = translate_text(translate_client, block.text, target_language)
             block.language = target_language
 
     # Set language and translation status of new ParserOutput object
