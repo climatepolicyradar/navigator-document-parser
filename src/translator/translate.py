@@ -56,14 +56,8 @@ def should_translate_text(text: str) -> bool:
     For example punctuation and numbers shouldn't be translated as they are the same in
     most languages.
     """
-    if all(char in string.punctuation for char in text):
+    if all(char in string.punctuation or char.isdigit() for char in text):
         return False
-
-    try:
-        float(text)
-        return False
-    except ValueError:
-        pass
 
     return True
 
@@ -93,7 +87,7 @@ def translate_parser_output(
 
     if new_parser_output.html_data is not None:
         for block in new_parser_output.html_data.text_blocks:
-            if all([should_translate_text(text) for text in block.text]):
+            if any([should_translate_text(text) for text in block.text]):
                 block.text = translate_text(
                     translate_client, block.text, target_language
                 )
@@ -101,7 +95,7 @@ def translate_parser_output(
 
     if new_parser_output.pdf_data is not None:
         for block in new_parser_output.pdf_data.text_blocks:
-            if all([should_translate_text(text) for text in block.text]):
+            if any([should_translate_text(text) for text in block.text]):
                 block.text = translate_text(
                     translate_client, block.text, target_language
                 )

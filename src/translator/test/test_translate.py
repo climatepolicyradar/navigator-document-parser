@@ -111,6 +111,9 @@ def test_translate_parser_output() -> None:
         ("text", True),
         ("bonjour", True),
         ("hello, world!", True),
+        ("hello, world! 123", True),
+        ("12312!", False),
+        ("(12)", False),
     ],
 )
 def test_should_translate_text(text: str, expected: bool) -> None:
