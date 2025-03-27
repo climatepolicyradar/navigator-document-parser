@@ -48,13 +48,13 @@ def translate_text(
     text_block_translated = []
     for text in text_block:
         if not should_translate_text(text):
-            pass
+            text_block_translated.append(text)
+            continue
 
         try:
             result = translate_client.translate(text, target_language=target_language)
-            text_translated: list = [item["translatedText"] for item in result]
-            for text_translated_item in text_translated:
-                text_block_translated.append(text_translated_item)
+            for item in result:
+                text_block_translated.append(item["translatedText"])
         except Exception as e:
             _LOGGER.exception(
                 "Error translating text.",
