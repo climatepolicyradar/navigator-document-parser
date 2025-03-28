@@ -1,11 +1,12 @@
-from typing import List
 from pathlib import Path
+from typing import List
 from unittest import mock
 
+import pytest
 from cpr_sdk.parser_models import ParserOutput
 from google.cloud import translate_v2
 
-from src.translator.translate import translate_parser_output
+from src.translator.translate import translate_parser_output, should_translate_text
 
 
 def fake_translate_text(
@@ -91,3 +92,30 @@ def test_translate_parser_output() -> None:
             assert getattr(text_block, text_block_attr) == getattr(
                 translated_text_block, text_block_attr
             )
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("-", False),
+        ("6", False),
+        (".", False),
+        ("12.1123", False),
+        ("$", False),
+        ("!!!", False),
+        ("123456", False),
+        ("3.14159", False),
+        ("hello", True),
+        ("world!", True),
+        ("hello world", True),
+        ("text", True),
+        ("bonjour", True),
+        ("hello, world!", True),
+        ("hello, world! 123", True),
+        ("12312!", False),
+        ("(12)", False),
+    ],
+)
+def test_should_translate_text(text: str, expected: bool) -> None:
+    """Test should_translate_text function with various inputs."""
+    assert should_translate_text(text) == expected

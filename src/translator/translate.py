@@ -1,14 +1,28 @@
-from typing import List
-import six
 import logging
-from tenacity import retry, stop_after_attempt, wait_random_exponential
+import string
+from typing import List
 
-
+import six
 from cpr_sdk.parser_models import ParserOutput
 from google.cloud import translate_v2
-
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 _LOGGER = logging.getLogger(__file__)
+
+
+def should_translate_text(text: str) -> bool:
+    """
+    Identify whether we should translate text.
+
+    For example punctuation and numbers shouldn't be translated as they are the same in
+    most languages.
+    """
+    if all(
+        char in string.punctuation or char.isdigit() or char.isspace() for char in text
+    ):
+        return False
+
+    return True
 
 
 @retry(
@@ -16,7 +30,7 @@ _LOGGER = logging.getLogger(__file__)
     wait=wait_random_exponential(multiplier=1, min=1, max=10),
 )
 def translate_text(
-    translate_client: translate_v2.Client, text: List[str], target_language: str
+    translate_client: translate_v2.Client, text_list: List[str], target_language: str
 ) -> List[str]:
     """
     Translate text into the target language.
@@ -28,26 +42,33 @@ def translate_text(
     :return: list of translated text
     """
 
-    text = [
+    text_list = [
         _str.decode("utf-8") if isinstance(_str, six.binary_type) else _str
-        for _str in text
+        for _str in text_list
     ]
 
-    try:
-        result = translate_client.translate(text, target_language=target_language)
-        return [item["translatedText"] for item in result]
-    except Exception as e:
-        _LOGGER.exception(
-            "Error translating text.",
-            extra={
-                "props": {
-                    "text": text,
-                    "target_language": target_language,
-                    "error": str(e),
-                }
-            },
-        )
-        raise e
+    text_block_translated = []
+    for text in text_list:
+        if not should_translate_text(text):
+            text_block_translated.append(text)
+            continue
+
+        try:
+            result = translate_client.translate(text, target_language=target_language)
+            text_block_translated.append(result["translatedText"])
+        except Exception as e:
+            _LOGGER.exception(
+                "Error translating text.",
+                extra={
+                    "props": {
+                        "text": text,
+                        "target_language": target_language,
+                        "error": str(e),
+                    }
+                },
+            )
+            raise e
+    return text_block_translated
 
 
 def translate_parser_output(
