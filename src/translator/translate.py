@@ -17,7 +17,7 @@ def should_translate_text(text: str) -> bool:
     For example punctuation and numbers shouldn't be translated as they are the same in
     most languages.
     """
-    if all(char in string.punctuation or char.isdigit() for char in text):
+    if all(char in string.punctuation or char.isdigit() or char.isspace() for char in text):
         return False
 
     return True
@@ -28,7 +28,7 @@ def should_translate_text(text: str) -> bool:
     wait=wait_random_exponential(multiplier=1, min=1, max=10),
 )
 def translate_text(
-    translate_client: translate_v2.Client, text_block: List[str], target_language: str
+    translate_client: translate_v2.Client, text_list: List[str], target_language: str
 ) -> List[str]:
     """
     Translate text into the target language.
@@ -40,13 +40,13 @@ def translate_text(
     :return: list of translated text
     """
 
-    text_block = [
+    text_list = [
         _str.decode("utf-8") if isinstance(_str, six.binary_type) else _str
-        for _str in text_block
+        for _str in text_list
     ]
 
     text_block_translated = []
-    for text in text_block:
+    for text in text_list:
         if not should_translate_text(text):
             text_block_translated.append(text)
             continue
