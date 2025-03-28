@@ -17,7 +17,9 @@ def should_translate_text(text: str) -> bool:
     For example punctuation and numbers shouldn't be translated as they are the same in
     most languages.
     """
-    if all(char in string.punctuation or char.isdigit() or char.isspace() for char in text):
+    if all(
+        char in string.punctuation or char.isdigit() or char.isspace() for char in text
+    ):
         return False
 
     return True
