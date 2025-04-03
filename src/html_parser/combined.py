@@ -97,7 +97,7 @@ class CombinedParser(HTMLParser):
                 )
 
             requests_response = requests.get(
-                input.document_source_url,
+                str(input.document_source_url),
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
@@ -147,7 +147,7 @@ class CombinedParser(HTMLParser):
             try:
                 with sync_playwright() as playwright:
                     html_playwright = self._get_html_with_js_enabled(
-                        playwright, input.document_source_url
+                        playwright, str(input.document_source_url)
                     )
                     parsed_html_playwright = self.parse_html(html_playwright, input)
 
