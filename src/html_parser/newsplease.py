@@ -77,7 +77,7 @@ class NewsPleaseParser(HTMLParser):
 
         try:
             response = requests.get(
-                input.document_source_url,
+                str(input.document_source_url),
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,

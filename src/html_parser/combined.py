@@ -158,7 +158,7 @@ class CombinedParser(HTMLParser):
                     extra={
                         "props": {
                             "document_id": input.document_id,
-                            "document_source_url": input.document_source_url,
+                            "document_source_url": str(input.document_source_url),
                             "error_message": str(e),
                         },
                     },
@@ -181,6 +181,7 @@ class CombinedParser(HTMLParser):
         context = browser.new_context()
         page = context.new_page()
         page.goto(url)
+        page.wait_for_load_state("networkidle")
         html = page.content()
         browser.close()
 
