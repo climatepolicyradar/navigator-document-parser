@@ -67,7 +67,7 @@ def translate_parser_outputs(
         try:
             parser_output = ParserOutput.model_validate_json(path.read_text())
             _LOGGER.debug(
-                "Successfully parsed document from output dir during translation processing.",
+                f"Successfully parsed document {parser_output.document_id} from output dir during translation processing.",
                 extra={"props": {"path": f"{path}"}},
             )
         except FileNotFoundError as e:
@@ -84,7 +84,7 @@ def translate_parser_outputs(
 
         if should_be_translated(parser_output):
             _LOGGER.info(
-                "Document should be translated if target languages.",
+                f"Document {parser_output.document_id} should be translated if target languages.",
                 extra={"props": {"path": f"{path}"}},
             )
 
@@ -92,7 +92,7 @@ def translate_parser_outputs(
                 parser_output, _target_languages
             )
             _LOGGER.debug(
-                "Target languages identified.",
+                f"Target languages identified for document {parser_output.document_id}: {target_languages}.",
                 extra={"props": {"target_languages": target_languages}},
             )
 
