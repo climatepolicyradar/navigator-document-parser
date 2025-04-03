@@ -89,22 +89,27 @@ class CombinedParser(HTMLParser):
 
         :return ParsedHTML: parsed HTML
         """
+        if input.document_source_url is None:
+            raise ValueError(
+                f"HTML processing was supplied an empty source URL for {input.document_id}"
+            )
+
+        parser_output = self._get_empty_response(input)
+        requests_response = None
+
         # TODO: Tighten up these except statements?
         try:
-            if input.document_source_url is None:
-                raise ValueError(
-                    f"HTML processing was supplied an empty source URL for {input.document_id}"
-                )
-
             requests_response = requests.get(
                 str(input.document_source_url),
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
             )
+
+            parser_output = self.parse_html(requests_response.text, input)
         except Exception as e:
             _LOGGER.error(
-                "Failed to download html document.",
+                "Failed to download and parse html document using requests.",
                 extra={
                     "props": {
                         "document_id": input.document_id,
@@ -113,27 +118,11 @@ class CombinedParser(HTMLParser):
                     },
                 },
             )
-            return self._get_empty_response(input)
 
-        try:
-            parsed_html = self.parse_html(requests_response.text, input)
-        except Exception as e:
-            _LOGGER.error(
-                "Failed to parse html file.",
-                extra={
-                    "props": {
-                        "document_id": input.document_id,
-                        "document_source_url": input.document_source_url,
-                        "error_message": str(e),
-                    },
-                },
-            )
-            return self._get_empty_response(input)
-
-        # If there isn't enough text and there's a `<noscript>` tag in the HTML,
+        # If there isn't enough text or there's a `<noscript>` tag in the HTML,
         # try again with JS enabled
-        if (len(parsed_html.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) and (
-            "<noscript>" in requests_response.text
+        if (len(parser_output.text_blocks) < HTML_MIN_NO_LINES_FOR_VALID_TEXT) or (
+            requests_response is not None and "<noscript>" in requests_response.text
         ):
             _LOGGER.info(
                 "Falling back to JS-enabled browser.",
@@ -165,7 +154,7 @@ class CombinedParser(HTMLParser):
                 )
                 return self._get_empty_response(input)
 
-        return parsed_html
+        return parser_output
 
     def _get_html_with_js_enabled(self, playwright: Playwright, url: str) -> str:
         """
@@ -182,6 +171,9 @@ class CombinedParser(HTMLParser):
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         )
         page = context.new_page()
+        page.set_extra_http_headers(
+            {"sec-ch-ua": '"Chromium";v="125", "Not.A/Brand";v="24"'}
+        )
         page.goto(url)
         page.wait_for_load_state("networkidle")
         html = page.content()
