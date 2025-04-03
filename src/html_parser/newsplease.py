@@ -77,7 +77,7 @@ class NewsPleaseParser(HTMLParser):
 
         try:
             response = requests.get(
-                input.document_source_url,
+                str(input.document_source_url),
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
@@ -140,8 +140,6 @@ class NewsPleaseParser(HTMLParser):
             document_content_type=input.document_content_type,
             document_slug=input.document_slug,
             html_data=HTMLData(
-                detected_title=newsplease_article.title,
-                detected_date=newsplease_article.date_publish,  # We also have access to the modified and downloaded dates in the class
                 has_valid_text=has_valid_text,
                 text_blocks=text_blocks,
             ),

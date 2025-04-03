@@ -97,7 +97,7 @@ class CombinedParser(HTMLParser):
                 )
 
             requests_response = requests.get(
-                input.document_source_url,
+                str(input.document_source_url),
                 verify=False,
                 allow_redirects=True,
                 timeout=HTML_HTTP_REQUEST_TIMEOUT,
@@ -147,7 +147,7 @@ class CombinedParser(HTMLParser):
             try:
                 with sync_playwright() as playwright:
                     html_playwright = self._get_html_with_js_enabled(
-                        playwright, input.document_source_url
+                        playwright, str(input.document_source_url)
                     )
                     parsed_html_playwright = self.parse_html(html_playwright, input)
 
@@ -158,7 +158,7 @@ class CombinedParser(HTMLParser):
                     extra={
                         "props": {
                             "document_id": input.document_id,
-                            "document_source_url": input.document_source_url,
+                            "document_source_url": str(input.document_source_url),
                             "error_message": str(e),
                         },
                     },
@@ -178,9 +178,12 @@ class CombinedParser(HTMLParser):
         """
 
         browser = playwright.chromium.launch()
-        context = browser.new_context()
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        )
         page = context.new_page()
         page.goto(url)
+        page.wait_for_load_state("networkidle")
         html = page.content()
         browser.close()
 
