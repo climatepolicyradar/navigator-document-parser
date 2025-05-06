@@ -232,7 +232,7 @@ def main(
             "props": {
                 "total_tasks": len(tasks),
                 "no_supported _content-type_tasks": len(no_processing_tasks),
-                "html_asks": len(html_tasks),
+                "html_tasks": len(html_tasks),
                 "pdf_tasks": len(pdf_tasks),
             }
         },
