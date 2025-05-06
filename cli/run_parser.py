@@ -12,7 +12,6 @@ from cloudpathlib import S3Path, CloudPath
 from cpr_sdk.parser_models import (
     ParserInput,
     CONTENT_TYPE_HTML,
-    CONTENT_TYPE_PDF,
 )
 
 sys.path.append("..")
@@ -216,10 +215,14 @@ def main(
     output_tasks_paths = []
     for task in tasks:
         output_tasks_paths.append(output_dir_as_path / f"{task.document_id}.json")
-        if task.document_content_type == CONTENT_TYPE_HTML:
-            html_tasks.append(task)
-        elif task.document_content_type == CONTENT_TYPE_PDF:
+        if (
+            task.document_cdn_object is not None
+            and task.document_cdn_object.lower().endswith(".pdf")
+        ):
             pdf_tasks.append(task)
+        elif task.document_content_type == CONTENT_TYPE_HTML:
+            # This code path should never be hit as we convert all HTML to PDF
+            html_tasks.append(task)
         else:
             no_processing_tasks.append(task)
 
