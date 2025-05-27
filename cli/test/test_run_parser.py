@@ -13,7 +13,7 @@ from cpr_sdk.parser_models import ParserOutput, HTMLData
 from cpr_sdk.pipeline_general_models import (
     BackendDocument,
     CONTENT_TYPE_HTML,
-    CONTENT_TYPE_PDF
+    CONTENT_TYPE_PDF,
 )
 from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
