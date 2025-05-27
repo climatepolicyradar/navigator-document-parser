@@ -33,7 +33,7 @@ pillow = "^11.0.0"                                                              
 azure-ai-formrecognizer = "^3.2.1"
 mock = "^5.1.0"
 pypdf2 = "^3.0.1"
-azure-pdf-parser = { git = "https://github.com/climatepolicyradar/azure-pdf-parser.git", tag = "v0.4.5" }
+azure-pdf-parser = { git = "https://github.com/climatepolicyradar/azure-pdf-parser.git", tag = "v0.4.6" }
 lxml = {extras = ["html-clean"], version = "^5.2.2"}
 
 [tool.poetry.dev-dependencies]

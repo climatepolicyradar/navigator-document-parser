@@ -9,13 +9,12 @@ import pytest
 from azure.core.exceptions import HttpResponseError, ServiceRequestError
 from click.testing import CliRunner
 from cloudpathlib.local import LocalS3Path
-from cpr_sdk.parser_models import (
-    ParserOutput,
-    HTMLData,
+from cpr_sdk.parser_models import ParserOutput, HTMLData
+from cpr_sdk.pipeline_general_models import (
+    BackendDocument,
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
 )
-from cpr_sdk.pipeline_general_models import BackendDocument
 from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
