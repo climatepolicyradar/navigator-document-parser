@@ -119,14 +119,6 @@ def _get_files_to_parse(
     multiple=True,
 )
 @click.option(
-    "--redo",
-    "-r",
-    help="Redo parsing for files that have already been parsed. By default, files with "
-    "IDs that already exist in the output directory are skipped.",
-    is_flag=True,
-    default=False,
-)
-@click.option(
     "--s3",
     help="Input and output directories are S3 paths. The CLI will download tasks from "
     "S3, run parsing, and upload the results to S3.",
@@ -139,7 +131,6 @@ def main(
     azure_api_response_cache_dir: str,
     parallel: bool,
     files: Optional[tuple[str]],
-    redo: bool,
     s3: bool,
 ):
     """
@@ -154,7 +145,6 @@ def main(
     :param parallel: whether to run PDF parsing over multiple processes
     :param files: list of filenames to parse, relative to the input directory.
         Can be used to select a subset of files to parse.
-    :param redo: redo parsing for files that have already been parsed. Defaults to False.
     :param s3: input and output directories are S3 paths.
         The CLI will download tasks from S3, run parsing, and upload the results to S3.
     """
@@ -242,7 +232,6 @@ def main(
         run_html_parser(
             html_tasks,
             output_dir_as_path,
-            redo=redo,
         )
 
     if RUN_PDF_PARSER:
@@ -252,7 +241,6 @@ def main(
             output_dir_as_path,
             azure_cache_dir_as_path,
             parallel=parallel,
-            redo=redo,
         )
 
     if RUN_TRANSLATION:
@@ -264,7 +252,7 @@ def main(
                 }
             },
         )
-        translate_parser_outputs(output_tasks_paths, redo=redo)
+        translate_parser_outputs(output_tasks_paths)
 
 
 if __name__ == "__main__":
