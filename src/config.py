@@ -14,11 +14,6 @@ TARGET_LANGUAGES: List[str] = (
     os.getenv("TARGET_LANGUAGES", "en").lower().split(",")
 )  # comma-separated 2-letter ISO codes
 
-
-RUN_PDF_PARSER = os.getenv("RUN_PDF_PARSER", "true").lower() == "true"
-RUN_HTML_PARSER = os.getenv("RUN_HTML_PARSER", "true").lower() == "true"
-RUN_TRANSLATION = os.getenv("RUN_TRANSLATION", "true").lower() == "true"
-
 # Default set by trial and error based on behaviour of the parsing model
 PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() / 2))
 FILES_TO_PARSE = os.getenv("files_to_parse")

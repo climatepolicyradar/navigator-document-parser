@@ -16,13 +16,7 @@ from cpr_sdk.parser_models import (
 
 sys.path.append("..")
 
-from src.config import (  # noqa: E402
-    FILES_TO_PARSE,
-    RUN_HTML_PARSER,
-    RUN_PDF_PARSER,
-    RUN_TRANSLATION,
-    TARGET_LANGUAGES,
-)
+from src.config import FILES_TO_PARSE, TARGET_LANGUAGES  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.parse_no_content_type import (  # noqa: E402
@@ -166,16 +160,6 @@ def main(
 
     files_to_parse: set[CloudPath | Path] = _get_files_to_parse(files=files, input_dir_as_path=input_dir_as_path)
 
-    _LOGGER.info(
-        "Run configuration.",
-        extra={
-            "props": {
-                "run_pdf_parser": RUN_PDF_PARSER,
-                "run_html_parser": RUN_HTML_PARSER,
-            }
-        },
-    )
-
     tasks = []
     for path in files_to_parse:
         try:
@@ -227,32 +211,29 @@ def main(
     )
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
-    if RUN_HTML_PARSER:
-        _LOGGER.info(f"Running HTML parser on {len(html_tasks)} documents.")
-        run_html_parser(
-            html_tasks,
-            output_dir_as_path,
-        )
+    _LOGGER.info(f"Running HTML parser on {len(html_tasks)} documents.")
+    run_html_parser(
+        html_tasks,
+        output_dir_as_path,
+    )
 
-    if RUN_PDF_PARSER:
-        _LOGGER.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
-        run_pdf_parser(
-            pdf_tasks,
-            output_dir_as_path,
-            azure_cache_dir_as_path,
-            parallel=parallel,
-        )
+    _LOGGER.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
+    run_pdf_parser(
+        pdf_tasks,
+        output_dir_as_path,
+        azure_cache_dir_as_path,
+        parallel=parallel,
+    )
 
-    if RUN_TRANSLATION:
-        _LOGGER.info(
-            "Translating results to target languages specified in env variables.",
-            extra={
-                "props": {
-                    "target_languages": ",".join(TARGET_LANGUAGES),
-                }
-            },
-        )
-        translate_parser_outputs(output_tasks_paths)
+    _LOGGER.info(
+        "Translating results to target languages specified in env variables.",
+        extra={
+            "props": {
+                "target_languages": ",".join(TARGET_LANGUAGES),
+            }
+        },
+    )
+    translate_parser_outputs(output_tasks_paths)
 
 
 if __name__ == "__main__":
