@@ -319,25 +319,6 @@ def parse_file(
     if not output_path.exists():
         copy_input_to_output_pdf(input_task, output_path)
 
-    existing_parser_output = ParserOutput.model_validate_json(output_path.read_text())
-    # If no parsed pdf data exists, assume we've not run before
-    existing_pdf_data_exists = (
-        existing_parser_output.pdf_data is not None
-        and existing_parser_output.pdf_data.text_blocks
-    )
-    should_run_parser = not existing_pdf_data_exists or redo
-    if not should_run_parser:
-        _LOGGER.info(
-            "Skipping already parsed pdf.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                    "output_path": str(output_path),
-                }
-            },
-        )
-        return None
-
     with tempfile.TemporaryDirectory() as temp_output_dir:
         _LOGGER.info(f"Downloading pdf: {input_task.document_id}")
         pdf_path = download_pdf(input_task, temp_output_dir)
