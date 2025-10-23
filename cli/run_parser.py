@@ -4,7 +4,7 @@ import logging.config
 import json_logging
 import sys
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import click
 import pydantic
@@ -66,28 +66,32 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_files_to_parse(
-    files: Optional[tuple[str]],
-    input_dir_as_path: Union[CloudPath, Path],
-) -> list[Path]:
-    # If no file list is provided, run over all inputs in the input prefix
-    env_files = []
-    if FILES_TO_PARSE is not None:
-        _LOGGER.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
-        env_files = FILES_TO_PARSE.split("$")[1:]
+    input_dir_as_path: CloudPath | Path,
+    files: tuple[str] | None = None,
+) -> set[CloudPath | Path]:
+    """
+    Identify files to run through parsing.
 
-    files_to_parse: list[str] = list(files or [])
-    files_to_parse.extend(env_files)
+    Run on the files provided via the cli parameter and environment variable.
+    """
 
-    if files_to_parse:
-        _LOGGER.info(f"Only parsing files: {files_to_parse}")
-    else:
-        _LOGGER.info("Parsing all files")
+    files_from_env_var = [] if FILES_TO_PARSE is None else FILES_TO_PARSE.split("$")[1:]
 
-    return list(
+    files_from_cli = [] if files is None else list(files)
+
+    files_to_parse = files_from_cli + files_from_env_var
+
+    files_to_parse_paths: set[CloudPath | Path] = set(
         (input_dir_as_path / f for f in files_to_parse)
-        if files_to_parse
-        else input_dir_as_path.glob("*.json")
-    )  # type: ignore
+    )
+
+    if not files_to_parse_paths:
+        raise ValueError(
+            "No files to parse, please provide a list of files to parse via the"
+            "--files flag or set the FILES_TO_PARSE environment variable."
+        )
+
+    return files_to_parse_paths
 
 
 @click.command()
@@ -181,7 +185,7 @@ def main(
         debug_dir = output_dir_as_path / "debug"
         debug_dir.mkdir(exist_ok=True)  # type: ignore
 
-    files_to_parse = _get_files_to_parse(files, input_dir_as_path)
+    files_to_parse: set[CloudPath | Path] = _get_files_to_parse(files=files, input_dir_as_path=input_dir_as_path)
 
     _LOGGER.info(
         "Run configuration.",
