@@ -13,7 +13,7 @@ from cpr_sdk.parser_models import ParserOutput, HTMLData
 from cpr_sdk.pipeline_general_models import (
     BackendDocument,
     CONTENT_TYPE_HTML,
-    CONTENT_TYPE_PDF
+    CONTENT_TYPE_PDF,
 )
 from azure_pdf_parser.base import PDFPagesBatchExtracted
 from azure.ai.formrecognizer import AnalyzeResult
@@ -74,14 +74,18 @@ def test_run_parser_local_parallel(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [
+            cli_main,
+            [
                 str(test_input_dir),
                 output_dir,
                 "--parallel",
-                "--files", "test_html.json",
-                "--files", "test_pdf.json",
-                "--files", "test_no_content_type.json",
-            ]
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -125,13 +129,17 @@ def test_run_parser_local_series(test_input_dir) -> None:
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [
+            cli_main,
+            [
                 str(test_input_dir),
                 output_dir,
-                "--files", "test_html.json",
-                "--files", "test_pdf.json",
-                "--files", "test_no_content_type.json",
-            ]
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -173,9 +181,12 @@ def test_run_parser_cache_azure_response_local(
                 output_dir,
                 "--azure_api_response_cache_dir",
                 test_azure_api_response_dir,
-                "--files", "test_html.json",
-                "--files", "test_pdf.json",
-                "--files", "test_no_content_type.json",
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
             ],
         )
 
@@ -247,8 +258,10 @@ def test_run_parser_cache_azure_response_s3(
                 "--parallel",
                 "--azure_api_response_cache_dir",
                 test_azure_api_response_dir,
-                "--files", "test_html.json",
-                "--files", "test_pdf.json",
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
             ],
         )
         assert result.exit_code == 0
@@ -290,13 +303,7 @@ def test_run_parser_s3(test_input_dir) -> None:
         runner = CliRunner()
         result = runner.invoke(
             cli_main,
-            [
-                input_dir,
-                output_dir,
-                "--s3",
-                "--parallel",
-                "--files", "test_html.json"
-            ]
+            [input_dir, output_dir, "--s3", "--parallel", "--files", "test_html.json"],
         )
         assert result.exit_code == 0
         assert set(LocalS3Path(output_dir).glob("*.json")) == {
@@ -313,12 +320,7 @@ def test_run_parser_specific_files() -> None:
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
         result = runner.invoke(
-            cli_main, [
-                input_dir,
-                output_dir,
-                "--parallel",
-                "--files", "test_html.json"
-            ]
+            cli_main, [input_dir, output_dir, "--parallel", "--files", "test_html.json"]
         )
 
         assert result.exit_code == 0
@@ -434,14 +436,18 @@ def test_fail_safely_on_azure_uncaught_exception(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [
+            cli_main,
+            [
                 str(test_input_dir),
                 output_dir,
                 "--parallel",
-                "--files", "test_html.json",
-                "--files", "test_pdf.json",
-                "--files", "test_no_content_type.json"
-            ]
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -490,12 +496,18 @@ def test_fail_safely_on_azure_service_request_error(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [
-                str(test_input_dir), output_dir, "--parallel",
-                "--files", "test_html.json",
-                "--files", "test_pdf.json",
-                "--files", "test_no_content_type.json",
-            ]
+            cli_main,
+            [
+                str(test_input_dir),
+                output_dir,
+                "--parallel",
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -571,12 +583,18 @@ def test_fail_safely_on_azure_http_response_error(
             runner = CliRunner()
 
             result = runner.invoke(
-                cli_main, [
-                    str(test_input_dir), output_dir, "--parallel",
-                    "--files", "test_html.json",
-                    "--files", "test_pdf.json",
-                    "--files", "test_no_content_type.json",
-                ]
+                cli_main,
+                [
+                    str(test_input_dir),
+                    output_dir,
+                    "--parallel",
+                    "--files",
+                    "test_html.json",
+                    "--files",
+                    "test_pdf.json",
+                    "--files",
+                    "test_no_content_type.json",
+                ],
             )
 
             assert result.exit_code == 0
@@ -690,12 +708,18 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
             runner = CliRunner()
 
             result = runner.invoke(
-                cli_main, [
-                    str(test_input_dir), output_dir, "--parallel",
-                    "--files", "test_html.json",
-                    "--files", "test_pdf.json",
-                    "--files", "test_no_content_type.json",
-                ]
+                cli_main,
+                [
+                    str(test_input_dir),
+                    output_dir,
+                    "--parallel",
+                    "--files",
+                    "test_html.json",
+                    "--files",
+                    "test_pdf.json",
+                    "--files",
+                    "test_no_content_type.json",
+                ],
             )
 
             assert result.exit_code == 0
@@ -759,23 +783,28 @@ def test_get_files_to_parse():
         (input_dir / "UNFCCC.document.2.2.json").touch()
 
         # Test CLI files only
-        with patch('cli.run_parser.FILES_TO_PARSE', None):
-            result = _get_files_to_parse(input_dir, files=("CCLW.executive.1.1.json", "UNFCCC.document.2.2.json"))
+        with patch("cli.run_parser.FILES_TO_PARSE", None):
+            result = _get_files_to_parse(
+                input_dir, files=("CCLW.executive.1.1.json", "UNFCCC.document.2.2.json")
+            )
             assert len(result) == 2
             assert Path(temp_dir) / "CCLW.executive.1.1.json" in result
             assert Path(temp_dir) / "UNFCCC.document.2.2.json" in result
 
         # Test env var files only
-        with patch('cli.run_parser.FILES_TO_PARSE', "$CCLW.executive.1.1.json$UNFCCC.document.2.2.json"):
+        with patch(
+            "cli.run_parser.FILES_TO_PARSE",
+            "$CCLW.executive.1.1.json$UNFCCC.document.2.2.json",
+        ):
             result = _get_files_to_parse(input_dir, files=None)
             assert len(result) == 2
 
         # Test both CLI and env var
-        with patch('cli.run_parser.FILES_TO_PARSE', "$CCLW.executive.1.1.json"):
+        with patch("cli.run_parser.FILES_TO_PARSE", "$CCLW.executive.1.1.json"):
             result = _get_files_to_parse(input_dir, files=("UNFCCC.document.2.2.json",))
             assert len(result) == 2
 
         # Test no files raises error
-        with patch('cli.run_parser.FILES_TO_PARSE', None):
+        with patch("cli.run_parser.FILES_TO_PARSE", None):
             with pytest.raises(ValueError, match="No files to parse"):
                 _get_files_to_parse(input_dir, files=None)

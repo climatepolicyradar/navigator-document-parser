@@ -96,9 +96,7 @@ def translate_parser_outputs(
                 extra={"props": {"target_languages": target_languages}},
             )
 
-            _translate_to_target_languages(
-                path, parser_output, target_languages
-            )
+            _translate_to_target_languages(path, parser_output, target_languages)
 
     time_end = time.time()
     _LOGGER.info(

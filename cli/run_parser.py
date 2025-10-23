@@ -158,7 +158,9 @@ def main(
             Path(azure_api_response_cache_dir) if azure_api_response_cache_dir else None
         )
 
-    files_to_parse: set[CloudPath | Path] = _get_files_to_parse(files=files, input_dir_as_path=input_dir_as_path)
+    files_to_parse: set[CloudPath | Path] = _get_files_to_parse(
+        files=files, input_dir_as_path=input_dir_as_path
+    )
 
     tasks = []
     for path in files_to_parse:
