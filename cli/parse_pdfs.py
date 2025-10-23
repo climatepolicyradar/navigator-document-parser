@@ -476,7 +476,6 @@ def run_pdf_parser(
     output_dir: Union[Path, S3Path],
     azure_cache_dir: Union[Path, S3Path, None],
     parallel: bool,
-    debug: bool,
     redo: bool = False,
 ) -> None:
     """
@@ -485,8 +484,7 @@ def run_pdf_parser(
     Args: input_tasks: List of tasks for the parser to process. output_dir: The
     directory to write the parsed PDFs to. azure_cache_dir: The directory to save the
     raw azure api responses to. parallel: Whether to run parsing over multiple
-    processes. debug: Whether to run in debug mode (puts images of resulting layouts
-    in output_dir). redo: Whether to redo the parsing even if the output file already
+    processes. redo: Whether to redo the parsing even if the output file already
     exists.
     """
     time_start = time.time()
@@ -498,7 +496,6 @@ def run_pdf_parser(
         extra={
             "props": {
                 "parallel": parallel,
-                "debug": debug,
                 "redo": redo,
                 "number_of_tasks": len(input_tasks),
             },

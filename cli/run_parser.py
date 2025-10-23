@@ -133,9 +133,6 @@ def _get_files_to_parse(
     is_flag=True,
     default=False,
 )
-@click.option(
-    "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
-)
 def main(
     input_dir: str,
     output_dir: str,
@@ -144,7 +141,6 @@ def main(
     files: Optional[tuple[str]],
     redo: bool,
     s3: bool,
-    debug: bool,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse.
@@ -161,8 +157,6 @@ def main(
     :param redo: redo parsing for files that have already been parsed. Defaults to False.
     :param s3: input and output directories are S3 paths.
         The CLI will download tasks from S3, run parsing, and upload the results to S3.
-    :param debug: whether to run in debug mode (save images of intermediate steps).
-        Defaults to False.
     """
 
     if s3:
@@ -179,11 +173,6 @@ def main(
         azure_cache_dir_as_path = (
             Path(azure_api_response_cache_dir) if azure_api_response_cache_dir else None
         )
-
-    # if visual debugging is on, create a debug directory
-    if debug:
-        debug_dir = output_dir_as_path / "debug"
-        debug_dir.mkdir(exist_ok=True)  # type: ignore
 
     files_to_parse: set[CloudPath | Path] = _get_files_to_parse(files=files, input_dir_as_path=input_dir_as_path)
 
@@ -263,7 +252,6 @@ def main(
             output_dir_as_path,
             azure_cache_dir_as_path,
             parallel=parallel,
-            debug=debug,
             redo=redo,
         )
 
