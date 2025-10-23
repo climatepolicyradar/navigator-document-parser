@@ -21,6 +21,7 @@ from mock import patch
 from pydantic import AnyHttpUrl
 
 from cli.run_parser import main as cli_main
+from cli.run_parser import _get_files_to_parse
 from cli.translate_outputs import should_be_translated, identify_translation_languages
 from src.base import PARSER_METADATA_KEY
 from src.config import TARGET_LANGUAGES
@@ -746,3 +747,35 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
                 assert isinstance(azure_response_array, list)
                 [AnalyzeResult.from_dict(result) for result in azure_response_array]
                 assert file.parts[-3] == azure_api_cache_dir
+
+
+def test_get_files_to_parse():
+    """Test the _get_files_to_parse function with various scenarios."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        input_dir = Path(temp_dir)
+
+        # Create test files
+        (input_dir / "CCLW.executive.1.1.json").touch()
+        (input_dir / "UNFCCC.document.2.2.json").touch()
+
+        # Test CLI files only
+        with patch('cli.run_parser.FILES_TO_PARSE', None):
+            result = _get_files_to_parse(input_dir, files=("CCLW.executive.1.1.json", "UNFCCC.document.2.2.json"))
+            assert len(result) == 2
+            assert Path(temp_dir) / "CCLW.executive.1.1.json" in result
+            assert Path(temp_dir) / "UNFCCC.document.2.2.json" in result
+
+        # Test env var files only
+        with patch('cli.run_parser.FILES_TO_PARSE', "$CCLW.executive.1.1.json$UNFCCC.document.2.2.json"):
+            result = _get_files_to_parse(input_dir, files=None)
+            assert len(result) == 2
+
+        # Test both CLI and env var
+        with patch('cli.run_parser.FILES_TO_PARSE', "$CCLW.executive.1.1.json"):
+            result = _get_files_to_parse(input_dir, files=("UNFCCC.document.2.2.json",))
+            assert len(result) == 2
+
+        # Test no files raises error
+        with patch('cli.run_parser.FILES_TO_PARSE', None):
+            with pytest.raises(ValueError, match="No files to parse"):
+                _get_files_to_parse(input_dir, files=None)
