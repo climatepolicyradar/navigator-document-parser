@@ -131,21 +131,6 @@ def _translate_to_target_languages(
                 },
             )
 
-            output_path = path.with_name(
-                f"{path.stem}_translated_{target_language}.json"
-            )
-            if output_path.exists():
-                _LOGGER.info(
-                    "Skipping translating document because it already exists.",
-                    extra={
-                        "props": {
-                            "document_id": parser_output.document_id,
-                            "Output Path": str(output_path),
-                        }
-                    },
-                )
-                continue
-
             translated_parser_output = translate_parser_output(
                 parser_output, target_language
             )
@@ -158,6 +143,10 @@ def _translate_to_target_languages(
                         "target_language": target_language,
                     }
                 },
+            )
+
+            output_path = path.with_name(
+                f"{path.stem}_translated_{target_language}.json"
             )
 
             try:

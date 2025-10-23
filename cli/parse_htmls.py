@@ -82,27 +82,6 @@ def run_html_parser(
             if not output_path.exists():
                 copy_input_to_output_html(task, output_path)
 
-            existing_parser_output = ParserOutput.model_validate_json(
-                output_path.read_text()
-            )
-            # If no parsed html dta exists, assume we've not run before
-            existing_html_data_exists = (
-                existing_parser_output.html_data is not None
-                and existing_parser_output.html_data.text_blocks
-            )
-            should_run_parser = not existing_html_data_exists
-            if not should_run_parser:
-                _LOGGER.info(
-                    "Skipping already parsed html document.",
-                    extra={
-                        "props": {
-                            "output_path": str(output_path),
-                            "document_id": task.document_id,
-                        }
-                    },
-                )
-                continue
-
             parsed_html = html_parser.parse(task).detect_and_set_languages()
 
             try:
