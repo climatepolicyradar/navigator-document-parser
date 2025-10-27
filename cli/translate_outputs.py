@@ -48,7 +48,7 @@ def identify_translation_languages(
 
 
 def translate_parser_outputs(
-    task_output_paths: Sequence[Union[Path, CloudPath]], redo: bool = False
+    task_output_paths: Sequence[Union[Path, CloudPath]]
 ) -> None:
     """
     Translate parser outputs saved in the output directory, and save the translated outputs to the output directory.
@@ -96,9 +96,7 @@ def translate_parser_outputs(
                 extra={"props": {"target_languages": target_languages}},
             )
 
-            _translate_to_target_languages(
-                path, parser_output, target_languages, redo=redo
-            )
+            _translate_to_target_languages(path, parser_output, target_languages)
 
     time_end = time.time()
     _LOGGER.info(
@@ -117,7 +115,6 @@ def _translate_to_target_languages(
     path: Union[Path, CloudPath],
     parser_output: ParserOutput,
     target_languages: set[str],
-    redo: bool = False,
 ) -> None:
     for target_language in target_languages:
         try:
@@ -132,22 +129,6 @@ def _translate_to_target_languages(
                 },
             )
 
-            output_path = path.with_name(
-                f"{path.stem}_translated_{target_language}.json"
-            )
-            if output_path.exists() and not redo:  # type: ignore
-                _LOGGER.info(
-                    "Skipping translating document because it already exists and redo=False.",
-                    extra={
-                        "props": {
-                            "document_id": parser_output.document_id,
-                            "Output Path": str(output_path),
-                            "redo": redo,
-                        }
-                    },
-                )
-                continue
-
             translated_parser_output = translate_parser_output(
                 parser_output, target_language
             )
@@ -160,6 +141,10 @@ def _translate_to_target_languages(
                         "target_language": target_language,
                     }
                 },
+            )
+
+            output_path = path.with_name(
+                f"{path.stem}_translated_{target_language}.json"
             )
 
             try:

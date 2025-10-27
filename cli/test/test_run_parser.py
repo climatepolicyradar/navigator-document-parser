@@ -21,6 +21,7 @@ from mock import patch
 from pydantic import AnyHttpUrl
 
 from cli.run_parser import main as cli_main
+from cli.run_parser import _get_files_to_parse
 from cli.translate_outputs import should_be_translated, identify_translation_languages
 from src.base import PARSER_METADATA_KEY
 from src.config import TARGET_LANGUAGES
@@ -73,7 +74,18 @@ def test_run_parser_local_parallel(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+            cli_main,
+            [
+                str(test_input_dir),
+                output_dir,
+                "--parallel",
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -116,7 +128,19 @@ def test_run_parser_local_series(test_input_dir) -> None:
     with tempfile.TemporaryDirectory() as output_dir:
         runner = CliRunner()
 
-        result = runner.invoke(cli_main, [str(test_input_dir), output_dir])
+        result = runner.invoke(
+            cli_main,
+            [
+                str(test_input_dir),
+                output_dir,
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
+        )
 
         assert result.exit_code == 0
 
@@ -157,6 +181,12 @@ def test_run_parser_cache_azure_response_local(
                 output_dir,
                 "--azure_api_response_cache_dir",
                 test_azure_api_response_dir,
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
             ],
         )
 
@@ -228,6 +258,10 @@ def test_run_parser_cache_azure_response_s3(
                 "--parallel",
                 "--azure_api_response_cache_dir",
                 test_azure_api_response_dir,
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
             ],
         )
         assert result.exit_code == 0
@@ -267,7 +301,10 @@ def test_run_parser_s3(test_input_dir) -> None:
 
     with mock.patch("cli.run_parser.S3Path", LocalS3Path):
         runner = CliRunner()
-        result = runner.invoke(cli_main, [input_dir, output_dir, "--s3", "--parallel"])
+        result = runner.invoke(
+            cli_main,
+            [input_dir, output_dir, "--s3", "--parallel", "--files", "test_html.json"],
+        )
         assert result.exit_code == 0
         assert set(LocalS3Path(output_dir).glob("*.json")) == {
             LocalS3Path(output_dir) / "test_html.json"
@@ -291,94 +328,6 @@ def test_run_parser_specific_files() -> None:
         assert set(Path(output_dir).glob("*.json")) == {
             Path(output_dir) / "test_html.json"
         }
-
-
-@pytest.mark.filterwarnings("ignore::urllib3.exceptions.InsecureRequestWarning")
-def test_run_parser_skip_already_done(backend_document_json, caplog) -> None:
-    """Test that files which have already been parsed are skipped by default."""
-
-    input_dir = str((Path(__file__).parent / "test_data" / "input").resolve())
-
-    with tempfile.TemporaryDirectory() as output_dir:
-        with open(Path(output_dir) / "test_pdf.json", "w") as f:
-            f.write(
-                ParserOutput.model_validate(
-                    {
-                        "document_id": "test_pdf",
-                        "document_metadata": backend_document_json,
-                        "document_source_url": "https://www.pdfs.org",
-                        "document_cdn_object": "test_pdf.pdf",
-                        "document_md5_sum": "abcdefghijk",
-                        "document_name": "test_pdf",
-                        "document_description": "test_pdf_description",
-                        "document_content_type": "application/pdf",
-                        "languages": ["en"],
-                        "document_slug": "slug",
-                        "pdf_data": {
-                            "text_blocks": [
-                                {
-                                    "text": ["hello"],
-                                    "text_block_id": "world",
-                                    "type": "Text",
-                                    "type_confidence": 0.78,
-                                    "coords": [],
-                                    "page_number": 1,
-                                }
-                            ],
-                            "page_metadata": [],
-                            "md5sum": "abcdefg",
-                        },
-                        "html_data": None,
-                    }
-                ).model_dump_json()
-            )
-
-        with open(Path(output_dir) / "test_html.json", "w") as f:
-            f.write(
-                ParserOutput.model_validate(
-                    {
-                        "document_id": "test_html",
-                        "document_metadata": backend_document_json,
-                        "document_source_url": "https://www.google.org",
-                        "document_cdn_object": None,
-                        "document_md5_sum": None,
-                        "document_name": "test_html",
-                        "document_description": "test_html_description",
-                        "document_content_type": "text/html",
-                        "languages": ["en"],
-                        "document_slug": "slug",
-                        "html_data": {
-                            "text_blocks": [
-                                {
-                                    "text": ["hello"],
-                                    "text_block_id": "world",
-                                    "type": "Text",
-                                    "type_confidence": 0.78,
-                                }
-                            ],
-                            "detected_title": "",
-                            "detected_date": None,
-                            "has_valid_text": False,
-                        },
-                        "pdf_data": None,
-                    }
-                ).model_dump_json()
-            )
-
-        runner = CliRunner()
-        result = runner.invoke(
-            cli_main,
-            [
-                input_dir,
-                output_dir,
-                "--parallel",
-            ],
-        )
-
-        assert result.exit_code == 0
-
-        assert "Skipping already parsed html document." in caplog.text
-        assert "Skipping already parsed pdf." in caplog.text
 
 
 _target_languages = set(TARGET_LANGUAGES)
@@ -487,7 +436,18 @@ def test_fail_safely_on_azure_uncaught_exception(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+            cli_main,
+            [
+                str(test_input_dir),
+                output_dir,
+                "--parallel",
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -536,7 +496,18 @@ def test_fail_safely_on_azure_service_request_error(
         runner = CliRunner()
 
         result = runner.invoke(
-            cli_main, [str(test_input_dir), output_dir, "--parallel"]
+            cli_main,
+            [
+                str(test_input_dir),
+                output_dir,
+                "--parallel",
+                "--files",
+                "test_html.json",
+                "--files",
+                "test_pdf.json",
+                "--files",
+                "test_no_content_type.json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -612,7 +583,18 @@ def test_fail_safely_on_azure_http_response_error(
             runner = CliRunner()
 
             result = runner.invoke(
-                cli_main, [str(test_input_dir), output_dir, "--parallel"]
+                cli_main,
+                [
+                    str(test_input_dir),
+                    output_dir,
+                    "--parallel",
+                    "--files",
+                    "test_html.json",
+                    "--files",
+                    "test_pdf.json",
+                    "--files",
+                    "test_no_content_type.json",
+                ],
             )
 
             assert result.exit_code == 0
@@ -726,7 +708,18 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
             runner = CliRunner()
 
             result = runner.invoke(
-                cli_main, [str(test_input_dir), output_dir, "--parallel"]
+                cli_main,
+                [
+                    str(test_input_dir),
+                    output_dir,
+                    "--parallel",
+                    "--files",
+                    "test_html.json",
+                    "--files",
+                    "test_pdf.json",
+                    "--files",
+                    "test_no_content_type.json",
+                ],
             )
 
             assert result.exit_code == 0
@@ -778,3 +771,40 @@ def test_fail_safely_on_azure_http_response_error_large_doc(
                 assert isinstance(azure_response_array, list)
                 [AnalyzeResult.from_dict(result) for result in azure_response_array]
                 assert file.parts[-3] == azure_api_cache_dir
+
+
+def test_get_files_to_parse():
+    """Test the _get_files_to_parse function with various scenarios."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        input_dir = Path(temp_dir)
+
+        # Create test files
+        (input_dir / "CCLW.executive.1.1.json").touch()
+        (input_dir / "UNFCCC.document.2.2.json").touch()
+
+        # Test CLI files only
+        with patch("cli.run_parser.FILES_TO_PARSE", None):
+            result = _get_files_to_parse(
+                input_dir, files=("CCLW.executive.1.1.json", "UNFCCC.document.2.2.json")
+            )
+            assert len(result) == 2
+            assert Path(temp_dir) / "CCLW.executive.1.1.json" in result
+            assert Path(temp_dir) / "UNFCCC.document.2.2.json" in result
+
+        # Test env var files only
+        with patch(
+            "cli.run_parser.FILES_TO_PARSE",
+            "$CCLW.executive.1.1.json$UNFCCC.document.2.2.json",
+        ):
+            result = _get_files_to_parse(input_dir, files=None)
+            assert len(result) == 2
+
+        # Test both CLI and env var
+        with patch("cli.run_parser.FILES_TO_PARSE", "$CCLW.executive.1.1.json"):
+            result = _get_files_to_parse(input_dir, files=("UNFCCC.document.2.2.json",))
+            assert len(result) == 2
+
+        # Test no files raises error
+        with patch("cli.run_parser.FILES_TO_PARSE", None):
+            with pytest.raises(ValueError, match="No files to parse"):
+                _get_files_to_parse(input_dir, files=None)

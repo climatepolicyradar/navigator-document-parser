@@ -4,7 +4,7 @@ import logging.config
 import json_logging
 import sys
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import click
 import pydantic
@@ -16,13 +16,7 @@ from cpr_sdk.parser_models import (
 
 sys.path.append("..")
 
-from src.config import (  # noqa: E402
-    FILES_TO_PARSE,
-    RUN_HTML_PARSER,
-    RUN_PDF_PARSER,
-    RUN_TRANSLATION,
-    TARGET_LANGUAGES,
-)
+from src.config import FILES_TO_PARSE, TARGET_LANGUAGES  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.parse_no_content_type import (  # noqa: E402
@@ -66,28 +60,32 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_files_to_parse(
-    files: Optional[tuple[str]],
-    input_dir_as_path: Union[CloudPath, Path],
-) -> list[Path]:
-    # If no file list is provided, run over all inputs in the input prefix
-    env_files = []
-    if FILES_TO_PARSE is not None:
-        _LOGGER.info(f"FILESTOPARSE: {FILES_TO_PARSE}")
-        env_files = FILES_TO_PARSE.split("$")[1:]
+    input_dir_as_path: CloudPath | Path,
+    files: tuple[str] | None = None,
+) -> set[CloudPath | Path]:
+    """
+    Identify files to run through parsing.
 
-    files_to_parse: list[str] = list(files or [])
-    files_to_parse.extend(env_files)
+    Run on the files provided via the cli parameter and environment variable.
+    """
 
-    if files_to_parse:
-        _LOGGER.info(f"Only parsing files: {files_to_parse}")
-    else:
-        _LOGGER.info("Parsing all files")
+    files_from_env_var = [] if FILES_TO_PARSE is None else FILES_TO_PARSE.split("$")[1:]
 
-    return list(
+    files_from_cli = [] if files is None else list(files)
+
+    files_to_parse = files_from_cli + files_from_env_var
+
+    files_to_parse_paths: set[CloudPath | Path] = set(
         (input_dir_as_path / f for f in files_to_parse)
-        if files_to_parse
-        else input_dir_as_path.glob("*.json")
-    )  # type: ignore
+    )
+
+    if not files_to_parse_paths:
+        raise ValueError(
+            "No files to parse, please provide a list of files to parse via the"
+            "--files flag or set the FILES_TO_PARSE environment variable."
+        )
+
+    return files_to_parse_paths
 
 
 @click.command()
@@ -115,22 +113,11 @@ def _get_files_to_parse(
     multiple=True,
 )
 @click.option(
-    "--redo",
-    "-r",
-    help="Redo parsing for files that have already been parsed. By default, files with "
-    "IDs that already exist in the output directory are skipped.",
-    is_flag=True,
-    default=False,
-)
-@click.option(
     "--s3",
     help="Input and output directories are S3 paths. The CLI will download tasks from "
     "S3, run parsing, and upload the results to S3.",
     is_flag=True,
     default=False,
-)
-@click.option(
-    "--debug", help="Run the parser with visual debugging", is_flag=True, default=False
 )
 def main(
     input_dir: str,
@@ -138,9 +125,7 @@ def main(
     azure_api_response_cache_dir: str,
     parallel: bool,
     files: Optional[tuple[str]],
-    redo: bool,
     s3: bool,
-    debug: bool,
 ):
     """
     Run the parser on a directory of JSON files specifying documents to parse.
@@ -154,11 +139,8 @@ def main(
     :param parallel: whether to run PDF parsing over multiple processes
     :param files: list of filenames to parse, relative to the input directory.
         Can be used to select a subset of files to parse.
-    :param redo: redo parsing for files that have already been parsed. Defaults to False.
     :param s3: input and output directories are S3 paths.
         The CLI will download tasks from S3, run parsing, and upload the results to S3.
-    :param debug: whether to run in debug mode (save images of intermediate steps).
-        Defaults to False.
     """
 
     if s3:
@@ -176,21 +158,8 @@ def main(
             Path(azure_api_response_cache_dir) if azure_api_response_cache_dir else None
         )
 
-    # if visual debugging is on, create a debug directory
-    if debug:
-        debug_dir = output_dir_as_path / "debug"
-        debug_dir.mkdir(exist_ok=True)  # type: ignore
-
-    files_to_parse = _get_files_to_parse(files, input_dir_as_path)
-
-    _LOGGER.info(
-        "Run configuration.",
-        extra={
-            "props": {
-                "run_pdf_parser": RUN_PDF_PARSER,
-                "run_html_parser": RUN_HTML_PARSER,
-            }
-        },
+    files_to_parse: set[CloudPath | Path] = _get_files_to_parse(
+        files=files, input_dir_as_path=input_dir_as_path
     )
 
     tasks = []
@@ -244,35 +213,29 @@ def main(
     )
     process_documents_with_no_content_type(no_processing_tasks, output_dir_as_path)
 
-    if RUN_HTML_PARSER:
-        _LOGGER.info(f"Running HTML parser on {len(html_tasks)} documents.")
-        run_html_parser(
-            html_tasks,
-            output_dir_as_path,
-            redo=redo,
-        )
+    _LOGGER.info(f"Running HTML parser on {len(html_tasks)} documents.")
+    run_html_parser(
+        html_tasks,
+        output_dir_as_path,
+    )
 
-    if RUN_PDF_PARSER:
-        _LOGGER.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
-        run_pdf_parser(
-            pdf_tasks,
-            output_dir_as_path,
-            azure_cache_dir_as_path,
-            parallel=parallel,
-            debug=debug,
-            redo=redo,
-        )
+    _LOGGER.info(f"Running PDF parser on {len(pdf_tasks)} documents.")
+    run_pdf_parser(
+        pdf_tasks,
+        output_dir_as_path,
+        azure_cache_dir_as_path,
+        parallel=parallel,
+    )
 
-    if RUN_TRANSLATION:
-        _LOGGER.info(
-            "Translating results to target languages specified in env variables.",
-            extra={
-                "props": {
-                    "target_languages": ",".join(TARGET_LANGUAGES),
-                }
-            },
-        )
-        translate_parser_outputs(output_tasks_paths, redo=redo)
+    _LOGGER.info(
+        "Translating results to target languages specified in env variables.",
+        extra={
+            "props": {
+                "target_languages": ",".join(TARGET_LANGUAGES),
+            }
+        },
+    )
+    translate_parser_outputs(output_tasks_paths)
 
 
 if __name__ == "__main__":

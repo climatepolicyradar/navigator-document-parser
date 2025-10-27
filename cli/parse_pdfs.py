@@ -295,15 +295,13 @@ def parse_file(
     azure_client: AzureApiWrapper,
     output_dir: Union[Path, S3Path],
     azure_cache_dir: Union[Path, S3Path, None],
-    redo: bool = False,
 ):
     """Parse an individual pdf file.
 
     Args: azure_client (AzureApiWrapper): Client for interacting with Azure's
     services. input_task (ParserInput): Class specifying location of the PDF and other
     data about the task. output_dir (Path): Path to the output directory.
-    azure_cache_dir (Path): Path to save the raw azure api responses to. redo (bool):
-    Whether to redo the parsing even if the output file already exists.
+    azure_cache_dir (Path): Path to save the raw azure api responses to.
     """
 
     _LOGGER.info(
@@ -318,25 +316,6 @@ def parse_file(
     output_path = output_dir / f"{input_task.document_id}.json"
     if not output_path.exists():
         copy_input_to_output_pdf(input_task, output_path)
-
-    existing_parser_output = ParserOutput.model_validate_json(output_path.read_text())
-    # If no parsed pdf data exists, assume we've not run before
-    existing_pdf_data_exists = (
-        existing_parser_output.pdf_data is not None
-        and existing_parser_output.pdf_data.text_blocks
-    )
-    should_run_parser = not existing_pdf_data_exists or redo
-    if not should_run_parser:
-        _LOGGER.info(
-            "Skipping already parsed pdf.",
-            extra={
-                "props": {
-                    "document_id": input_task.document_id,
-                    "output_path": str(output_path),
-                }
-            },
-        )
-        return None
 
     with tempfile.TemporaryDirectory() as temp_output_dir:
         _LOGGER.info(f"Downloading pdf: {input_task.document_id}")
@@ -495,8 +474,6 @@ def run_pdf_parser(
     output_dir: Union[Path, S3Path],
     azure_cache_dir: Union[Path, S3Path, None],
     parallel: bool,
-    debug: bool,
-    redo: bool = False,
 ) -> None:
     """
     Run cli to extract semi-structured JSON from document-AI + OCR.
@@ -504,9 +481,7 @@ def run_pdf_parser(
     Args: input_tasks: List of tasks for the parser to process. output_dir: The
     directory to write the parsed PDFs to. azure_cache_dir: The directory to save the
     raw azure api responses to. parallel: Whether to run parsing over multiple
-    processes. debug: Whether to run in debug mode (puts images of resulting layouts
-    in output_dir). redo: Whether to redo the parsing even if the output file already
-    exists.
+    processes.
     """
     time_start = time.time()
     # ignore warnings that pollute the logs.
@@ -517,8 +492,6 @@ def run_pdf_parser(
         extra={
             "props": {
                 "parallel": parallel,
-                "debug": debug,
-                "redo": redo,
                 "number_of_tasks": len(input_tasks),
             },
         },
@@ -533,7 +506,6 @@ def run_pdf_parser(
         azure_client=azure_client,
         output_dir=output_dir,
         azure_cache_dir=azure_cache_dir,
-        redo=redo,
     )
     if parallel:
         cpu_count = min(3, multiprocessing.cpu_count() - 1)
