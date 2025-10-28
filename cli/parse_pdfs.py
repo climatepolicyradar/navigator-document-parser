@@ -28,9 +28,8 @@ from azure_pdf_parser import (
 )
 
 from src.base import PARSER_METADATA_KEY
-from src.config import AZURE_PROCESSOR_KEY, AZURE_PROCESSOR_ENDPOINT
+from src.config import AZURE_PROCESSOR_KEY, AZURE_PROCESSOR_ENDPOINT, CDN_DOMAIN
 
-CDN_DOMAIN = os.environ["CDN_DOMAIN"]
 DOCUMENT_BUCKET_PREFIX = os.getenv("DOCUMENT_BUCKET_PREFIX", "navigator")
 
 _LOGGER = logging.getLogger(__name__)
