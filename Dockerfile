@@ -33,4 +33,4 @@ COPY ./.pre-commit-config.yaml ./.flake8 ./.gitignore ./
 ENV PYTHONPATH="${PYTHONPATH}:/app"
 
 # Run the parser on the input s3 directory
-CMD [ "sh", "./cli/run.sh" ]
+ENTRYPOINT ["python3", "-m", "cli.run_parser"]
