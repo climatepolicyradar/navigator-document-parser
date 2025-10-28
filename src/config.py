@@ -20,3 +20,5 @@ LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG").upper()
 
 AZURE_PROCESSOR_KEY = os.environ.get("AZURE_PROCESSOR_KEY")
 AZURE_PROCESSOR_ENDPOINT = os.environ.get("AZURE_PROCESSOR_ENDPOINT")
+
+CDN_DOMAIN = os.getenv("CDN_DOMAIN", "cdn.dev.climatepolicyradar.org")

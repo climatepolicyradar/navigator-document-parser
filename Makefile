@@ -9,10 +9,10 @@ install:
 	poetry install
 
 run_local:
-	TARGET_LANGUAGES=en CDN_DOMAIN="${CDN_DOMAIN}" GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed --document_import_ids "${DOCUMENT_IMPORT_IDS}"
+	TARGET_LANGUAGES=en GOOGLE_APPLICATION_CREDENTIALS=./credentials/google-creds.json python -m cli.run_parser ./data/raw ./data/processed --document_import_ids "${DOCUMENT_IMPORT_IDS}"
 
 test_local:
-	TARGET_LANGUAGES=en CDN_DOMAIN="${CDN_DOMAIN}" poetry run python -m pytest -vvv
+	TARGET_LANGUAGES=en poetry run python -m pytest -vvv
 
 build:
 	docker build -t navigator-document-parser .
@@ -23,12 +23,12 @@ pre-commit-checks-all-files:
 
 test:
 	docker build -t navigator-document-parser .
-	docker run -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e CDN_DOMAIN="${CDN_DOMAIN}" --network host --entrypoint python3 navigator-document-parser -m pytest -vvv
+	docker run -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" --network host --entrypoint python3 navigator-document-parser -m pytest -vvv
 
 run_docker:
 	docker build -t navigator-document-parser .
-	docker run --network host -v ${PWD}/data:/app/data -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" navigator-document-parser ./data/raw ./data/processed "${DOCUMENT_IMPORT_IDS}"
+	docker run --network host -v ${PWD}/data:/app/data -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" navigator-document-parser ./data/raw ./data/processed "${DOCUMENT_IMPORT_IDS}"
 
 run_local_against_s3:
 	docker build -t navigator-document-parser .
-	docker run -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e CDN_DOMAIN="${CDN_DOMAIN}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -it navigator-document-parser "${PARSER_INPUT_PREFIX}" "${PARSER_OUTPUT_PREFIX}" "${DOCUMENT_IMPORT_IDS}"
+	docker run -e AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" -e AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" -e AZURE_PROCESSOR_KEY="${AZURE_PROCESSOR_KEY}" -e AZURE_PROCESSOR_ENDPOINT="${AZURE_PROCESSOR_ENDPOINT}" -e GOOGLE_CREDS="${GOOGLE_CREDS}" -it navigator-document-parser "${PARSER_INPUT_PREFIX}" "${PARSER_OUTPUT_PREFIX}" "${DOCUMENT_IMPORT_IDS}"

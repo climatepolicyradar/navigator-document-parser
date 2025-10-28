@@ -27,7 +27,6 @@ jobs:
         env:
           AZURE_PROCESSOR_KEY: ${{ secrets.AZURE_PROCESSOR_KEY }}
           AZURE_PROCESSOR_ENDPOINT: ${{ secrets.AZURE_PROCESSOR_ENDPOINT }}
-          CDN_DOMAIN: ${{ secrets.CDN_DOMAIN }}
 
       - name: Run Integration Tests
         run: echo TODO-TODO-TODO-TODO-TODO-TODO-TODO-TODO-TODO-TODO-TODO-TODO
