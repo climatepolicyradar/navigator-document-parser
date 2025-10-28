@@ -4,19 +4,17 @@ import logging.config
 import json_logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
+import base64
 import pydantic
-from cloudpathlib import S3Path, CloudPath
-from cpr_sdk.parser_models import (
-    ParserInput,
-    CONTENT_TYPE_HTML,
-)
+from cloudpathlib import CloudPath, S3Path
+from cpr_sdk.parser_models import CONTENT_TYPE_HTML, ParserInput
+from typing import NewType
 
 sys.path.append("..")
 
-from src.config import FILES_TO_PARSE, TARGET_LANGUAGES  # noqa: E402
+from src.config import TARGET_LANGUAGES  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
 from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.parse_no_content_type import (  # noqa: E402
@@ -58,39 +56,43 @@ logging.config.dictConfig(DEFAULT_LOGGING)
 json_logging.init_non_web(enable_json=True)
 _LOGGER = logging.getLogger(__name__)
 
+# Example: CCLW.executive.1813.2418
+DocumentImportId = NewType("DocumentImportId", str)
 
-def _get_files_to_parse(
-    input_dir_as_path: CloudPath | Path,
-    files: tuple[str] | None = None,
-) -> set[CloudPath | Path]:
-    """
-    Identify files to run through parsing.
 
-    Run on the files provided via the cli parameter and environment variable.
-    """
+class CommaSeparatedList(click.ParamType):
+    """A Custom ParamType allowing comma separated lists to be pass to the cli."""
 
-    files_from_env_var = [] if FILES_TO_PARSE is None else FILES_TO_PARSE.split("$")[1:]
+    name = "comma_separated_list"
 
-    files_from_cli = [] if files is None else list(files)
+    def convert(self, value, param, ctx):
+        """Convert the value passed in to the cli to the desired format."""
+        if value is None:
+            return None
+        return [item.strip() for item in value.split(",") if item.strip()]
 
-    files_to_parse = files_from_cli + files_from_env_var
 
-    files_to_parse_paths: set[CloudPath | Path] = set(
-        (input_dir_as_path / f for f in files_to_parse)
-    )
+def setup_google_credentials() -> None:
+    """Setup a local credentials file for use by the Google Translation API Client"""
 
-    if not files_to_parse_paths:
-        raise ValueError(
-            "No files to parse, please provide a list of files to parse via the"
-            "--files flag or set the FILES_TO_PARSE environment variable."
-        )
+    # Create credentials directory
+    credentials_dir = Path("/app/credentials")
+    credentials_dir.mkdir(exist_ok=True)
 
-    return files_to_parse_paths
+    # Decode base64 and write to file
+    google_creds_encoded: str = os.environ["GOOGLE_CREDS"]
+    google_creds_decoded = base64.b64decode(google_creds_encoded)
+    creds_file = credentials_dir / "google-creds.json"
+    creds_file.write_bytes(google_creds_decoded)
+
+    # Set environment variable
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_file)
 
 
 @click.command()
 @click.argument("input_dir", type=str)
 @click.argument("output_dir", type=str)
+@click.argument("document_import_ids", type=CommaSeparatedList())
 @click.option(
     "--azure_api_response_cache_dir",
     help="Directory to store raw responses from Azure API during pdf parsing.",
@@ -106,13 +108,6 @@ def _get_files_to_parse(
     default=False,
 )
 @click.option(
-    "--files",
-    "-f",
-    help="Pass in a list of filenames to parse, relative to the input directory. Used "
-    "to optionally specify a subset of files to parse.",
-    multiple=True,
-)
-@click.option(
     "--s3",
     help="Input and output directories are S3 paths. The CLI will download tasks from "
     "S3, run parsing, and upload the results to S3.",
@@ -122,9 +117,9 @@ def _get_files_to_parse(
 def main(
     input_dir: str,
     output_dir: str,
+    document_import_ids: list[DocumentImportId],
     azure_api_response_cache_dir: str,
     parallel: bool,
-    files: Optional[tuple[str]],
     s3: bool,
 ):
     """
@@ -134,14 +129,15 @@ def main(
 
     :param input_dir: directory of input JSON files (task specifications)
     :param output_dir: directory of output JSON files (results)
+    :param document_import_ids: Documents specified by Import Id to run parsing on.
     :param azure_api_response_cache_dir: directory to store raw responses from Azure API during
         pdf parsing.
     :param parallel: whether to run PDF parsing over multiple processes
-    :param files: list of filenames to parse, relative to the input directory.
-        Can be used to select a subset of files to parse.
     :param s3: input and output directories are S3 paths.
         The CLI will download tasks from S3, run parsing, and upload the results to S3.
     """
+
+    setup_google_credentials()
 
     if s3:
         input_dir_as_path = S3Path(input_dir)
@@ -158,8 +154,8 @@ def main(
             Path(azure_api_response_cache_dir) if azure_api_response_cache_dir else None
         )
 
-    files_to_parse: set[CloudPath | Path] = _get_files_to_parse(
-        files=files, input_dir_as_path=input_dir_as_path
+    files_to_parse: set[CloudPath | Path] = set(
+        (input_dir_as_path / f"{f}.json" for f in document_import_ids)
     )
 
     tasks = []

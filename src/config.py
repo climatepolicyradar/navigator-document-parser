@@ -16,7 +16,6 @@ TARGET_LANGUAGES: List[str] = (
 
 # Default set by trial and error based on behaviour of the parsing model
 PDF_N_PROCESSES = int(os.getenv("PDF_N_PROCESSES", multiprocessing.cpu_count() / 2))
-FILES_TO_PARSE = os.getenv("files_to_parse")
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "DEBUG").upper()
 
 AZURE_PROCESSOR_KEY = os.environ.get("AZURE_PROCESSOR_KEY")

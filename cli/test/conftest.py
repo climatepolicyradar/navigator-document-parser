@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 from typing import Union
-import pytest
 
+import pytest
 from azure.ai.formrecognizer import AnalyzeResult
 
 
