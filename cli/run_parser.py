@@ -1,26 +1,25 @@
-import os
 import logging
 import logging.config
-import json_logging
+import os
 import sys
 from pathlib import Path
+from typing import NewType
 
 import click
-import base64
+import json_logging
 import pydantic
 from cloudpathlib import CloudPath, S3Path
 from cpr_sdk.parser_models import CONTENT_TYPE_HTML, ParserInput
-from typing import NewType
 
 sys.path.append("..")
 
-from src.config import TARGET_LANGUAGES  # noqa: E402
 from cli.parse_htmls import run_html_parser  # noqa: E402
-from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.parse_no_content_type import (  # noqa: E402
     process_documents_with_no_content_type,
 )
+from cli.parse_pdfs import run_pdf_parser  # noqa: E402
 from cli.translate_outputs import translate_parser_outputs  # noqa: E402
+from src.config import TARGET_LANGUAGES  # noqa: E402
 
 # Clear existing log handlers so we always log in structured JSON
 root_logger = logging.getLogger()
@@ -72,23 +71,6 @@ class CommaSeparatedList(click.ParamType):
         return [item.strip() for item in value.split(",") if item.strip()]
 
 
-def setup_google_credentials() -> None:
-    """Setup a local credentials file for use by the Google Translation API Client"""
-
-    # Create credentials directory
-    credentials_dir = Path("/app/credentials")
-    credentials_dir.mkdir(exist_ok=True)
-
-    # Decode base64 and write to file
-    google_creds_encoded: str = os.environ["GOOGLE_CREDS"]
-    google_creds_decoded = base64.b64decode(google_creds_encoded)
-    creds_file = credentials_dir / "google-creds.json"
-    creds_file.write_bytes(google_creds_decoded)
-
-    # Set environment variable
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_file)
-
-
 @click.command()
 @click.argument("input_dir", type=str)
 @click.argument("output_dir", type=str)
@@ -136,8 +118,6 @@ def main(
     :param s3: input and output directories are S3 paths.
         The CLI will download tasks from S3, run parsing, and upload the results to S3.
     """
-
-    setup_google_credentials()
 
     if s3:
         input_dir_as_path = S3Path(input_dir)
