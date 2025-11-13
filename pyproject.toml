@@ -10,37 +10,37 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-awscli = "^1.42.2"
-news-please = "^1.6.15"
-pandas = "^2.3.1"
+awscli = "^1.42.64"
+news-please = "^1.6.16"
+pandas = "^2.3.3"
 numpy = "^1.26.4"
 tqdm = "^4.67.1"
-pydantic = "^2.11.7"
-click = "^8.2.1"
+pydantic = "^2.12.3"
+click = "^8.3.0"
 langdetect = "^1.0.9"
-playwright = "^1.54.0"
+playwright = "^1.55.0"
 readability-lxml = "^0.8.4"
-bleach = "^6.2.0"
-python-json-logger = "^3.3.0"
-cloudpathlib = { extras = ["s3"], version = "^0.21.1" }
-PyMuPDF = "^1.26.3"
-google-cloud-translate = "^3.21.1"
-psutil = "^7.0.0"
+bleach = "^6.3.0"
+python-json-logger = "^4.0.0"
+cloudpathlib = { extras = ["s3"], version = "^0.23.0" }
+PyMuPDF = "^1.26.5"
+google-cloud-translate = "^3.22.0"
+psutil = "^7.1.2"
 multiprocessing-logging = "^0.3.3"
 json-logging = "^1.5.1"
 tenacity = "^9.1.2"
-pillow = "^11.3.0"                                                                                            # to fix import of Image.LINEAR by dependency
+pillow = "^12.0.0"                                                                                            # to fix import of Image.LINEAR by dependency
 azure-ai-formrecognizer = "^3.2.1"
 mock = "^5.2.0"
 pypdf2 = "^3.0.1"
 azure-pdf-parser = { git = "https://github.com/climatepolicyradar/azure-pdf-parser.git", tag = "v0.4.6" }
-lxml = {extras = ["html-clean"], version = "^6.0.0"}
+lxml = {extras = ["html-clean"], version = "^6.0.2"}
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^4.2.0"
-pyright = "^1.1.403"
-pytest = "^8.4.1"
-black = "^25.1.0"
+pre-commit = "^4.3.0"
+pyright = "^1.1.407"
+pytest = "^8.4.2"
+black = "^25.9.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
