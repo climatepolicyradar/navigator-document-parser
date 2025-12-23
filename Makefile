@@ -5,7 +5,7 @@ setup:
 	cp .env.example .env
 
 install:
-	poetry shell
+	poetry env activate
 	poetry install
 
 run_local:

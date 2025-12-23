@@ -30,7 +30,7 @@ COPY ./.git ./.git
 COPY ./.pre-commit-config.yaml ./.flake8 ./.gitignore ./
 
 # Add the app directory to the PYTHONPATH
-ENV PYTHONPATH "${PYTHONPATH}:/app"
+ENV PYTHONPATH="${PYTHONPATH}:/app"
 
 # Run the parser on the input s3 directory
 ENTRYPOINT ["python3", "-m", "cli.run_parser"]
