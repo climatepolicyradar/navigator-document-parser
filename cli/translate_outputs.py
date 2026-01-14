@@ -1,17 +1,41 @@
+import os
+import base64
 import logging
 import time
+import json
 from pathlib import Path
-from typing import Set, Sequence, Union
+from typing import Sequence, Set, Union
 
 import cloudpathlib.exceptions
 from cloudpathlib import CloudPath
 from cpr_sdk.parser_models import ParserOutput
+from google.oauth2.service_account import Credentials
 from tqdm.auto import tqdm
 
 from src.config import TARGET_LANGUAGES
 from src.translator.translate import translate_parser_output
 
 _LOGGER = logging.getLogger(__file__)
+
+
+def get_google_credentials() -> Credentials:
+    """Create Google credentials for the Translation API client from in-memory service account info."""
+
+    try:
+        google_creds_encoded: str = os.environ["GOOGLE_CREDS"]
+    except KeyError as e:
+        raise RuntimeError("GOOGLE_CREDS environment variable must be set.") from e
+
+    try:
+        google_creds_json = base64.b64decode(google_creds_encoded).decode("utf-8")
+        service_account_info = json.loads(google_creds_json)
+    except (ValueError, UnicodeDecodeError) as e:
+        raise RuntimeError("GOOGLE_CREDS must be valid base64-encoded JSON.") from e
+
+    credentials = Credentials.from_service_account_info(
+        service_account_info
+    )
+    return credentials.with_scopes(["https://www.googleapis.com/auth/cloud-platform"])
 
 
 def should_be_translated(document: ParserOutput) -> bool:
@@ -48,13 +72,16 @@ def identify_translation_languages(
 
 
 def translate_parser_outputs(
-    task_output_paths: Sequence[Union[Path, CloudPath]]
+    task_output_paths: Sequence[Union[Path, CloudPath]],
 ) -> None:
     """
     Translate parser outputs saved in the output directory, and save the translated outputs to the output directory.
 
     :param task_output_paths: A list of the paths to the parser outputs for this current instance to translate.
     """
+
+    google_credentials = get_google_credentials()
+
     time_start = time.time()
     _target_languages = set(TARGET_LANGUAGES)
 
@@ -96,7 +123,9 @@ def translate_parser_outputs(
                 extra={"props": {"target_languages": target_languages}},
             )
 
-            _translate_to_target_languages(path, parser_output, target_languages)
+            _translate_to_target_languages(
+                path, parser_output, target_languages, google_credentials
+            )
 
     time_end = time.time()
     _LOGGER.info(
@@ -115,6 +144,7 @@ def _translate_to_target_languages(
     path: Union[Path, CloudPath],
     parser_output: ParserOutput,
     target_languages: set[str],
+    google_credentials: Credentials,
 ) -> None:
     for target_language in target_languages:
         try:
@@ -130,7 +160,7 @@ def _translate_to_target_languages(
             )
 
             translated_parser_output = translate_parser_output(
-                parser_output, target_language
+                parser_output, target_language, google_credentials
             )
             _LOGGER.info(
                 "Translated document.",

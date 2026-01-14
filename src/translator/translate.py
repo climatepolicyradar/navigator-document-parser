@@ -5,6 +5,7 @@ from typing import List
 import six
 from cpr_sdk.parser_models import ParserOutput
 from google.cloud import translate_v2
+from google.oauth2.service_account import Credentials
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 _LOGGER = logging.getLogger(__file__)
@@ -72,7 +73,9 @@ def translate_text(
 
 
 def translate_parser_output(
-    parser_output: ParserOutput, target_language: str
+    parser_output: ParserOutput,
+    target_language: str,
+    google_credentials: Credentials,
 ) -> ParserOutput:
     """
     Translate a ParserOutput object into the target language.
@@ -81,7 +84,7 @@ def translate_parser_output(
     :param target_language: target language. Must be an ISO 639-1 (2-letter) language code.
     :return: translated ParserOutput object
     """
-    translate_client = translate_v2.Client()
+    translate_client = translate_v2.Client(credentials=google_credentials)
 
     # A deep copy here prevents text blocks in the original ParserOutput object from being modified in place
     new_parser_output = parser_output.model_copy(deep=True)

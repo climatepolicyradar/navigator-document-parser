@@ -1,27 +1,27 @@
+import json
 import re
 import tempfile
 from pathlib import Path
 from typing import Sequence, Union
 from unittest import mock
-import json
 
 import pytest
+from azure.ai.formrecognizer import AnalyzeResult
 from azure.core.exceptions import HttpResponseError, ServiceRequestError
+from azure_pdf_parser.base import PDFPagesBatchExtracted
 from click.testing import CliRunner
 from cloudpathlib.local import LocalS3Path
-from cpr_sdk.parser_models import ParserOutput, HTMLData
+from cpr_sdk.parser_models import HTMLData, ParserOutput
 from cpr_sdk.pipeline_general_models import (
-    BackendDocument,
     CONTENT_TYPE_HTML,
     CONTENT_TYPE_PDF,
+    BackendDocument,
 )
-from azure_pdf_parser.base import PDFPagesBatchExtracted
-from azure.ai.formrecognizer import AnalyzeResult
 from mock import patch
 from pydantic import AnyHttpUrl
 
 from cli.run_parser import main as cli_main
-from cli.translate_outputs import should_be_translated, identify_translation_languages
+from cli.translate_outputs import identify_translation_languages, should_be_translated
 from src.base import PARSER_METADATA_KEY
 from src.config import TARGET_LANGUAGES
 
@@ -34,10 +34,8 @@ patcher_translate_text.start()
 patcher_translate_client = mock.patch("google.cloud.translate_v2.Client", autospec=True)
 mock_translate_client = patcher_translate_client.start()
 
-patcher_setup_google_creds = mock.patch(
-    "cli.run_parser.setup_google_credentials", autospec=True
-)
-mock_setup_google_creds = patcher_setup_google_creds.start()
+patcher_get_google_creds = mock.patch("cli.translate_outputs.get_google_credentials", autospec=True)
+mock_get_google_creds = patcher_get_google_creds.start()
 
 mock_instance = mock_translate_client.return_value
 mock_instance.translate.return_value = ["translated text"]
